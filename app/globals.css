@@ -1,0 +1,192 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap');
+:root {
+  --primary-teal: #009999;
+  --primary-dark: #007777;
+  --navy-blue: #006666;
+  --hero-blue: #008080;
+  --light-teal: #e0f7f7;
+  --light-cyan: #ccf2f2;
+  --yellow-cream: #fef3c7;
+  --salmon-peach: #fde4d9;
+  --dark-gray: #2d3436;
+  --light-bg: #f8f9fa;
+}
+
+*{
+  font-family: "Lato", sans-serif !important; 
+}
+@layer base {
+  h1 {
+    font-size: 3.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  h5 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  p {
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  .text-hero {
+    font-size: 4rem;
+    font-weight: 900;
+    line-height: 1.1;
+  }
+
+  .text-subtitle {
+    font-size: 1.75rem;
+    font-weight: 600;
+  }
+
+  .text-discount {
+    font-size: 2.5rem;
+    font-weight: 600;
+    font-style: italic;
+  }
+
+  .text-category {
+    font-size: 1.125rem;
+    font-weight: 500;
+  }
+
+  .text-price {
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+
+  .text-product-name {
+    font-size: 1rem;
+    font-weight: 500;
+  }
+
+  .text-section-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+
+  @media (max-width: 768px) {
+    h1 {
+      font-size: 2.5rem;
+    }
+
+    h2 {
+      font-size: 1.75rem;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+    }
+
+    .text-hero {
+      font-size: 2.5rem;
+    }
+
+    .text-subtitle {
+      font-size: 1.25rem;
+    }
+
+    .text-discount {
+      font-size: 1.75rem;
+    }
+
+    .text-section-title {
+      font-size: 1.75rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .text-hero {
+      font-size: 2rem;
+    }
+
+    .text-discount {
+      font-size: 1.5rem;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-white text-gray-900;
+  }
+}
+
+
+
+
+
+/* Badge Animation  */
+
+@keyframes diagonal-shimmer {
+  0% {
+    transform: translate(100%, -100%) rotate(45deg);
+  }
+  50% {
+    transform: translate(0%, 0%) rotate(45deg);
+  }
+  100% {
+    transform: translate(-100%, 100%) rotate(45deg);
+  }
+}
+
+.animate-diagonal-shimmer {
+  animation: diagonal-shimmer 1s ease-in-out infinite;
+} 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+/* ── Scale down overall page size ── */
+html {
+  font-size: 14px; /* down from 16px — shrinks everything proportionally */
+}
