@@ -7,6 +7,7 @@ import { Store, Package, Star, Loader2, Calendar, Clock } from "lucide-react";
 import { vendorApi, VendorProfile, VendorOrder } from "@/lib/api/vendor";
 import { commerceApi, Booking } from "@/lib/api/commerce";
 import AuthGuard from "@/providers/AuthGuard";
+import { pickVendorImage } from "@/lib/media";
 
 type Tab = "profile" | "orders" | "bookings" | "reviews";
 
@@ -100,7 +101,7 @@ export default function VendorPortalPage() {
           <div className="bg-white rounded-xl border p-6 space-y-4">
             <div className="flex items-center gap-4">
               {profile.logo && (
-                <img src={profile.logo} alt="" className="w-16 h-16 rounded-full object-cover" />
+                <img src={pickVendorImage({ logo: profile.logo }) || profile.logo} alt="" className="w-16 h-16 rounded-full object-cover" />
               )}
               <div>
                 <h2 className="text-xl font-bold">{profile.name}</h2>
