@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { contentApi } from "@/lib/api/content";
+import { resolveMediaUrl } from "@/lib/media";
 
 type Listing = {
   id: number;
@@ -126,7 +127,7 @@ function ListingCard({ item }: { item: Listing }) {
           }} />
         ))}
         <img
-          src={item.image}
+          src={resolveMediaUrl(item.image) || item.image}
           alt={item.title}
           style={{
             width: "100%",

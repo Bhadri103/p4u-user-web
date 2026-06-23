@@ -405,7 +405,7 @@ export default function ProductDetailPage({ product: rawProduct, onBack }) {
                   <img src={images[mainImg]} alt={product.name}
                     style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
                 ) : (
-                  <img src={product.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80"}
+                  <img src={resolveMediaUrl(product.image) || product.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80"}
                     alt={product.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
                 )} 
                 {images && images.length > 1 && (
