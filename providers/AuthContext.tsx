@@ -1,8 +1,13 @@
 "use client";
 import { createContext, useCallback, useContext, useState, useEffect, ReactNode } from "react";
-import { authApi } from "@/lib/api/auth";
 import type { ApiError } from "@/lib/api/client";
 import { ensureTokenFresh } from "@/lib/api/client";
+import { authApi } from "@/lib/api/auth";
+import {
+  clearUserAuthStorage,
+  hasValidAccessToken,
+  persistUserAuthTokens,
+} from "@/lib/authSession";
 import {
   resolveCustomerIdFromAccessToken,
   displayNameFromAccessToken,
@@ -24,28 +29,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-/** Milliseconds until access token `exp`, or null if JWT unreadable. */
-function accessTokenExpiresAtMs(accessToken: string): number | null {
-  try {
-    const parts = accessToken.split(".");
-    if (parts.length < 2) return null;
-    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const payload = JSON.parse(atob(base64)) as { exp?: number };
-    return payload.exp != null ? payload.exp * 1000 : null;
-  } catch {
-    return null;
-  }
-}
-
-function clearStoredSession() {
-  localStorage.removeItem("p4u_loggedIn");
-  localStorage.removeItem("p4u_phone");
-  localStorage.removeItem("p4u_token");
-  localStorage.removeItem("p4u_refresh_token");
-  localStorage.removeItem("p4u_token_expires_in");
-  localStorage.removeItem("p4u_customer_id");
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loggedPhone, setLoggedPhone] = useState("");
@@ -57,28 +40,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setDisplayName(displayNameFromAccessToken(accessToken, phone || null));
   };
 
+  const clearSessionState = useCallback(() => {
+    clearUserAuthStorage();
+    setIsLoggedIn(false);
+    setLoggedPhone("");
+    setToken(null);
+    setDisplayName("");
+  }, []);
+
   const applySessionFromStorage = useCallback(() => {
     const savedToken = localStorage.getItem("p4u_token");
     const refresh = localStorage.getItem("p4u_refresh_token");
-    if (!savedToken && !refresh) return false;
+    if (!savedToken && !refresh) {
+      clearSessionState();
+      return false;
+    }
+    if (savedToken && !hasValidAccessToken() && !refresh) {
+      clearSessionState();
+      return false;
+    }
 
     const phone = localStorage.getItem("p4u_phone") || "";
     localStorage.setItem("p4u_loggedIn", "true");
     setIsLoggedIn(true);
     setLoggedPhone(phone);
-    setToken(savedToken);
-    if (savedToken) {
+    setToken(hasValidAccessToken() ? savedToken : null);
+    if (savedToken && hasValidAccessToken()) {
       const cid =
         localStorage.getItem("p4u_customer_id") || resolveCustomerIdFromAccessToken(savedToken);
       if (cid) localStorage.setItem("p4u_customer_id", cid);
     }
-    syncDisplayName(savedToken, phone);
+    syncDisplayName(hasValidAccessToken() ? savedToken : null, phone);
     return true;
-  }, []);
+  }, [clearSessionState]);
 
   const syncSessionFromStorage = useCallback(() => {
+    const hasRefresh = Boolean(localStorage.getItem("p4u_refresh_token"));
+    const hasAccess = hasValidAccessToken();
+    if (!hasRefresh && !hasAccess) {
+      clearSessionState();
+      return;
+    }
     applySessionFromStorage();
-  }, [applySessionFromStorage]);
+  }, [applySessionFromStorage, clearSessionState]);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,23 +100,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await ensureTokenFresh();
           if (!cancelled) {
             const updated = localStorage.getItem("p4u_token");
-            setToken(updated);
-            const phone = localStorage.getItem("p4u_phone") || "";
-            syncDisplayName(updated, phone);
+            if (!updated || !hasValidAccessToken()) {
+              clearSessionState();
+            } else {
+              setToken(updated);
+              const phone = localStorage.getItem("p4u_phone") || "";
+              syncDisplayName(updated, phone);
+            }
           }
         } catch (e: unknown) {
           const status =
             typeof e === "object" && e !== null && "status" in e ? (e as ApiError).status : -1;
-          if (status === 401 || status === 403) {
-            clearStoredSession();
-            if (!cancelled) {
-              setIsLoggedIn(false);
-              setLoggedPhone("");
-              setToken(null);
-              setDisplayName("");
-            }
+          if (status === 401 || status === 403 || status === 429) {
+            if (!cancelled) clearSessionState();
           }
         }
+      } else if (!hasValidAccessToken()) {
+        if (!cancelled) clearSessionState();
       }
 
       if (!cancelled) setIsLoading(false);
@@ -122,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [applySessionFromStorage]);
+  }, [applySessionFromStorage, clearSessionState]);
 
   useEffect(() => {
     const sync = () => syncSessionFromStorage();
@@ -134,72 +138,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [syncSessionFromStorage]);
 
-  // Auto-refresh access token before Keycloak expiry.
-  useEffect(() => {
-    if (!token) return;
-
-    const applyTokens = (res: Awaited<ReturnType<typeof authApi.refreshToken>>) => {
-      localStorage.setItem("p4u_token", res.accessToken);
-      localStorage.setItem("p4u_refresh_token", res.refreshToken);
-      localStorage.setItem("p4u_token_expires_in", String(res.expiresIn));
-      localStorage.setItem("p4u_loggedIn", "true");
-      const customerId =
-        res.customerId != null && String(res.customerId).trim() !== ""
-          ? String(res.customerId)
-          : resolveCustomerIdFromAccessToken(res.accessToken);
-      if (customerId) localStorage.setItem("p4u_customer_id", customerId);
-      setToken(res.accessToken);
-      const phone = localStorage.getItem("p4u_phone") || "";
-      syncDisplayName(res.accessToken, phone);
-    };
-
-    const runRefresh = async (isRetryAfterNetworkFailure: boolean) => {
-      const refreshToken = localStorage.getItem("p4u_refresh_token");
-      if (!refreshToken) return;
-      try {
-        const res = await authApi.refreshToken(refreshToken);
-        applyTokens(res);
-      } catch (e: unknown) {
-        const status = typeof e === "object" && e !== null && "status" in e ? (e as ApiError).status : -1;
-        if (status === 401 || status === 403) {
-          clearStoredSession();
-          setIsLoggedIn(false);
-          setLoggedPhone("");
-          setToken(null);
-          setDisplayName("");
-          return;
-        }
-        if (status === 0 && !isRetryAfterNetworkFailure) {
-          setTimeout(() => {
-            void runRefresh(true);
-          }, 15_000);
-          return;
-        }
-        setTimeout(() => {
-          void runRefresh(true);
-        }, 60_000);
-      }
-    };
-
-    const expMs = accessTokenExpiresAtMs(token);
-    const expiresInFallback = Number(localStorage.getItem("p4u_token_expires_in") || "300");
-    const now = Date.now();
-    let delayMs: number;
-    if (expMs != null) {
-      delayMs = expMs - now - 45_000;
-      if (delayMs < 5_000) delayMs = Math.min(5_000, Math.max(0, expMs - now - 5_000));
-      if (expMs - now < 90_000) delayMs = 0;
-    } else {
-      delayMs = Math.max((expiresInFallback - 45) * 1000, 10_000);
-    }
-
-    const timeout = setTimeout(() => {
-      void runRefresh(false);
-    }, delayMs);
-
-    return () => clearTimeout(timeout);
-  }, [token]);
-
   /**
    * Called by AuthModal / register page after Keycloak tokens were already
    * stored into localStorage. We just lift them into React state.
@@ -210,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoggedIn(true);
     setLoggedPhone(phone);
     const existing = localStorage.getItem("p4u_token");
-    if (existing) {
+    if (existing && hasValidAccessToken()) {
       setToken(existing);
       const cid =
         localStorage.getItem("p4u_customer_id") || resolveCustomerIdFromAccessToken(existing);
@@ -226,11 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (refreshToken && token) {
       authApi.logout(refreshToken).catch(() => {});
     }
-    setIsLoggedIn(false);
-    setLoggedPhone("");
-    setToken(null);
-    setDisplayName("");
-    clearStoredSession();
+    clearSessionState();
   }
 
   return (

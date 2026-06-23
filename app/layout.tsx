@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from 'next/font/google';
 import { CartProvider } from "@/providers/CartContext";
 import { AuthProvider } from "@/providers/AuthContext";
+import UserSessionProvider from "@/providers/UserSessionProvider";
 import { AppLoadingProvider } from "@/providers/AppLoadingProvider";
 import GlobalPopupBanner from "@/components/content/GlobalPopupBanner";
 
@@ -23,10 +24,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <AppLoadingProvider>
           <AuthProvider>
-            <CartProvider>
-              {children}
-              <GlobalPopupBanner />
-            </CartProvider>
+            <UserSessionProvider>
+              <CartProvider>
+                {children}
+                <GlobalPopupBanner />
+              </CartProvider>
+            </UserSessionProvider>
           </AuthProvider>
         </AppLoadingProvider>
       </body>
