@@ -55,6 +55,8 @@ interface RequestInternalOptions {
   skipAuthRefresh?: boolean;
   retry401?: boolean;
   retryTransient?: boolean;
+  /** When true, 401 does not clear session (optional profile probes). */
+  softAuthFailure?: boolean;
 }
 
 export interface PaginatedResponse<T> {
@@ -104,6 +106,56 @@ function decodeJwtExpMs(token: string): number | null {
 }
 
 let refreshInFlight: Promise<void> | null = null;
+/** After any failed refresh, block further attempts until the user signs in again. */
+let refreshSessionDead = false;
+/** Pause refresh after rate-limit to avoid hammering the server. */
+let refreshBlockedUntil = 0;
+
+/** Call after a successful login so background refresh can run again. */
+export function resetRefreshSessionState() {
+  refreshSessionDead = false;
+  refreshBlockedUntil = 0;
+  refreshInFlight = null;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(b64)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function apiTargetIsProduction(): boolean {
+  if (/planext4u\.com/i.test(BASE_URL)) return true;
+  if (typeof window !== "undefined") {
+    return /planext4u\.com/i.test(window.location.hostname);
+  }
+  return false;
+}
+
+/** Dev Keycloak tokens cannot be refreshed against production API. */
+function refreshTokenEnvMismatch(refresh: string): boolean {
+  const payload = decodeJwtPayload(refresh);
+  const iss = typeof payload?.iss === "string" ? payload.iss : "";
+  const tokenIsLocal = /localhost|127\.0\.0\.1/i.test(iss);
+  return apiTargetIsProduction() && tokenIsLocal;
+}
+
+function clearUserSessionOnRefreshFailure() {
+  refreshSessionDead = true;
+  refreshBlockedUntil = Date.now() + 300_000;
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("p4u_loggedIn");
+  localStorage.removeItem("p4u_token");
+  localStorage.removeItem("p4u_refresh_token");
+  localStorage.removeItem("p4u_token_expires_in");
+  localStorage.removeItem("p4u_customer_id");
+  broadcastTokenUpdate();
+}
 
 function tokenSnapshot() {
   if (typeof window === "undefined") return { access: null as string | null, refresh: null as string | null };
@@ -143,8 +195,24 @@ function extractHttpErrorMessage(
 }
 
 async function refreshAccessToken(): Promise<void> {
+  if (refreshSessionDead) {
+    throw { status: 401, message: "Session expired" } satisfies ApiError;
+  }
+  if (Date.now() < refreshBlockedUntil) {
+    throw { status: 429, message: "Refresh paused. Please sign in again." } satisfies ApiError;
+  }
   const { refresh } = tokenSnapshot();
-  if (!refresh) throw new Error("No refresh token");
+  if (!refresh) {
+    clearUserSessionOnRefreshFailure();
+    throw { status: 401, message: "No refresh token" } satisfies ApiError;
+  }
+  if (refreshTokenEnvMismatch(refresh)) {
+    clearUserSessionOnRefreshFailure();
+    throw {
+      status: 401,
+      message: "Session was created on local dev and cannot be used on production. Please sign in again.",
+    } satisfies ApiError;
+  }
   const url = `${BASE_URL}/api/auth/public/refresh`;
   const res = await fetch(url, {
     method: "POST",
@@ -152,20 +220,30 @@ async function refreshAccessToken(): Promise<void> {
     body: JSON.stringify({ refreshToken: refresh }),
   });
   const raw = await res.text();
-  let data: any = null;
+  let data: Record<string, unknown> | null = null;
   try {
-    data = raw ? JSON.parse(raw) : null;
+    data = raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
   } catch {
-    data = { message: raw };
+    data = null;
   }
   if (!res.ok) {
+    const msg =
+      data?.message != null
+        ? String(data.message)
+        : extractHttpErrorMessage(res.status, res.statusText, data, raw);
+    if (res.status === 429) {
+      refreshBlockedUntil = Date.now() + 300_000;
+    }
+    clearUserSessionOnRefreshFailure();
     const err: ApiError = {
       status: res.status,
-      message: data?.message ?? res.statusText ?? "Refresh failed",
-      details: data,
+      message: typeof msg === "string" && msg.trim() ? msg : "Refresh failed",
+      details: data ?? raw,
     };
     throw err;
   }
+  refreshSessionDead = false;
+  refreshBlockedUntil = 0;
   const accessToken = data?.accessToken ?? data?.access_token;
   const refreshToken = data?.refreshToken ?? data?.refresh_token;
   const expiresIn = data?.expiresIn ?? data?.expires_in;
@@ -178,17 +256,22 @@ async function refreshAccessToken(): Promise<void> {
   broadcastTokenUpdate();
 }
 
-export async function ensureTokenFresh(): Promise<void> {
-  const { access, refresh } = tokenSnapshot();
-  if (!access || !refresh) return;
-  const expMs = decodeJwtExpMs(access);
-  if (expMs != null && expMs - Date.now() > 120_000) return;
+async function refreshAccessTokenDeduped(): Promise<void> {
   if (!refreshInFlight) {
     refreshInFlight = refreshAccessToken().finally(() => {
       refreshInFlight = null;
     });
   }
   await refreshInFlight;
+}
+
+export async function ensureTokenFresh(): Promise<void> {
+  const { access, refresh } = tokenSnapshot();
+  if (!access || !refresh) return;
+  if (refreshSessionDead || Date.now() < refreshBlockedUntil) return;
+  const expMs = decodeJwtExpMs(access);
+  if (expMs != null && expMs - Date.now() > 300_000) return;
+  await refreshAccessTokenDeduped();
 }
 
 /* ------------------------------------------------------------------ */
@@ -200,14 +283,22 @@ async function request<T>(
   options: RequestInit = {},
   internal: RequestInternalOptions = {},
 ): Promise<T> {
-  const { skipAuthHeader = false, skipAuthRefresh = false, retry401 = false, retryTransient = false } = internal;
+  const {
+    skipAuthHeader = false,
+    skipAuthRefresh = false,
+    retry401 = false,
+    retryTransient = false,
+    softAuthFailure = false,
+  } = internal;
   const url = `${BASE_URL}${path}`;
 
   if (!skipAuthRefresh) {
     try {
       await ensureTokenFresh();
     } catch {
-      // Keep existing session; request/refresh may recover later.
+      if (!tokenSnapshot().access && !softAuthFailure) {
+        throw { status: 401, message: "Session expired" } satisfies ApiError;
+      }
     }
   }
 
@@ -251,11 +342,22 @@ async function request<T>(
     }
     if (res.status === 401 && !skipAuthRefresh && !retry401) {
       try {
-        await refreshAccessToken();
+        await refreshAccessTokenDeduped();
         return request<T>(path, options, { ...internal, retry401: true });
       } catch {
-        // Preserve local session; explicit logout remains user-driven.
+        if (!softAuthFailure) clearUserSessionOnRefreshFailure();
+        throw {
+          status: 401,
+          message: "Session expired",
+        } satisfies ApiError;
       }
+    }
+    if (res.status === 401 && retry401 && !softAuthFailure) {
+      clearUserSessionOnRefreshFailure();
+      throw {
+        status: 401,
+        message: "Session expired",
+      } satisfies ApiError;
     }
     const envelopeError =
       parsed && typeof parsed === "object" && "error" in parsed

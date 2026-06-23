@@ -13,6 +13,7 @@ import {
   type SignupProfilePayload,
 } from "@/lib/api/auth";
 import { resolveCustomerIdFromAccessToken } from "@/lib/resolveCustomerId";
+import { persistUserAuthTokens } from "@/lib/authSession";
 import { sendPhoneOtp, clearRecaptcha } from "@/lib/firebase";
 
 type Step = "phone" | "otp" | "success";
@@ -797,17 +798,17 @@ function SuccessStep({
 }
 
 function persistCustomerSession(auth: LoginResponse, phoneDigits: string) {
-  localStorage.setItem("p4u_token", auth.accessToken);
-  localStorage.setItem("p4u_refresh_token", auth.refreshToken);
-  localStorage.setItem("p4u_token_expires_in", String(auth.expiresIn));
-  localStorage.setItem("p4u_loggedIn", "true");
-  localStorage.setItem("p4u_phone", phoneDigits);
   const customerId =
     auth.customerId != null && String(auth.customerId).trim() !== ""
       ? String(auth.customerId)
       : resolveCustomerIdFromAccessToken(auth.accessToken);
-  if (customerId) localStorage.setItem("p4u_customer_id", customerId);
-  window.dispatchEvent(new Event("p4u-token-updated"));
+  persistUserAuthTokens(
+    auth.accessToken,
+    auth.refreshToken,
+    auth.expiresIn,
+    customerId,
+    phoneDigits,
+  );
 }
 
 export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {

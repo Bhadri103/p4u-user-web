@@ -8,6 +8,7 @@ import Image from "next/image";
 import { authApi, type LoginResponse } from "@/lib/api/auth";
 import type { ApiError } from "@/lib/api/client";
 import { resolveCustomerIdFromAccessToken } from "@/lib/resolveCustomerId";
+import { persistUserAuthTokens } from "@/lib/authSession";
 import { useAuth } from "@/providers/AuthContext";
 import { INDIA_STATES, DISTRICTS_BY_STATE } from "@/lib/in-states";
 import logo from "@/images/logo.png";
@@ -174,24 +175,24 @@ export default function RegisterPage() {
         referralCode: form.referralCode.trim() || null,
       });
 
-      localStorage.setItem("p4u_token", auth.accessToken);
-      localStorage.setItem("p4u_refresh_token", auth.refreshToken);
-      localStorage.setItem("p4u_token_expires_in", String(auth.expiresIn));
       const cid =
         auth.customerId != null && String(auth.customerId).trim() !== ""
           ? String(auth.customerId)
           : resolveCustomerIdFromAccessToken(auth.accessToken);
-      if (cid) localStorage.setItem("p4u_customer_id", cid);
 
       const tenDigits = phone.replace(/\D/g, "").slice(-10);
-      localStorage.setItem("p4u_phone", tenDigits);
-      localStorage.setItem("p4u_loggedIn", "true");
+      persistUserAuthTokens(
+        auth.accessToken,
+        auth.refreshToken,
+        auth.expiresIn,
+        cid,
+        tenDigits,
+      );
 
       sessionStorage.removeItem("p4u_register_token");
       sessionStorage.removeItem("p4u_register_phone");
 
       login(tenDigits);
-      window.dispatchEvent(new Event("p4u-token-updated"));
       router.replace("/");
     } catch (e: unknown) {
       let msg = "";
