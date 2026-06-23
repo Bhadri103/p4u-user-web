@@ -6,7 +6,7 @@ import {
   Seller,
 } from "./serviceData";
 import { catalogApi, type Category } from "@/lib/api/catalog";
-import { pickServiceImage } from "@/lib/media";
+import { pickServiceImage, pickCategoryImage } from "@/lib/media";
 import { addServiceWishlist, getServiceWishlist, removeServiceWishlist } from "@/lib/serviceWishlist";
 
 const IC = {
@@ -57,7 +57,7 @@ function Sidebar({ ratingFilter,toggleRating,reviewFilter,toggleReview,offerFilt
       <div style={{ background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.08)" }}>
         <div style={{ padding:"12px 14px",background:TEAL_GRAD }}>
           <span style={{ fontSize:12,fontWeight:700,color:"#fff",letterSpacing:"0.06em",textTransform:"uppercase" }}>Services</span>
-          <p style={{ fontSize:10,color:"rgba(255,255,255,0.9)",margin:"6px 0 0",lineHeight:1.4,fontWeight:400 }}>Pick a service category above the list (flat taxonomy—no subcategories). Catalog services only, not shop products.</p>
+          <p style={{ fontSize:10,color:"rgba(255,255,255,0.9)",margin:"6px 0 0",lineHeight:1.4,fontWeight:400 }}>Pick a service category and subcategory above the list. Services are bookable catalog items, not shop products.</p>
         </div>
         <Accordion label="Rating" isOpen={ratingOpen} toggle={()=>setRatingOpen(o=>!o)}>
           {RATING_OPTS.map(opt=>(
@@ -102,6 +102,73 @@ function Sidebar({ ratingFilter,toggleRating,reviewFilter,toggleReview,offerFilt
   );
 }
  
+function CategoryChip({
+  label,
+  image,
+  active,
+  onClick,
+}: {
+  label: string;
+  image: string | null;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 6,
+        minWidth: 72,
+        maxWidth: 88,
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        padding: "4px 2px",
+        flexShrink: 0,
+      }}
+    >
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: "50%",
+          overflow: "hidden",
+          border: active ? `2px solid ${TEAL}` : "2px solid #e5e7eb",
+          background: "#f3f4f6",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {image ? (
+          <img src={image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <span style={{ fontSize: 18, color: "#9ca3af" }}>•</span>
+        )}
+      </div>
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: active ? 700 : 500,
+          color: active ? TEAL : "#4b5563",
+          textAlign: "center",
+          lineHeight: 1.2,
+          maxWidth: 80,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
 function ServiceCard({
   service,
   fav,
@@ -196,7 +263,9 @@ function unwrapList<T>(res: unknown): T[] {
 export default function ServiceListPage({ onSelectSeller, busyServiceId }: ServiceListPageProps) {
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [rootCategories, setRootCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Category[]>([]);
   const [parentCategoryId, setParentCategoryId] = useState("");
+  const [subcategoryId, setSubcategoryId] = useState("");
   const [ratingFilter,     setRatingFilter]     = useState<number[]>([]);
   const [reviewFilter,     setReviewFilter]     = useState<string[]>([]);
   const [offerFilter,      setOfferFilter]      = useState<string[]>([]);
@@ -220,12 +289,27 @@ export default function ServiceListPage({ onSelectSeller, busyServiceId }: Servi
   }, []);
 
   useEffect(() => {
+    if (!parentCategoryId) {
+      setSubcategories([]);
+      setSubcategoryId("");
+      return;
+    }
+    catalogApi.getCategoryChildren(parentCategoryId, { kind: "service" }).then((rows) => {
+      const list = unwrapList<Category>(rows);
+      setSubcategories(list);
+      setSubcategoryId("");
+    }).catch(() => setSubcategories([]));
+  }, [parentCategoryId]);
+
+  useEffect(() => {
     const params: {
       limit: number;
       offset: number;
       categoryId?: string;
+      subcategoryId?: string;
     } = { limit: 200, offset: 0 };
-    if (parentCategoryId.trim()) params.categoryId = parentCategoryId.trim();
+    if (subcategoryId.trim()) params.subcategoryId = subcategoryId.trim();
+    else if (parentCategoryId.trim()) params.categoryId = parentCategoryId.trim();
 
     catalogApi.getServices(params).then((res) => {
       const rows = res.data ?? [];
@@ -251,7 +335,9 @@ export default function ServiceListPage({ onSelectSeller, busyServiceId }: Servi
       };
       }));
     }).catch(() => setSellers([]));
-  }, [parentCategoryId]);
+  }, [parentCategoryId, subcategoryId]);
+
+  const selectedRootName = rootCategories.find((c) => c.id === parentCategoryId)?.name || "";
 
   const mkToggleStr = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (val: string) => {
     setter(p => p.includes(val) ? p.filter(x => x !== val) : [...p, val]);
@@ -331,25 +417,64 @@ export default function ServiceListPage({ onSelectSeller, busyServiceId }: Servi
             </div>
           </div>
         )} 
-        <div style={{ flex:1,minWidth:0 }}> 
+        <div style={{ flex:1,minWidth:0 }}>
+          <div style={{ background:"#fff",borderRadius:12,padding:"14px 16px",marginBottom:12,boxShadow:"0 1px 5px rgba(0,0,0,0.06)" }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8 }}>
+              <div>
+                <h1 style={{ fontSize:16,fontWeight:800,color:"#111827",margin:0 }}>All Services</h1>
+                <p style={{ fontSize:11,color:"#9ca3af",margin:"4px 0 0" }}>Showing services near your selected location</p>
+              </div>
+              <span style={{ fontSize:12,color:"#6b7280",fontWeight:600 }}>{sellers.length} services</span>
+            </div>
+            <div style={{ display:"flex",gap:10,overflowX:"auto",paddingBottom:4,marginBottom:parentCategoryId?12:0 }}>
+              <CategoryChip
+                label="All"
+                image={null}
+                active={!parentCategoryId}
+                onClick={() => { setParentCategoryId(""); setSubcategoryId(""); setPage(1); }}
+              />
+              {rootCategories.map((c) => (
+                <CategoryChip
+                  key={c.id}
+                  label={c.name}
+                  image={pickCategoryImage(c)}
+                  active={parentCategoryId === c.id}
+                  onClick={() => { setParentCategoryId(c.id); setPage(1); }}
+                />
+              ))}
+            </div>
+            {parentCategoryId && subcategories.length > 0 && (
+              <div style={{ borderTop:"1px solid #f3f4f6",paddingTop:12 }}>
+                <h2 style={{ fontSize:13,fontWeight:700,color:"#111827",margin:"0 0 10px" }}>
+                  Browse {selectedRootName} services
+                </h2>
+                <div style={{ display:"flex",gap:10,overflowX:"auto",paddingBottom:4 }}>
+                  <CategoryChip
+                    label="All"
+                    image={null}
+                    active={!subcategoryId}
+                    onClick={() => { setSubcategoryId(""); setPage(1); }}
+                  />
+                  {subcategories.map((c) => (
+                    <CategoryChip
+                      key={c.id}
+                      label={c.name}
+                      image={pickCategoryImage(c)}
+                      active={subcategoryId === c.id}
+                      onClick={() => { setSubcategoryId(c.id); setPage(1); }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div style={{ background:"#fff",borderRadius:12,padding:"12px 16px",marginBottom:10,boxShadow:"0 1px 5px rgba(0,0,0,0.06)" }}>
             <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
               <div style={{ display:"flex",flexDirection:"column",gap:8,minWidth:0 }}>
                 <div style={{ display:"flex",alignItems:"center",gap:10,flexWrap:"wrap" }}>
                   <span style={{ fontSize:14,fontWeight:700,color:"#111827" }}>Services</span>
                   <span style={{ fontSize:12,color:"#9ca3af" }}>Showing 1–{filtered.length} of {sellers.length}</span>
-                </div>
-                <div style={{ display:"flex",flexWrap:"wrap",gap:8,alignItems:"center" }}>
-                  <select
-                    value={parentCategoryId}
-                    onChange={(e) => { setParentCategoryId(e.target.value); setPage(1); }}
-                    style={{ fontSize:12,padding:"6px 10px",borderRadius:8,border:"1px solid #e5e7eb",maxWidth:200 }}
-                  >
-                    <option value="">All categories</option>
-                    {rootCategories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
                 </div>
               </div>
               <button onClick={()=>setDrawerOpen(true)} className="svc-mobile-filter" style={{ display:"none",alignItems:"center",gap:5,padding:"6px 12px",border:"1px solid #e5e7eb",borderRadius:8,background:"#fff",fontSize:12,cursor:"pointer" }}>
