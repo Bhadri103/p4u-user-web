@@ -13,10 +13,37 @@ export interface Post {
   userAvatar?: string;
   content?: string;
   imageUrl?: string;
+  mediaUrls?: string[];
+  postType?: string;
   likeCount: number;
   commentCount: number;
+  shareCount?: number;
   isLiked?: boolean;
+  isSaved?: boolean;
   createdAt: string;
+}
+
+export interface SocioUserProfile {
+  userId: string;
+  userName: string;
+  userAvatar: string | null;
+  bio: string | null;
+  postCount: number;
+  followerCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+  isSelf: boolean;
+}
+
+export interface ActivityNotification {
+  id: string;
+  type: "like" | "comment" | "follow";
+  actorId: string;
+  actorName: string;
+  actorAvatar: string | null;
+  text: string;
+  createdAt: string;
+  postId?: string;
 }
 
 export interface Comment {
@@ -30,9 +57,11 @@ export interface Comment {
 }
 
 export interface UserSummary {
-  id: number;
+  id: string | number;
+  userId?: string;
   name?: string;
   avatar?: string;
+  postCount?: number;
 }
 
 export interface Story {
@@ -56,9 +85,13 @@ function mapApiPost(row: Record<string, unknown>): Post {
     userAvatar: row.userAvatar as string | undefined,
     content: (row.contentText as string) ?? (row.content as string) ?? undefined,
     imageUrl: firstImage ?? (row.imageUrl as string) ?? undefined,
+    mediaUrls: mediaUrls ?? undefined,
+    postType: row.postType as string | undefined,
     likeCount: Number(row.likeCount) || 0,
     commentCount: Number(row.commentCount) || 0,
-    isLiked: row.isLiked as boolean | undefined,
+    shareCount: Number(row.shareCount) || 0,
+    isLiked: Boolean(row.isLiked),
+    isSaved: Boolean(row.isSaved),
     createdAt: String(row.createdAt ?? ""),
   };
 }
@@ -183,6 +216,50 @@ export const socialApi = {
     return apiClient.delete<void>(`${BASE}/posts/${postId}/like`);
   },
 
+  sharePost(postId: string | number) {
+    return apiClient.post<{ postId: string; sharedBy: string }>(`${BASE}/posts/${postId}/share`);
+  },
+
+  savePost(postId: string | number) {
+    return apiClient.post<void>(`${BASE}/posts/${postId}/save`);
+  },
+
+  unsavePost(postId: string | number) {
+    return apiClient.delete<void>(`${BASE}/posts/${postId}/save`);
+  },
+
+  getSavedPosts(params?: { limit?: number; offset?: number }) {
+    return apiClient
+      .get<unknown>(`${BASE}/posts/saved`, params as Record<string, string | number | boolean>)
+      .then((raw) => ensurePostFeedResult(raw, params));
+  },
+
+  getMyProfile() {
+    return apiClient.get<SocioUserProfile>(`${BASE}/users/me/profile`);
+  },
+
+  getUserProfile(userId: string) {
+    return apiClient.get<SocioUserProfile>(`${BASE}/users/${userId}/profile`);
+  },
+
+  getUserPosts(userId: string, params?: { limit?: number; offset?: number }) {
+    return apiClient
+      .get<unknown>(`${BASE}/users/${userId}/posts`, params as Record<string, string | number | boolean>)
+      .then((raw) => ensurePostFeedResult(raw, params));
+  },
+
+  getNotifications(params?: { limit?: number }) {
+    return apiClient
+      .get<ActivityNotification[] | { data?: ActivityNotification[] }>(`${BASE}/notifications/me`, params as Record<string, string | number | boolean> | undefined)
+      .then((raw) => {
+        if (Array.isArray(raw)) return raw;
+        if (raw && typeof raw === "object" && "data" in raw && Array.isArray((raw as { data: ActivityNotification[] }).data)) {
+          return (raw as { data: ActivityNotification[] }).data;
+        }
+        return [];
+      });
+  },
+
   getComments(postId: string | number) {
     return apiClient
       .get<unknown>(`${BASE}/posts/${postId}/comments`)
@@ -235,10 +312,18 @@ export const socialApi = {
   },
 
   getSuggestions(params?: { limit?: number; offset?: number }) {
-    return apiClient.get<UserSummary[]>(
-      `${BASE}/users/suggestions`,
-      params as Record<string, string | number | boolean> | undefined,
-    );
+    return apiClient
+      .get<UserSummary[] | { data?: UserSummary[] }>(
+        `${BASE}/users/suggestions`,
+        params as Record<string, string | number | boolean> | undefined,
+      )
+      .then((raw) => {
+        if (Array.isArray(raw)) return raw;
+        if (raw && typeof raw === "object" && "data" in raw) {
+          return (raw as { data: UserSummary[] }).data ?? [];
+        }
+        return [];
+      });
   },
 
   getStoryFeed() {
