@@ -9,7 +9,7 @@ import {
   UserX, Check, Edit3, Home, Compass, Film, Settings,
   User, Menu, Grid, Play, Layers, Loader2
 } from "lucide-react";
-import { socialApi } from "@/lib/api/social";
+import { socialApi, type SocioUserProfile } from "@/lib/api/social";
 import { resolveMediaUrl } from "@/lib/media";
 
 const TEAL = "linear-gradient(135deg, #009999, #007777)";
@@ -31,19 +31,20 @@ const FILTER_NAMES = Object.keys(FILTER_CSS);
 
 // ── TYPES for local UI state ────────────────────────────────────────────────────
 interface StoryItem { id: number | string; mine: boolean; label: string; avatar: string | null; mediaUrl?: string }
-interface PostItem { id: number | string; user: string; co: string; avatarA: string; avatarB: string | null; location: string; time: string; image: string; likes: number; comments: number; shares: number; caption: string; hashtags: string }
+interface PostItem { id: number | string; userId: string; user: string; co: string; avatarA: string; avatarB: string | null; location: string; time: string; image: string; likes: number; comments: number; shares: number; caption: string; hashtags: string; isLiked?: boolean; isSaved?: boolean }
 interface ContactItem { id: number; name: string; avatar: string; lastMsg: string; time: string; unread: boolean }
-interface NotificationItem { id: number; group: string; user: string; text: string; time: string; avatar: string; action: string }
+interface NotificationItem { id: string | number; userId: string; group: string; user: string; text: string; time: string; avatar: string; action: string }
 interface SearchItem { id: number; name: string; sub: string; avatar: string; verified: boolean }
-interface SuggestionItem { id: number; name: string; sub: string; avatar: string }
-interface UserProfileData { name: string; username: string; bio: string; website: string; posts: number; followers: string; following: string; avatar: string; images: string[]; verified: boolean }
-interface ExplorePostItem { id: number; image: string; likes: number; comments: number }
-interface ReelItem { id: number; username: string; caption: string; video: string; likes: number; comments: number; shares: number; avatar: string; user: string }
+interface SuggestionItem { id: string | number; userId: string; name: string; sub: string; avatar: string }
+interface UserProfileData { userId: string; name: string; username: string; bio: string; website: string; posts: number; followers: string; following: string; avatar: string; images: string[]; verified: boolean; isSelf: boolean; isFollowing: boolean }
+interface ExplorePostItem { id: number | string; image: string; likes: number; comments: number }
+interface ReelItem { id: number | string; postId: string | number; userId: string; username: string; caption: string; video: string; likes: number; comments: number; shares: number; avatar: string; user: string; isLiked?: boolean }
 
 /** Map an API Post to the shape our PostCard expects */
-function mapApiPostToPostItem(p: { id: string | number; userName?: string; userAvatar?: string; content?: string; imageUrl?: string; likeCount: number; commentCount: number; createdAt: string }): PostItem {
+function mapApiPostToPostItem(p: { id: string | number; userId?: string | number; userName?: string; userAvatar?: string; content?: string; imageUrl?: string; likeCount: number; commentCount: number; shareCount?: number; isLiked?: boolean; isSaved?: boolean; createdAt: string }): PostItem {
   return {
     id: p.id,
+    userId: String(p.userId ?? ""),
     user: p.userName ?? "unknown",
     co: "",
     avatarA: (() => {
@@ -59,7 +60,9 @@ function mapApiPostToPostItem(p: { id: string | number; userName?: string; userA
     })(),
     likes: p.likeCount,
     comments: p.commentCount,
-    shares: 0,
+    shares: p.shareCount ?? 0,
+    isLiked: p.isLiked ?? false,
+    isSaved: p.isSaved ?? false,
     caption: p.content ?? "",
     hashtags: "",
   };
@@ -83,8 +86,37 @@ function mapApiStoryToStoryItem(s: { id: string | number; userName?: string; use
 }
 
 /** Map an API UserSummary to suggestion shape */
-function mapApiSuggestion(u: { id: number; name?: string; avatar?: string }): SuggestionItem {
-  return { id: u.id, name: u.name ?? "user", sub: "Suggested for you", avatar: (() => { const a = u.avatar ?? ""; return a.trim() ? resolveMediaUrl(a.trim()) || a : ""; })() };
+function mapApiSuggestion(u: { id?: string | number; userId?: string; name?: string; avatar?: string }): SuggestionItem {
+  const uid = String(u.userId ?? u.id ?? "");
+  return { id: uid, userId: uid, name: u.name ?? "user", sub: "Suggested for you", avatar: (() => { const a = u.avatar ?? ""; return a.trim() ? resolveMediaUrl(a.trim()) || a : ""; })() };
+}
+
+function formatRelativeTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${Math.max(mins, 1)}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d`;
+  return d.toLocaleDateString();
+}
+
+function notificationGroup(iso: string): string {
+  const d = new Date(iso);
+  const diff = Date.now() - d.getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days < 1) return "Yesterday";
+  if (days < 7) return "This Week";
+  return "Earlier";
+}
+
+function isVideoPost(p: { postType?: string; imageUrl?: string; mediaUrls?: string[] }): boolean {
+  if (p.postType === "video") return true;
+  const urls = [...(p.mediaUrls ?? []), p.imageUrl].filter(Boolean) as string[];
+  return urls.some((u) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u));
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
@@ -99,6 +131,11 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 // ── STORY VIEWER ──────────────────────────────────────────────────────────────
 function StoryViewer({ story, onClose }: { story: StoryItem; onClose: () => void }) {
   const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    if (story.id && story.id !== "my") {
+      socialApi.viewStory(story.id).catch(() => {});
+    }
+  }, [story.id]);
   useEffect(() => {
     const t = setInterval(() => setProgress(p => { if (p >= 100) { onClose(); return 0; } return p + 2; }), 60);
     return () => clearInterval(t);
@@ -143,10 +180,11 @@ function StoryCircle({ story, onClick }: { story: StoryItem; onClick: () => void
 }
 
 // ── POST CARD ─────────────────────────────────────────────────────────────────
-function PostCard({ post: p, onUserClick }: { post: PostItem; onUserClick: (username: string) => void }) {
-  const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
+function PostCard({ post: p, onUserClick }: { post: PostItem; onUserClick: (userId: string) => void }) {
+  const [liked, setLiked] = useState(p.isLiked ?? false);
+  const [saved, setSaved] = useState(p.isSaved ?? false);
   const [likes, setLikes] = useState(p.likes);
+  const [shares, setShares] = useState(p.shares);
   const [comment, setComment] = useState("");
   const [commentList, setCommentList] = useState<{ id: string | number; user: string; text: string }[]>([]);
   const [commentCount, setCommentCount] = useState(p.comments);
@@ -155,6 +193,15 @@ function PostCard({ post: p, onUserClick }: { post: PostItem; onUserClick: (user
   const [commentBusy, setCommentBusy] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [likeBusy, setLikeBusy] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
+
+  useEffect(() => {
+    setLiked(p.isLiked ?? false);
+    setSaved(p.isSaved ?? false);
+    setLikes(p.likes);
+    setShares(p.shares);
+    setCommentCount(p.comments);
+  }, [p.id, p.isLiked, p.isSaved, p.likes, p.shares, p.comments]);
 
   const toggleLike = async () => {
     if (likeBusy) return;
@@ -172,6 +219,34 @@ function PostCard({ post: p, onUserClick }: { post: PostItem; onUserClick: (user
     } finally {
       setLikeBusy(false);
     }
+  };
+
+  const toggleSave = async () => {
+    if (saveBusy) return;
+    const next = !saved;
+    setSaved(next);
+    setSaveBusy(true);
+    try {
+      if (next) await socialApi.savePost(p.id);
+      else await socialApi.unsavePost(p.id);
+    } catch {
+      setSaved(!next);
+    } finally {
+      setSaveBusy(false);
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      await socialApi.sharePost(p.id);
+      setShares((v) => v + 1);
+      const url = window.location.href;
+      if (navigator.share) {
+        await navigator.share({ title: "P4U Socio", text: p.caption, url }).catch(() => {});
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+      }
+    } catch { /* ignore */ }
   };
 
   const loadComments = async () => {
@@ -215,7 +290,7 @@ function PostCard({ post: p, onUserClick }: { post: PostItem; onUserClick: (user
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4">
       <div className="flex items-center gap-3 px-4 py-3">
-        <button onClick={() => onUserClick(p.user)} className="relative w-10 h-10 shrink-0">
+        <button onClick={() => p.userId && onUserClick(p.userId)} className="relative w-10 h-10 shrink-0">
           {p.avatarA ? (
           <img src={p.avatarA} alt={p.user} className="w-10 h-10 rounded-full object-cover border-2 border-teal-400 hover:border-teal-600 transition" />
           ) : (
@@ -224,7 +299,7 @@ function PostCard({ post: p, onUserClick }: { post: PostItem; onUserClick: (user
           {p.avatarB && <img src={p.avatarB} alt="" className="w-7 h-7 rounded-full object-cover border-2 border-white absolute -bottom-1 -right-1" />}
         </button>
         <div className="flex-1 min-w-0">
-          <button onClick={() => onUserClick(p.user)} className="text-sm font-bold text-gray-900 truncate hover:text-teal-600 transition text-left">
+          <button onClick={() => p.userId && onUserClick(p.userId)} className="text-sm font-bold text-gray-900 truncate hover:text-teal-600 transition text-left">
             {p.user} {p.co && <span className="font-normal text-gray-500 text-xs">{p.co}</span>}
           </button>
           <p className="text-[11px] text-gray-400">{p.location} · {p.time}</p>
@@ -261,12 +336,12 @@ function PostCard({ post: p, onUserClick }: { post: PostItem; onUserClick: (user
               <MessageCircle className="w-5 h-5 text-gray-500 group-hover:text-teal-500 transition" />
               <span className="text-xs font-semibold text-gray-600">{commentCount}</span>
             </button>
-            <button className="flex items-center gap-1 group">
+            <button onClick={handleShare} className="flex items-center gap-1 group">
               <Send className="w-5 h-5 text-gray-500 group-hover:text-blue-500 transition" />
-              <span className="text-xs font-semibold text-gray-600">{p.shares}</span>
+              <span className="text-xs font-semibold text-gray-600">{shares}</span>
             </button>
           </div>
-          <button onClick={() => setSaved(v => !v)}>
+          <button onClick={toggleSave} disabled={saveBusy}>
             <Bookmark className={`w-5 h-5 transition ${saved ? "fill-teal-500 text-teal-500" : "text-gray-400 hover:text-teal-500"}`} />
           </button>
         </div>
@@ -390,19 +465,69 @@ function CreateStoryModal({ onClose, onCreated }: { onClose: () => void; onCreat
 }
 
 // ── USER PROFILE PAGE ─────────────────────────────────────────────────────────
-function UserProfilePage({ username, onBack }: { username: string; onBack: () => void }) {
+function UserProfilePage({ userId, onBack }: { userId: string; onBack: () => void }) {
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
   const [selectedImg, setSelectedImg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("Posts");
 
   useEffect(() => {
-    // No dedicated API for fetching a user profile by username yet;
-    // show a placeholder state.
-    setLoading(false);
-    setProfile(null);
-  }, [username]);
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([
+      socialApi.getUserProfile(userId),
+      socialApi.getUserPosts(userId, { limit: 30 }),
+    ])
+      .then(([prof, postRes]) => {
+        if (cancelled) return;
+        const images = postRes.data
+          .map((p) => {
+            const u = p.imageUrl ?? "";
+            return u.trim() ? resolveMediaUrl(u.trim()) || u : "";
+          })
+          .filter(Boolean);
+        setProfile({
+          userId: prof.userId,
+          name: prof.userName,
+          username: prof.userName,
+          bio: prof.bio ?? "",
+          website: "",
+          posts: prof.postCount,
+          followers: prof.followerCount.toLocaleString(),
+          following: prof.followingCount.toLocaleString(),
+          avatar: prof.userAvatar ? resolveMediaUrl(prof.userAvatar) || prof.userAvatar : "",
+          images,
+          verified: false,
+          isSelf: prof.isSelf,
+          isFollowing: prof.isFollowing,
+        });
+        setFollowing(prof.isFollowing);
+      })
+      .catch(() => {
+        if (!cancelled) setProfile(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  const toggleFollow = async () => {
+    if (!profile || profile.isSelf || followBusy) return;
+    const next = !following;
+    setFollowing(next);
+    setFollowBusy(true);
+    try {
+      if (next) await socialApi.followUser(userId);
+      else await socialApi.unfollowUser(userId);
+    } catch {
+      setFollowing(!next);
+    } finally {
+      setFollowBusy(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -417,7 +542,7 @@ function UserProfilePage({ username, onBack }: { username: string; onBack: () =>
     return (
       <div className="flex flex-col items-center justify-center h-full py-20 px-4">
         <User className="w-16 h-16 text-gray-300 mb-4" />
-        <p className="text-gray-500 text-sm">User @{username} not found</p>
+        <p className="text-gray-500 text-sm">Profile not found</p>
         <button onClick={onBack} className="mt-4 text-teal-500 text-sm font-semibold">← Go back</button>
       </div>
     );
@@ -450,7 +575,11 @@ function UserProfilePage({ username, onBack }: { username: string; onBack: () =>
         {/* Profile info row */}
         <div className="flex items-start gap-4 mb-4">
           <div className="relative shrink-0">
+            {profile.avatar ? (
             <img src={profile.avatar} alt={profile.name} className="w-20 h-20 rounded-full object-cover border-3 border-teal-400 ring-2 ring-teal-100" style={{ border: "3px solid #0d9488" }} />
+            ) : (
+            <div className="w-20 h-20 rounded-full border-3 border-teal-400 bg-gray-200 flex items-center justify-center" style={{ border: "3px solid #0d9488" }}><User className="w-8 h-8 text-gray-400" /></div>
+            )}
             {profile.verified && (
               <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center border-2 border-white">
                 <Check className="w-3 h-3 text-white" />
@@ -482,15 +611,14 @@ function UserProfilePage({ username, onBack }: { username: string; onBack: () =>
 
         {/* Action buttons */}
         <div className="flex gap-2 mb-5">
-          <button onClick={() => setFollowing(v => !v)}
+          {!profile.isSelf && (
+          <button onClick={toggleFollow} disabled={followBusy}
             className={`flex-1 py-2 rounded-xl text-sm font-bold transition ${following ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "text-white hover:opacity-90"}`}
             style={following ? {} : { background: TEAL }}>
             {following ? "Following" : "Follow"}
           </button>
-          <button className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-100 text-gray-800 hover:bg-gray-200 transition">Message</button>
-          <button className="px-3 py-2 rounded-xl text-sm font-bold bg-gray-100 text-gray-700 hover:bg-gray-200 transition">
-            <UserPlus className="w-4 h-4" />
-          </button>
+          )}
+          <button className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-100 text-gray-800 hover:bg-gray-200 transition" disabled>Message</button>
         </div>
 
       </div>
@@ -509,36 +637,55 @@ function UserProfilePage({ username, onBack }: { username: string; onBack: () =>
       </div>
 
       {/* Grid */}
+      {profile.images.length === 0 ? (
+        <div className="text-center py-16 text-gray-400 text-sm">No posts yet.</div>
+      ) : (
       <div className="grid grid-cols-3 gap-0.5 p-0.5">
         {profile.images.map((img, i) => (
           <div key={i} className="relative aspect-square overflow-hidden cursor-pointer group" onClick={() => setSelectedImg(img)}>
             <img src={img} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100">
-              <div className="flex items-center gap-1 text-white"><Heart className="w-4 h-4 fill-white" /><span className="text-xs font-bold">{Math.floor(Math.random()*5000)+100}</span></div>
-            </div>
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }
 
 // ── HOME SECTION ──────────────────────────────────────────────────────────────
-function HomeSection({ onUserClick }: { onUserClick: (username: string) => void }) {
+function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
   const [stories, setStories] = useState<StoryItem[]>([{ id: "my", mine: true, label: "Your Story", avatar: null }]);
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [searches, setSearches] = useState<SearchItem[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
+  const [followedIds, setFollowedIds] = useState<Record<string, boolean>>({});
+  const [followBusyId, setFollowBusyId] = useState<string | null>(null);
   const [loadingFeed, setLoadingFeed] = useState(true);
   const [q, setQ] = useState("");
   const [storyView, setStoryView] = useState<{ open: boolean; story: StoryItem | null }>({ open: false, story: null });
   const [showCreateStory, setShowCreateStory] = useState(false);
   const filtered = q ? searches.filter(s => s.name.toLowerCase().includes(q.toLowerCase())) : searches;
 
+  const handleFollowSuggestion = async (userId: string) => {
+    if (!userId || followBusyId) return;
+    const already = followedIds[userId];
+    setFollowBusyId(userId);
+    try {
+      if (already) {
+        await socialApi.unfollowUser(userId);
+        setFollowedIds((p) => ({ ...p, [userId]: false }));
+      } else {
+        await socialApi.followUser(userId);
+        setFollowedIds((p) => ({ ...p, [userId]: true }));
+      }
+    } catch { /* ignore */ }
+    finally { setFollowBusyId(null); }
+  };
+
   const loadFeed = useCallback(async () => {
     try {
       const [feedRes, storyRes, suggestionsRes] = await Promise.allSettled([
-        socialApi.getPublicFeed({ limit: 20 }),
+        socialApi.getFeed({ limit: 20 }),
         socialApi.getStoryFeed(),
         socialApi.getSuggestions(),
       ]);
@@ -629,7 +776,7 @@ function HomeSection({ onUserClick }: { onUserClick: (username: string) => void 
           <div className="space-y-3">
             {suggestions.map(s => (
               <div key={s.id} className="flex items-center gap-2.5">
-                <button onClick={() => onUserClick(s.name)}>
+                <button onClick={() => onUserClick(s.userId)}>
                   {s.avatar ? (
                   <img src={s.avatar} alt={s.name} className="w-9 h-9 rounded-full object-cover shrink-0 hover:ring-2 ring-teal-400 transition" />
                   ) : (
@@ -637,10 +784,16 @@ function HomeSection({ onUserClick }: { onUserClick: (username: string) => void 
                   )}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <button onClick={() => onUserClick(s.name)} className="text-xs font-semibold text-gray-800 truncate hover:text-teal-600 transition block">{s.name}</button>
+                  <button onClick={() => onUserClick(s.userId)} className="text-xs font-semibold text-gray-800 truncate hover:text-teal-600 transition block">{s.name}</button>
                   <p className="text-[10px] text-gray-400">{s.sub}</p>
                 </div>
-                <button className="text-[11px] font-bold text-teal-500 hover:text-teal-700">Follow</button>
+                <button
+                  onClick={() => handleFollowSuggestion(s.userId)}
+                  disabled={followBusyId === s.userId}
+                  className={`text-[11px] font-bold transition ${followedIds[s.userId] ? "text-gray-500" : "text-teal-500 hover:text-teal-700"}`}
+                >
+                  {followedIds[s.userId] ? "Following" : "Follow"}
+                </button>
               </div>
             ))}
           </div>
@@ -652,15 +805,30 @@ function HomeSection({ onUserClick }: { onUserClick: (username: string) => void 
 
 // ── EXPLORE SECTION ───────────────────────────────────────────────────────────
 
-function ExploreSection({ onUserClick }: { onUserClick: (username: string) => void }) {
+function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
   const [tab, setTab] = useState("Top");
-  const [hover, setHover] = useState<number | null>(null);
+  const [hover, setHover] = useState<number | string | null>(null);
   const [search, setSearch] = useState("");
   const [explorePosts, setExplorePosts] = useState<ExplorePostItem[]>([]);
-  const [people, setPeople] = useState<{ username: string; name: string; avatar: string; posts: number }[]>([]);
+  const [people, setPeople] = useState<{ userId: string; username: string; name: string; avatar: string; posts: number }[]>([]);
+  const [followedIds, setFollowedIds] = useState<Record<string, boolean>>({});
   const [tags, setTags] = useState<{ tag: string; postCount: number }[]>([]);
   const [places, setPlaces] = useState<{ place: string; postCount: number }[]>([]);
   const [loadingExplore, setLoadingExplore] = useState(true);
+
+  const handleFollowPerson = async (userId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const already = followedIds[userId];
+    try {
+      if (already) {
+        await socialApi.unfollowUser(userId);
+        setFollowedIds((p) => ({ ...p, [userId]: false }));
+      } else {
+        await socialApi.followUser(userId);
+        setFollowedIds((p) => ({ ...p, [userId]: true }));
+      }
+    } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -674,21 +842,30 @@ function ExploreSection({ onUserClick }: { onUserClick: (username: string) => vo
         ]);
         if (cancelled) return;
         if (feedRes.status === "fulfilled") {
-          setExplorePosts(feedRes.value.data.map((p, i) => ({
-            id: Number(p.id) || i + 1,
-            image: p.imageUrl ?? "",
-            likes: p.likeCount,
-            comments: p.commentCount,
-          })));
+          setExplorePosts(feedRes.value.data.map((p, i) => {
+            const raw = p.imageUrl ?? "";
+            const image = raw.trim() ? resolveMediaUrl(raw.trim()) || raw : "";
+            return {
+              id: p.id ?? i + 1,
+              image,
+              likes: p.likeCount,
+              comments: p.commentCount,
+            };
+          }));
         }
         if (sugRes.status === "fulfilled" && Array.isArray(sugRes.value)) {
           setPeople(
-            sugRes.value.map((u) => ({
-              username: (u.name ?? "user").toLowerCase().replace(/\s+/g, "_"),
-              name: u.name ?? "user",
-              avatar: u.avatar ?? "",
-              posts: 0,
-            })),
+            sugRes.value.map((u) => {
+              const uid = String(u.userId ?? u.id ?? "");
+              const avatarRaw = u.avatar ?? "";
+              return {
+                userId: uid,
+                username: (u.name ?? "user").toLowerCase().replace(/\s+/g, "_"),
+                name: u.name ?? "user",
+                avatar: avatarRaw.trim() ? resolveMediaUrl(avatarRaw.trim()) || avatarRaw : "",
+                posts: u.postCount ?? 0,
+              };
+            }),
           );
         }
         if (tagsRes.status === "fulfilled" && Array.isArray(tagsRes.value)) {
@@ -719,16 +896,22 @@ function ExploreSection({ onUserClick }: { onUserClick: (username: string) => vo
       {tab === "People" ? (
         people.length === 0 ? <div className="text-center py-12 text-gray-400 text-sm">No suggestions available.</div> :
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-          {        people.map((p, i) => (
-            <div key={i} className="bg-white rounded-2xl p-4 flex flex-col items-center gap-2 border border-gray-100 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => onUserClick(p.username)}>
+          {        people.map((p) => (
+            <div key={p.userId} className="bg-white rounded-2xl p-4 flex flex-col items-center gap-2 border border-gray-100 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => onUserClick(p.userId)}>
               {p.avatar ? (
               <img src={p.avatar} alt={p.name} className="w-16 h-16 rounded-full object-cover border-2 border-teal-300" />
               ) : (
               <div className="w-16 h-16 rounded-full border-2 border-teal-300 bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold">?</div>
               )}
-              <p className="text-sm font-bold text-gray-900 text-center truncate w-full">{p.username}</p>
+              <p className="text-sm font-bold text-gray-900 text-center truncate w-full">{p.name}</p>
               <p className="text-xs text-gray-400">{p.posts} posts</p>
-              <button className="text-xs font-bold text-white px-4 py-1.5 rounded-full shadow" style={{ background: TEAL }}>Follow</button>
+              <button
+                onClick={(e) => handleFollowPerson(p.userId, e)}
+                className={`text-xs font-bold px-4 py-1.5 rounded-full shadow ${followedIds[p.userId] ? "bg-gray-100 text-gray-700" : "text-white"}`}
+                style={followedIds[p.userId] ? {} : { background: TEAL }}
+              >
+                {followedIds[p.userId] ? "Following" : "Follow"}
+              </button>
             </div>
           ))}
         </div>
@@ -799,11 +982,11 @@ function ExploreSection({ onUserClick }: { onUserClick: (username: string) => vo
 // ── REELS SECTION ─────────────────────────────────────────────────────────────
 
 // Single reel card with its own video ref + intersection observer
-function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: ReelItem; globalMuted: boolean; onMuteToggle: () => void; onUserClick: (username: string) => void }) {
+function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: ReelItem; globalMuted: boolean; onMuteToggle: () => void; onUserClick: (userId: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying]   = useState(false);
-  const [liked, setLiked]       = useState(false);
+  const [liked, setLiked]       = useState(reel.isLiked ?? false);
   const [saved, setSaved]       = useState(false);
   const [followed, setFollowed] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -850,8 +1033,8 @@ function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: Reel
   const handleTap = () => {
     const now = Date.now();
     if (now - lastTap.current < 300) {
-      // double-tap → like
       setLiked(true);
+      socialApi.likePost(reel.postId).catch(() => {});
       setDoubleTapHeart(true);
       setTimeout(() => setDoubleTapHeart(false), 900);
     } else {
@@ -943,11 +1126,21 @@ function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: Reel
       <div className="absolute right-3 bottom-28 flex flex-col items-center gap-5 pointer-events-auto">
         {/* Avatar */}
         <div className="relative">
-          <button onClick={(e) => { e.stopPropagation(); onUserClick(reel.user); }}>
+          <button onClick={(e) => { e.stopPropagation(); reel.userId && onUserClick(reel.userId); }}>
+            {reel.avatar ? (
             <img src={reel.avatar} alt={reel.username} className="w-10 h-10 rounded-full border-2 border-white object-cover" />
+            ) : (
+            <div className="w-10 h-10 rounded-full border-2 border-white bg-gray-600 flex items-center justify-center text-[10px] text-white font-bold">?</div>
+            )}
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); setFollowed(v => !v); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!reel.userId) return;
+              const next = !followed;
+              setFollowed(next);
+              (next ? socialApi.followUser(reel.userId) : socialApi.unfollowUser(reel.userId)).catch(() => setFollowed(!next));
+            }}
             className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full flex items-center justify-center text-xs font-black border-2 border-black transition ${followed ? "bg-gray-400 text-white" : "text-white"}`}
             style={followed ? {} : { background: "#0d9488" }}
           >+</button>
@@ -955,7 +1148,12 @@ function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: Reel
 
         {/* Like */}
         <button
-          onClick={(e) => { e.stopPropagation(); setLiked(v => !v); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            const next = !liked;
+            setLiked(next);
+            (next ? socialApi.likePost(reel.postId) : socialApi.unlikePost(reel.postId)).catch(() => setLiked(!next));
+          }}
           className="flex flex-col items-center gap-0.5"
         >
           <div className={`w-10 h-10 rounded-full flex items-center justify-center transition ${liked ? "bg-red-500/20" : "bg-black/30"} backdrop-blur-sm`}>
@@ -999,7 +1197,7 @@ function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: Reel
       {/* BOTTOM: user info + caption */}
       <div className="absolute bottom-0 left-0 right-16 px-4 pb-14 pointer-events-auto">
         <div className="flex items-center gap-2 mb-1.5">
-          <button onClick={(e) => { e.stopPropagation(); onUserClick(reel.user); }}
+          <button onClick={(e) => { e.stopPropagation(); reel.userId && onUserClick(reel.userId); }}
             className="text-sm font-bold text-white hover:underline">{reel.username}</button>
           <button
             onClick={(e) => { e.stopPropagation(); setFollowed(v => !v); }}
@@ -1081,9 +1279,42 @@ function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: Reel
   );
 }
 
-function ReelsSection({ onUserClick }: { onUserClick: (username: string) => void }) {
+function ReelsSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
   const [globalMuted, setGlobalMuted] = useState(true);
-  const [reels] = useState<ReelItem[]>([]);
+  const [reels, setReels] = useState<ReelItem[]>([]);
+  const [loadingReels, setLoadingReels] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    socialApi.getPublicFeed({ limit: 50 })
+      .then((res) => {
+        if (cancelled) return;
+        const videoPosts = res.data.filter(isVideoPost);
+        setReels(videoPosts.map((p, i) => {
+          const videoRaw = p.mediaUrls?.find((u) => /\.(mp4|webm|mov|m4v)/i.test(u)) ?? p.imageUrl ?? "";
+          const video = videoRaw.trim() ? resolveMediaUrl(videoRaw.trim()) || videoRaw : "";
+          const avatarRaw = p.userAvatar ?? "";
+          const avatar = avatarRaw.trim() ? resolveMediaUrl(avatarRaw.trim()) || avatarRaw : "";
+          return {
+            id: p.id ?? i,
+            postId: p.id,
+            userId: String(p.userId ?? ""),
+            username: p.userName ?? "user",
+            user: p.userName ?? "user",
+            caption: p.content ?? "",
+            video,
+            likes: p.likeCount,
+            comments: p.commentCount,
+            shares: p.shareCount ?? 0,
+            avatar,
+            isLiked: p.isLiked,
+          };
+        }));
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingReels(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div className="bg-black min-h-screen">
@@ -1094,10 +1325,16 @@ function ReelsSection({ onUserClick }: { onUserClick: (username: string) => void
         }
       `}</style>
 
-      {reels.length === 0 && (
+      {loadingReels && reels.length === 0 && (
+        <div className="flex flex-col items-center justify-center h-[60vh] text-white/50">
+          <Loader2 className="w-10 h-10 mb-3 animate-spin text-teal-400" />
+          <p className="text-sm">Loading reels…</p>
+        </div>
+      )}
+      {!loadingReels && reels.length === 0 && (
         <div className="flex flex-col items-center justify-center h-[60vh] text-white/50">
           <Film className="w-12 h-12 mb-3" />
-          <p className="text-sm">No reels available yet.</p>
+          <p className="text-sm">No video posts yet. Share a video from Create to see it here.</p>
         </div>
       )}
 
@@ -1238,7 +1475,11 @@ function MessagesSection({ onUserClick }: { onUserClick: (username: string) => v
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-300 text-sm">Select a conversation</div>
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-sm px-6 text-center">
+            <MessageCircle className="w-12 h-12 text-gray-300 mb-3" />
+            <p className="font-medium text-gray-600 mb-1">Direct messages are not available yet</p>
+            <p className="text-xs text-gray-400">You can still like, comment, and follow people from posts and notifications.</p>
+          </div>
         )}
       </div>
     </div>
@@ -1246,10 +1487,44 @@ function MessagesSection({ onUserClick }: { onUserClick: (username: string) => v
 }
 
 // ── NOTIFICATIONS SECTION ─────────────────────────────────────────────────────
-function NotificationsSection({ onUserClick }: { onUserClick: (username: string) => void }) {
+function NotificationsSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
   const [notifs, setNotifs] = useState<NotificationItem[]>([]);
-  const [followed, setFollowed] = useState<Record<number, boolean>>({});
-  const dismiss = (id: number) => setNotifs(p => p.filter(n => n.id !== id));
+  const [followed, setFollowed] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const dismiss = (id: string | number) => setNotifs(p => p.filter(n => n.id !== id));
+
+  useEffect(() => {
+    let cancelled = false;
+    socialApi.getNotifications({ limit: 40 })
+      .then((rows) => {
+        if (cancelled) return;
+        setNotifs(rows.map((n) => ({
+          id: n.id,
+          userId: n.actorId,
+          group: notificationGroup(n.createdAt),
+          user: n.actorName,
+          text: n.text,
+          time: formatRelativeTime(n.createdAt),
+          avatar: n.actorAvatar ? resolveMediaUrl(n.actorAvatar) || n.actorAvatar : "",
+          action: n.type === "follow" ? "Follow" : "",
+        })));
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const toggleFollowNotif = async (n: NotificationItem) => {
+    const already = followed[String(n.id)];
+    const next = !already;
+    setFollowed((p) => ({ ...p, [String(n.id)]: next }));
+    try {
+      if (next) await socialApi.followUser(n.userId);
+      else await socialApi.unfollowUser(n.userId);
+    } catch {
+      setFollowed((p) => ({ ...p, [String(n.id)]: !next }));
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto px-3 sm:px-4 py-6">
@@ -1257,7 +1532,9 @@ function NotificationsSection({ onUserClick }: { onUserClick: (username: string)
         <h1 className="text-lg font-semibold text-gray-900">Notifications</h1>
         <button onClick={() => setNotifs([])} className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 transition">Clear all</button>
       </div>
-      {notifs.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 text-teal-500 animate-spin" /></div>
+      ) : notifs.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center text-gray-400 shadow-sm border border-gray-100">
           <Bell className="w-10 h-10 mx-auto mb-3 text-gray-300" />
           <p className="text-sm">No notifications yet</p>
@@ -1272,21 +1549,25 @@ function NotificationsSection({ onUserClick }: { onUserClick: (username: string)
                 <div className="px-4 pt-4 pb-2"><span className="text-xs font-semibold tracking-widest uppercase text-gray-400">{group}</span></div>
                 {items.map((n, idx) => (
                   <div key={n.id} className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition ${idx < items.length - 1 ? "border-b border-gray-50" : ""}`}>
-                    <button onClick={() => onUserClick(n.user)}>
+                    <button onClick={() => onUserClick(n.userId)}>
+                      {n.avatar ? (
                       <img src={n.avatar} alt={n.user} className="w-10 h-10 rounded-full object-cover shrink-0 mt-0.5 hover:ring-2 ring-teal-400 transition" />
+                      ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-200 shrink-0 mt-0.5 flex items-center justify-center"><User className="w-4 h-4 text-gray-500" /></div>
+                      )}
                     </button>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-gray-800 leading-snug">
-                        <button onClick={() => onUserClick(n.user)} className="font-semibold hover:text-teal-600 transition">{n.user}</button>
+                        <button onClick={() => onUserClick(n.userId)} className="font-semibold hover:text-teal-600 transition">{n.user}</button>
                         {" "}<span className="text-gray-500">{n.text}</span>
                       </p>
                       <p className="text-[10px] text-gray-400 mt-0.5">{n.time}</p>
                     </div>
                     {n.action === "Follow" ? (
-                      <button onClick={() => setFollowed(p => ({ ...p, [n.id]: !p[n.id] }))}
-                        className={`shrink-0 text-xs font-bold px-3 py-1.5 rounded-xl transition ${followed[n.id] ? "bg-gray-100 text-gray-700" : "text-white hover:opacity-90"}`}
-                        style={!followed[n.id] ? { background: TEAL } : {}}>
-                        {followed[n.id] ? "Following" : "Follow"}
+                      <button onClick={() => toggleFollowNotif(n)}
+                        className={`shrink-0 text-xs font-bold px-3 py-1.5 rounded-xl transition ${followed[String(n.id)] ? "bg-gray-100 text-gray-700" : "text-white hover:opacity-90"}`}
+                        style={!followed[String(n.id)] ? { background: TEAL } : {}}>
+                        {followed[String(n.id)] ? "Following" : "Follow"}
                       </button>
                     ) : (
                       <button onClick={() => dismiss(n.id)} className="shrink-0 p-1 hover:bg-gray-100 rounded-full"><X className="w-3.5 h-3.5 text-gray-400" /></button>
@@ -1449,20 +1730,38 @@ const PROFILE_TABS_LIST = ["Posts","Reels","Tagged","Saved"];
 
 function MyProfileSection() {
   const [activeTab, setActiveTab] = useState("Posts");
-  const [following, setFollowing] = useState(false);
   const [selectedImg, setSelectedImg] = useState<string | null>(null);
+  const [profile, setProfile] = useState<SocioUserProfile | null>(null);
   const [gridImages, setGridImages] = useState<string[]>([]);
+  const [savedImages, setSavedImages] = useState<string[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    socialApi.getPublicFeed({ limit: 12 }).then((res) => {
-      if (cancelled) return;
-      const urls = res.data.map((p) => p.imageUrl).filter((u): u is string => Boolean(u?.trim()));
-      setGridImages(urls);
-    }).catch(() => {}).finally(() => { if (!cancelled) setLoadingProfile(false); });
+    socialApi.getMyProfile()
+      .then(async (prof) => {
+        if (cancelled) return;
+        setProfile(prof);
+        const [userPosts, savedPosts] = await Promise.all([
+          socialApi.getUserPosts(prof.userId, { limit: 30 }),
+          socialApi.getSavedPosts({ limit: 30 }),
+        ]);
+        if (cancelled) return;
+        const toUrl = (p: { imageUrl?: string }) => {
+          const u = p.imageUrl ?? "";
+          return u.trim() ? resolveMediaUrl(u.trim()) || u : "";
+        };
+        setGridImages(userPosts.data.map(toUrl).filter(Boolean));
+        setSavedImages(savedPosts.data.map(toUrl).filter(Boolean));
+      })
+      .catch(() => { if (!cancelled) setError("Could not load your profile."); })
+      .finally(() => { if (!cancelled) setLoadingProfile(false); });
     return () => { cancelled = true; };
   }, []);
+
+  const displayImages = activeTab === "Saved" ? savedImages : gridImages;
+  const avatar = profile?.userAvatar ? resolveMediaUrl(profile.userAvatar) || profile.userAvatar : null;
 
   return (
     <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6">
@@ -1474,27 +1773,27 @@ function MyProfileSection() {
       )}
       <div className="flex flex-col sm:flex-row sm:items-start gap-5 mb-6">
         <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 border-teal-400 shrink-0 bg-gray-100 flex items-center justify-center">
+          {avatar ? (
+          <img src={avatar} alt={profile?.userName ?? "Profile"} className="w-full h-full object-cover" />
+          ) : (
           <User className="w-10 h-10 text-gray-400" />
+          )}
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-base font-semibold text-gray-900 mb-2">Your profile</h1>
+          <h1 className="text-base font-semibold text-gray-900 mb-2">{profile?.userName ?? "Your profile"}</h1>
           <div className="flex gap-5 mb-3">
-            {[["—","Posts"],["—","Followers"],["—","Following"]].map(([v,l]) => (
+            {[
+              [profile?.postCount?.toLocaleString() ?? "0", "Posts"],
+              [profile?.followerCount?.toLocaleString() ?? "0", "Followers"],
+              [profile?.followingCount?.toLocaleString() ?? "0", "Following"],
+            ].map(([v, l]) => (
               <div key={l}><p className="text-sm font-semibold text-gray-900">{v}</p><p className="text-[11px] text-gray-500">{l}</p></div>
             ))}
           </div>
-          <p className="text-xs text-gray-500 mb-3 leading-relaxed">Connect your account to sync name, bio, and stats from the API.</p>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setFollowing(v => !v)} className={`px-4 py-2 rounded-xl text-sm font-bold transition ${following ? "bg-gray-100 text-gray-700 hover:bg-gray-200" : "text-white shadow hover:opacity-90"}`} style={following ? {} : { background: TEAL }}>
-              {following ? "Following" : "Follow"}
-            </button>
-            <button className="px-4 py-2 rounded-xl text-sm font-bold bg-gray-100 text-gray-700 hover:bg-gray-200 transition">Message</button>
-            <button className="px-3 py-2 rounded-xl text-sm font-bold bg-gray-100 text-gray-700 hover:bg-gray-200 transition">···</button>
-          </div>
+          {profile?.bio && <p className="text-xs text-gray-600 mb-3 leading-relaxed">{profile.bio}</p>}
+          {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
         </div>
       </div>
-
-      <p className="text-[11px] text-gray-400 mb-3">Story highlights will appear here when available from the API.</p>
 
       {/* Tabs */}
       <div className="flex border-b border-gray-100 mb-1">
@@ -1512,11 +1811,13 @@ function MyProfileSection() {
 
       {loadingProfile ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 text-teal-500 animate-spin" /></div>
-      ) : gridImages.length === 0 ? (
-        <div className="text-center py-16 text-gray-400 text-sm">No public posts to show yet.</div>
+      ) : displayImages.length === 0 ? (
+        <div className="text-center py-16 text-gray-400 text-sm">
+          {activeTab === "Saved" ? "No saved posts yet." : "No posts yet. Create your first post from the Create tab."}
+        </div>
       ) : (
       <div className="grid grid-cols-3 gap-0.5 sm:gap-1">
-        {gridImages.map((img, i) => (
+        {displayImages.map((img, i) => (
           <div key={i} className="relative aspect-square overflow-hidden rounded-sm cursor-pointer group" onClick={() => setSelectedImg(img)}>
             <img src={img} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
@@ -1742,8 +2043,14 @@ function SavedPanel() {
 }
 
 function CloseFriendsPanel() {
-  const [cfSuggestions] = useState<SuggestionItem[]>([]);
-  const [friends, setFriends] = useState<number[]>([]);
+  const [cfSuggestions, setCfSuggestions] = useState<SuggestionItem[]>([]);
+  const [friends, setFriends] = useState<string[]>([]);
+
+  useEffect(() => {
+    socialApi.getSuggestions({ limit: 10 })
+      .then((rows) => setCfSuggestions(rows.map(mapApiSuggestion)))
+      .catch(() => {});
+  }, []);
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
       <h2 className="text-base font-semibold text-gray-900 mb-2">Close Friends</h2>
@@ -1757,9 +2064,9 @@ function CloseFriendsPanel() {
             <div className="w-10 h-10 rounded-full bg-gray-200 shrink-0 flex items-center justify-center text-xs text-gray-500 font-bold">?</div>
             )}
             <div className="flex-1"><p className="text-sm font-semibold text-gray-900">{s.name}</p><p className="text-xs text-gray-400">{s.sub}</p></div>
-            <button onClick={() => setFriends(p => p.includes(s.id) ? p.filter(x=>x!==s.id) : [...p,s.id])}
-              className={`text-xs font-bold px-3 py-1.5 rounded-xl transition ${friends.includes(s.id) ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
-              {friends.includes(s.id) ? "Added ✓" : "Add"}
+            <button onClick={() => setFriends(p => p.includes(s.userId) ? p.filter(x=>x!==s.userId) : [...p,s.userId])}
+              className={`text-xs font-bold px-3 py-1.5 rounded-xl transition ${friends.includes(s.userId) ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+              {friends.includes(s.userId) ? "Added ✓" : "Add"}
             </button>
           </div>
         ))}
@@ -1905,11 +2212,11 @@ const NAV_ITEMS = [
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function SocialApp() {
   const [section, setSection] = useState("home");
-  const [userProfile, setUserProfile] = useState<{ username: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{ userId: string } | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  const handleUserClick = (username: string) => {
-    setUserProfile({ username });
+  const handleUserClick = (userId: string) => {
+    if (userId) setUserProfile({ userId });
   };
 
   const handleBackFromProfile = () => {
@@ -1925,7 +2232,7 @@ export default function SocialApp() {
   const renderContent = () => {
     // User profile overlay takes priority
     if (userProfile) {
-      return <UserProfilePage username={userProfile.username} onBack={handleBackFromProfile} />;
+      return <UserProfilePage userId={userProfile.userId} onBack={handleBackFromProfile} />;
     }
     switch (section) {
       case "home": return <HomeSection onUserClick={handleUserClick} />;
