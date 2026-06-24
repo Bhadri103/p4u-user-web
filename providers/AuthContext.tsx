@@ -111,7 +111,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (e: unknown) {
           const status =
             typeof e === "object" && e !== null && "status" in e ? (e as ApiError).status : -1;
-          if (status === 401 || status === 403 || status === 429) {
+          // Only a genuine auth failure ends the session. A 429 (rate-limited
+          // refresh) or network blip must NOT log the user out — the session
+          // provider backs off and retries; the stored refresh token is still good.
+          if (status === 401 || status === 403) {
             if (!cancelled) clearSessionState();
           }
         }
