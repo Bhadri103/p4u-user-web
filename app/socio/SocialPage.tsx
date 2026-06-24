@@ -202,7 +202,7 @@ function PostCard({ post: p, onUserClick }: { post: PostItem; onUserClick: (user
     setCommentBusy(true);
     try {
       const saved = await socialApi.createComment(p.id, { contentText: text });
-      setCommentList(list => list.map(c => (c.id === tempId ? { id: saved.id, user: "you", text: saved.content || text } : c)));
+      setCommentList(list => list.map(c => (c.id === tempId ? { id: saved.id, user: saved.userName ?? "You", text: saved.content || text } : c)));
     } catch {
       setCommentList(list => list.filter(c => c.id !== tempId));
       setCommentCount(c => c - 1);
@@ -569,7 +569,7 @@ function HomeSection({ onUserClick }: { onUserClick: (username: string) => void 
       {storyView.open && storyView.story && <StoryViewer story={storyView.story} onClose={() => setStoryView({ open: false, story: null })} />}
       {showCreateStory && <CreateStoryModal onClose={() => setShowCreateStory(false)} onCreated={loadFeed} />}
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 w-full max-w-[600px] mx-auto xl:mx-0">
         {/* Stories */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-4 mb-5">
           <p className="text-xs font-semibold tracking-widest uppercase text-gray-400 mb-3">Stories</p>
