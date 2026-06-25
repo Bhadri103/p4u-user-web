@@ -53,8 +53,8 @@ export default function ProductRoute({
             : meta.attributes && typeof meta.attributes === "object"
               ? meta.attributes
               : {};
-        const variations = Array.isArray((p as { variations?: unknown[] }).variations)
-          ? (p as { variations: Record<string, unknown>[] }).variations
+        const variations = Array.isArray((p as any).variations)
+          ? ((p as any).variations as Record<string, unknown>[])
           : [];
 
         setProduct({
