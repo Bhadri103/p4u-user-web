@@ -46,7 +46,6 @@ export default function Header({ onCartOpen }: HeaderProps) {
     { image: shop,       label: "Shop",          href: "/shop"           },
     { image: services,   label: "Services",       href: "/service"        },
     { image: social,     label: "Socio",          href: "/socio"          },
-    { icon: Calendar,    label: "Booking",        href: "/booking"        },
     { image: classified, label: "Classified Ads", href: "/classified" },
   ];
 

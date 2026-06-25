@@ -9,6 +9,7 @@ const BASE = "/api/v1/commerce";
 export interface CartItemApi {
   id: string;
   productId: string;
+  variationId?: string | null;
   productName?: string;
   productImage?: string;
   unitPrice?: string;
@@ -173,6 +174,7 @@ export const commerceApi = {
   updateCart(
     items: {
       productId: string | number;
+      variationId?: string | null;
       quantity: number;
       unitPrice?: number;
       vendorId?: string | null;
@@ -183,6 +185,7 @@ export const commerceApi = {
       items: items.map((i) => ({
         productId: String(i.productId),
         quantity: i.quantity,
+        ...(i.variationId ? { variationId: String(i.variationId) } : {}),
         ...(i.unitPrice != null ? { unitPrice: i.unitPrice } : {}),
         ...(i.vendorId != null && i.vendorId !== "" ? { vendorId: i.vendorId } : {}),
         ...(i.metadata != null && Object.keys(i.metadata).length ? { metadata: i.metadata } : {}),
@@ -196,10 +199,12 @@ export const commerceApi = {
     unitPrice?: number,
     vendorId?: string | null,
     metadata?: Record<string, unknown> | null,
+    variationId?: string | null,
   ) {
     return apiClient.post<Cart>(`${BASE}/cart/items`, {
       productId: String(productId),
       quantity,
+      ...(variationId ? { variationId: String(variationId) } : {}),
       ...(unitPrice != null ? { unitPrice } : {}),
       ...(vendorId != null && vendorId !== "" ? { vendorId } : {}),
       ...(metadata != null && Object.keys(metadata).length ? { metadata } : {}),

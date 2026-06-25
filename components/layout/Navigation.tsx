@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShoppingBag, Settings, Video, Calendar, FileText } from "lucide-react";
+import { ShoppingBag, Settings, Video, FileText } from "lucide-react";
 
 const items = [
   { href: "/shop", label: "Shop", icon: ShoppingBag },
   { href: "/service", label: "Services", icon: Settings },
   { href: "/socio", label: "Socio", icon: Video },
-  { href: "/booking", label: "Booking", icon: Calendar },
   { href: "/classified", label: "Classified", icon: FileText },
 ] as const;
 
@@ -18,7 +17,7 @@ export default function Navigation() {
   return (
     <nav className="w-full bg-[#e8f4f8]">
       <div className="max-w-[1400px] mx-auto px-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 py-3">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 py-3">
           {items.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname?.startsWith(`${href}/`);
             return (

@@ -10,6 +10,7 @@ export interface CartItem {
   id: string | number;
   /** Catalog product id (string or number from API) */
   productId?: string | number;
+  variationId?: string | null;
   name: string;
   price: number;
   originalPrice: number;
@@ -100,6 +101,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return {
           id: si.id,
           productId,
+          variationId: si.variationId ?? null,
           name,
           price,
           originalPrice: price,
@@ -122,6 +124,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const linesFromLocal = (items: CartItem[]) =>
       items.map((i) => ({
         productId: i.productId ?? i.id,
+        variationId: i.variationId ?? null,
         quantity: i.qty,
         unitPrice: i.price,
         vendorId: i.vendorId || null,
@@ -169,14 +172,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return;
     }
     const pid = newItem.productId ?? newItem.id;
+    const vid = newItem.variationId ?? null;
     setItems((prev) => {
-      const existing = prev.find((i) => String(i.productId ?? i.id) === String(pid));
+      const existing = prev.find(
+        (i) =>
+          String(i.productId ?? i.id) === String(pid) &&
+          String(i.variationId ?? "") === String(vid ?? ""),
+      );
       if (existing) {
         return prev.map((i) =>
-          String(i.productId ?? i.id) === String(pid) ? { ...i, qty: i.qty + 1 } : i,
+          String(i.productId ?? i.id) === String(pid) &&
+          String(i.variationId ?? "") === String(vid ?? "")
+            ? { ...i, qty: i.qty + 1 }
+            : i,
         );
       }
-      return [...prev, { ...newItem, productId: pid, qty: 1 }];
+      return [...prev, { ...newItem, productId: pid, variationId: vid, qty: 1 }];
     });
     syncToServer(() =>
       commerceApi.addCartItem(pid, 1, newItem.price, newItem.vendorId || null, {
@@ -185,7 +196,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         ...((newItem.imageUrl || newItem.image)
           ? { productImage: newItem.imageUrl || newItem.image }
           : {}),
-      }),
+        ...(newItem.color ? { color: newItem.color } : {}),
+      }, vid),
     );
   }, [syncToServer]);
 

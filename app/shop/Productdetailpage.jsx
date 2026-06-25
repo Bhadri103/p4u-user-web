@@ -41,6 +41,28 @@ function formatAttributeMap(raw) {
   }, {});
 }
 
+function buildVariationAttributeOptions(variations) {
+  if (!Array.isArray(variations) || !variations.length) return {};
+  const map = {};
+  for (const v of variations) {
+    if (v.isActive === false) continue;
+    const attrs = v.attributes || {};
+    for (const [k, val] of Object.entries(attrs)) {
+      if (!map[k]) map[k] = new Set();
+      map[k].add(String(val));
+    }
+  }
+  return Object.fromEntries(Object.entries(map).map(([k, set]) => [k, [...set]]));
+}
+
+function splitLabelAndHex(value) {
+  const s = String(value || "").trim();
+  const m = s.match(/^(.*?)(#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}))$/);
+  if (!m) return { label: s, hex: null };
+  const label = String(m[1] || "").trim();
+  return { label: label || s, hex: m[2] };
+}
+
 function enrich(p) {
   if (!p) return {};
   const name = p.name || "Product";
@@ -138,7 +160,7 @@ function enrich(p) {
     {};
   const normalizedAttrMap = formatAttributeMap(metadataAttrs);
   const colorOptions = parseAttributeOptions(metadataAttrs)
-    .filter((a) => String(a.name || "").toLowerCase() === "color")
+    .filter((a) => /color|colour|shade/i.test(String(a.name || "")))
     .map((a) => ({ name: a.label, hex: a.hex || "#d1d5db" }));
   const dynamicSizes =
     parseAttributeOptions(metadataAttrs)
@@ -146,16 +168,24 @@ function enrich(p) {
       .map((a) => a.label)
       .filter(Boolean) || [];
 
-  const description = (p.description && p.description.trim())
-    ? p.description
-    : name + " is a top-quality product available at the best price of Rs." + price.toLocaleString() + "." +
-    (originalPrice > price
-      ? " You save Rs." + (originalPrice - price).toLocaleString() +
-      " (" + Math.round((1 - price / originalPrice) * 100) + "% off) today."
-      : "") +
-    " This product is verified by our sellers and comes with a 7-day hassle-free return policy. Fast delivery available." +
-    " Trusted by " + (p.reviews || "hundreds of") + " happy customers with a rating of " + (p.rating || 4.5) + "/5." +
-    (p.badge ? ' Currently featured as "' + p.badge + '".' : "");
+  const description = (() => {
+    const long = String(p.longDescription || "").trim();
+    const short = String(p.shortDescription || "").trim();
+    const base = String(p.description || "").trim();
+    if (long) return long;
+    if (short) return short;
+    if (base) return base;
+    return (
+      name + " is a top-quality product available at the best price of Rs." + price.toLocaleString() + "." +
+      (originalPrice > price
+        ? " You save Rs." + (originalPrice - price).toLocaleString() +
+        " (" + Math.round((1 - price / originalPrice) * 100) + "% off) today."
+        : "") +
+      " This product is verified by our sellers and comes with a 7-day hassle-free return policy. Fast delivery available." +
+      " Trusted by " + (p.reviews || "hundreds of") + " happy customers with a rating of " + (p.rating || 4.5) + "/5." +
+      (p.badge ? ' Currently featured as "' + p.badge + '".' : "")
+    );
+  })();
 
   const ratingBreakdown = p.ratingBreakdown || (() => {
     const r = Math.min(Math.max(p.rating || 4.5, 1), 5);
@@ -226,6 +256,48 @@ export default function ProductDetailPage({ product: rawProduct, onBack }) {
   const [mainImg, setMainImg] = useState(0);
   const [selectedColor, setSelectedColor] = useState(product.colors?.[0] || null);
   const [selectedSize, setSelectedSize] = useState(product.sizes?.[0] || null);
+  const [selectedVariationAttrs, setSelectedVariationAttrs] = useState({});
+  const [variationError, setVariationError] = useState("");
+
+  const hasVariations = Array.isArray(product.variations) && product.variations.length > 0;
+  const variationAttrOptions = useMemo(
+    () => buildVariationAttributeOptions(product.variations),
+    [product.variations],
+  );
+
+  useEffect(() => {
+    if (!hasVariations) {
+      setSelectedVariationAttrs({});
+      return;
+    }
+    const initial = {};
+    for (const [k, vals] of Object.entries(variationAttrOptions)) {
+      if (vals?.length) initial[k] = vals[0];
+    }
+    setSelectedVariationAttrs(initial);
+    setVariationError("");
+  }, [product.id, hasVariations, variationAttrOptions]);
+
+  const matchedVariation = useMemo(() => {
+    if (!hasVariations) return null;
+    const keys = Object.keys(variationAttrOptions);
+    if (!keys.length) return null;
+    if (!keys.every((k) => selectedVariationAttrs[k])) return null;
+    return (
+      product.variations.find((v) => {
+        if (v.isActive === false) return false;
+        const attrs = v.attributes || {};
+        return keys.every((k) => String(attrs[k] || "") === String(selectedVariationAttrs[k] || ""));
+      }) || null
+    );
+  }, [hasVariations, product.variations, selectedVariationAttrs, variationAttrOptions]);
+
+  const displayPrice = matchedVariation
+    ? Number(matchedVariation.finalPrice || matchedVariation.sellPrice || 0)
+    : product.price;
+  const displayOriginal = matchedVariation
+    ? Number(matchedVariation.sellPrice || displayPrice)
+    : product.originalPrice || product.price;
   const [qty, setQty] = useState(1);
   const [liked, setLiked] = useState(false);
   const [wishlistBusy, setWishlistBusy] = useState(false);
@@ -261,8 +333,8 @@ export default function ProductDetailPage({ product: rawProduct, onBack }) {
     };
   }, [isLoggedIn, product?.id]);
 
-  const { specs, description, ratingBreakdown, reviewsList, images, availableOffers, originalPrice } = product;
-  const discount = originalPrice > product.price ? Math.round((1 - product.price / originalPrice) * 100) : 0;
+  const { specs, description, ratingBreakdown, reviewsList, images, availableOffers } = product;
+  const discount = displayOriginal > displayPrice ? Math.round((1 - displayPrice / displayOriginal) * 100) : 0;
   const totalRatings = Object.values(ratingBreakdown || {}).reduce((a, b) => a + b, 0);
   const reviewCount = product.reviews || reviewsList?.length || 0;
 
@@ -274,44 +346,58 @@ export default function ProductDetailPage({ product: rawProduct, onBack }) {
     return reviewsList.filter(r => Math.round(r.rating) === star);
   }, [reviewsList, reviewFilter]);
 
-  function handleAddToCart() {
-    addToCart({
+  function buildCartPayload() {
+    if (hasVariations && !matchedVariation) {
+      setVariationError("Please select all options before adding to cart.");
+      return null;
+    }
+    if (matchedVariation && Number(matchedVariation.quantity) <= 0) {
+      setVariationError("This variation is out of stock.");
+      return null;
+    }
+    setVariationError("");
+    const variationImage = matchedVariation?.thumbnailUrl
+      ? resolveMediaUrl(matchedVariation.thumbnailUrl) || matchedVariation.thumbnailUrl
+      : null;
+    const attrLabel = matchedVariation
+      ? Object.entries(matchedVariation.attributes || {})
+          .map(([k, v]) => {
+            const { label } = splitLabelAndHex(String(v));
+            return `${k}: ${label}`;
+          })
+          .join(", ")
+      : selectedColor?.name || product.color || "";
+    return {
       id: product.id,
+      productId: product.id,
+      variationId: matchedVariation?.id || null,
       name: product.name,
-      price: product.price,
-      originalPrice: product.originalPrice || product.price,
-      imageUrl: images?.[0] || "",
-      image: product.image || "",
+      price: displayPrice,
+      originalPrice: displayOriginal,
+      imageUrl: variationImage || images?.[0] || "",
+      image: variationImage || product.image || "",
       vendor: product.vendor || "Seller",
       vendorId: product.vendorId || "",
-      color: selectedColor?.name || product.color || "",
+      color: attrLabel,
       delivery: product.delivery || "Delivery in 30 Mins",
-    });
+    };
+  }
+
+  function handleAddToCart() {
+    const payload = buildCartPayload();
+    if (!payload) return;
+    addToCart(payload);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2500);
   }
 
   function handleBuyNow() {
-    const buyNowItem = {
-      id: product.id,
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      originalPrice: product.originalPrice || product.price,
-      imageUrl: images?.[0] || "",
-      image: product.image || "",
-      vendor: product.vendor || "Seller",
-      vendorId: product.vendorId || "",
-      color: selectedColor?.name || product.color || "",
-      qty: 1,
-      delivery: product.delivery || "Delivery in 30 Mins",
-    };
+    const buyNowItem = buildCartPayload();
+    if (!buyNowItem) return;
     if (!isLoggedIn) {
       window.dispatchEvent(new Event("p4u-open-auth"));
       return;
     }
-    // Buy Now should open the same checkout experience as cart,
-    // but with this product as the only checkout item.
     clearCart();
     addToCart(buyNowItem);
     try {
@@ -467,7 +553,12 @@ export default function ProductDetailPage({ product: rawProduct, onBack }) {
           <div style={{ flex: 1, padding: "24px 28px", minWidth: 0 }}> 
             <h1 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 500, color: "#212121", lineHeight: 1.4 }}>
               {product.name}
-            </h1> 
+            </h1>
+            {product.shortDescription ? (
+              <p style={{ margin: "0 0 12px", fontSize: 14, color: "#565959", lineHeight: 1.5 }}>
+                {product.shortDescription}
+              </p>
+            ) : null}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
               <div style={{
                 display: "inline-flex", alignItems: "center", gap: 5, background: "#388e3c",
@@ -485,14 +576,17 @@ export default function ProductDetailPage({ product: rawProduct, onBack }) {
               )}
             </div> 
             <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
-              <span style={{ fontSize: 26, fontWeight: 700, color: "#212121" }}>₹{product.price?.toLocaleString()}</span>
+              <span style={{ fontSize: 26, fontWeight: 700, color: "#212121" }}>₹{displayPrice?.toLocaleString()}</span>
               {discount > 0 && (
                 <>
-                  <span style={{ fontSize: 15, color: "#878787", textDecoration: "line-through" }}>₹{originalPrice?.toLocaleString()}</span>
+                  <span style={{ fontSize: 15, color: "#878787", textDecoration: "line-through" }}>₹{displayOriginal?.toLocaleString()}</span>
                   <span style={{ fontSize: 15, fontWeight: 700, color: "#388e3c" }}>{discount}% off</span>
                 </>
               )}
             </div>
+            {variationError ? (
+              <div style={{ fontSize: 12, color: "#d32f2f", marginBottom: 8 }}>{variationError}</div>
+            ) : null}
             <div style={{ fontSize: 12, color: "#878787", marginBottom: 16 }}>+ ₹0 Delivery Charge</div>
  
             <div style={{ marginBottom: 20 }}>
@@ -506,7 +600,52 @@ export default function ProductDetailPage({ product: rawProduct, onBack }) {
                 ))}
               </div>
             </div> 
-            {product.colors && (
+            {hasVariations ? (
+              Object.entries(variationAttrOptions).map(([attrName, values]) => (
+                <div
+                  key={attrName}
+                  style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 16, borderTop: "1px solid #f0f0f0", paddingTop: 16 }}
+                >
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "#212121", minWidth: 80 }}>{attrName}</span>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {values.map((opt) => {
+                      const { label, hex } = splitLabelAndHex(opt);
+                      const active = selectedVariationAttrs[attrName] === opt;
+                      return (
+                        <button
+                          key={`${attrName}-${opt}`}
+                          type="button"
+                          onClick={() => {
+                            setSelectedVariationAttrs((prev) => ({ ...prev, [attrName]: opt }));
+                            setVariationError("");
+                          }}
+                          style={{
+                            padding: hex ? "4px" : "6px 16px",
+                            borderRadius: hex ? "50%" : 3,
+                            width: hex ? 36 : undefined,
+                            height: hex ? 36 : undefined,
+                            fontSize: 13,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            border: hex
+                              ? `3px solid ${active ? "#2874f0" : "transparent"}`
+                              : `1.5px solid ${active ? "#2874f0" : "#e0e0e0"}`,
+                            outline: hex ? "1px solid #e0e0e0" : undefined,
+                            outlineOffset: hex ? 2 : undefined,
+                            color: active ? "#2874f0" : "#212121",
+                            background: hex ? hex : active ? "#e8f0fe" : "white",
+                          }}
+                          title={label || opt}
+                        >
+                          {!hex ? (label || opt) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            ) : null}
+            {!hasVariations && product.colors && (
               <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 16, borderTop: "1px solid #f0f0f0", paddingTop: 16 }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: "#212121", minWidth: 80 }}>Color</span>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -526,7 +665,7 @@ export default function ProductDetailPage({ product: rawProduct, onBack }) {
                 </div>
               </div>
             )} 
-            {product.sizes && (
+            {!hasVariations && product.sizes && (
               <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 16, borderTop: "1px solid #f0f0f0", paddingTop: 16 }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: "#212121", minWidth: 80 }}>Storage</span>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
