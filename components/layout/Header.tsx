@@ -500,7 +500,7 @@ export default function Header({ onCartOpen }: HeaderProps) {
           <div className="max-w-[1400px] mx-auto px-4 xl:px-6">
             <div className="hidden min-[1200px]:block py-3">
               <div className="flex justify-between gap-4">
-                {navItems.map(({ image, icon: Icon, label, href }) => {
+                {navItems.map(({ image, label, href }) => {
                   const active = isActive(href);
                   return (
                     <Link key={label} href={href}
@@ -511,7 +511,7 @@ backgroundColor: active ? "#009999" : "#ffffff",
   color: "#009999"
 }}
                       >
-                      {image ? <div className="w-5 h-5 relative flex-shrink-0"><Image src={image} alt={label} fill className="object-contain" /></div> : Icon &&<Icon className="w-5 h-5 flex-shrink-0" style={{ color: active ? "#ffffff" : "#009999" }}/>}
+                      {image && <div className="w-5 h-5 relative flex-shrink-0"><Image src={image} alt={label} fill className="object-contain" /></div>}
               <span className="font-medium text-base" style={{ color: active ? "#ffffff" : "#009999" }}>
   {label}
 </span>
@@ -524,7 +524,7 @@ backgroundColor: active ? "#009999" : "#ffffff",
             <div className="min-[1200px]:hidden py-2.5 overflow-x-auto" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
               <style>{`div::-webkit-scrollbar { display: none; }`}</style>
               <div className="flex gap-3 px-2">
-                {navItems.map(({ image, icon: Icon, label, href }) => {
+                {navItems.map(({ image, label, href }) => {
                   const active = isActive(href);
                   return (
                     <Link key={label} href={href}
@@ -536,7 +536,7 @@ backgroundColor: active ? "#009999" : "#ffffff",
 onMouseLeave={(e) => {
   if (!active) e.currentTarget.style.backgroundColor = "#ffffff";
 }}    >
-                      {image ? <div className="w-4 h-4 relative flex-shrink-0"><Image src={image} alt={label} fill className="object-contain" /></div> : Icon && <Icon className="w-4 h-4 flex-shrink-0 text-white" strokeWidth={1.5} />}
+                      {image && <div className="w-4 h-4 relative flex-shrink-0"><Image src={image} alt={label} fill className="object-contain" /></div>}
                       <span className="font-medium text-sm text-white">{label}</span>
                       {active && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-white inline-block" />}
                     </Link>
