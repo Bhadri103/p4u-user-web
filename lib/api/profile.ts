@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { resolveMediaUrl } from "@/lib/media";
 
 const BASE = "/api/v1/profile";
 
@@ -64,6 +65,16 @@ export interface RewardPoints {
   history?: { id: number; points: number; reason: string; createdAt: string }[];
 }
 
+export interface WalletSummary {
+  balance: number;
+  currency: "POINTS" | string;
+  displayAmount: number;
+  recentTransactions?: RewardPointsHistoryEntry[];
+  totalTransactions?: number;
+  limit?: number;
+  offset?: number;
+}
+
 interface BackendAddress {
   id: string;
   label?: string;
@@ -96,6 +107,17 @@ function mapCustomerRow(row: Record<string, unknown>): UserProfile {
     name,
     email: typeof row.email === "string" ? row.email : undefined,
     phone: typeof row.phone === "string" ? row.phone : undefined,
+    avatar: resolveMediaUrl(
+      typeof row.avatarUrl === "string"
+        ? row.avatarUrl
+        : typeof row.avatar === "string"
+          ? row.avatar
+          : typeof meta.avatarUrl === "string"
+            ? meta.avatarUrl
+            : typeof meta.avatar === "string"
+              ? meta.avatar
+              : null,
+    ) ?? undefined,
     keycloakUserId:
       typeof row.keycloakUserId === "string"
         ? row.keycloakUserId
@@ -229,5 +251,12 @@ export const profileApi = {
 
   getRewardPoints() {
     return apiClient.get<RewardPoints>(`${BASE}/me/reward-points`);
+  },
+
+  getWallet(params?: { limit?: number; offset?: number }) {
+    return apiClient.get<WalletSummary>(
+      `${BASE}/me/wallet`,
+      params as Record<string, string | number | boolean> | undefined,
+    );
   },
 };

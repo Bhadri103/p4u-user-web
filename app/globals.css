@@ -163,6 +163,55 @@
 .animate-diagonal-shimmer {
   animation: diagonal-shimmer 1s ease-in-out infinite;
 } 
+
+.welcome-hub {
+  position: relative;
+  background-image: url("/welcome-bg.png");
+  background-position: center top;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.welcome-hub::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(8, 155, 150, 0.86) 0%, rgba(8, 155, 150, 0.63) 25%, rgba(8, 155, 150, 0.22) 43%, rgba(236, 250, 247, 0.72) 58%, rgba(236, 250, 247, 0.92) 100%);
+  pointer-events: none;
+}
+
+.welcome-hub::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(0, 111, 107, 0.16), rgba(255, 255, 255, 0), rgba(0, 111, 107, 0.12));
+  pointer-events: none;
+}
+
+.welcome-hub__shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 119, 117, 0.1) 0%, rgba(255, 255, 255, 0.06) 42%, rgba(226, 244, 239, 0.24) 72%);
+  pointer-events: none;
+}
+
+.welcome-card,
+.welcome-wallet {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(250, 247, 229, 0.6));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 14px 30px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(6px);
+}
+
+.welcome-card {
+  border: 2px solid rgba(255, 255, 255, 0.78);
+}
+
+@media (max-width: 460px) {
+  .welcome-card {
+    height: 204px;
+  }
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: #d1d5db transparent;

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo, ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   TEAL, TEAL_GRAD, TEAL_DARK,
   RATING_OPTS, REVIEW_OPTS, OFFER_OPTS, SORT_OPTS, PER_PAGE,
@@ -260,7 +261,16 @@ function unwrapList<T>(res: unknown): T[] {
   return [];
 }
 
+function normalizeCategoryToken(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 export default function ServiceListPage({ onSelectSeller, busyServiceId }: ServiceListPageProps) {
+  const searchParams = useSearchParams();
+  const requestedCategory = useMemo(
+    () => searchParams.get("category")?.trim() ?? "",
+    [searchParams],
+  );
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [rootCategories, setRootCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Category[]>([]);
@@ -287,6 +297,19 @@ export default function ServiceListPage({ onSelectSeller, busyServiceId }: Servi
       setRootCategories(list.filter((c) => !c.parentId));
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!requestedCategory || rootCategories.length === 0) return;
+    const requested = normalizeCategoryToken(requestedCategory);
+    const match = rootCategories.find((category) => {
+      const name = normalizeCategoryToken(category.name);
+      return name === requested || name.includes(requested) || requested.includes(name);
+    });
+    if (!match || match.id === parentCategoryId) return;
+    setParentCategoryId(match.id);
+    setSubcategoryId("");
+    setPage(1);
+  }, [parentCategoryId, requestedCategory, rootCategories]);
 
   useEffect(() => {
     if (!parentCategoryId) {
