@@ -43,6 +43,20 @@ export default function ProductRoute({
           metadata: p.metadata as any,
         });
 
+        const meta =
+          p.metadata && typeof p.metadata === "object" && !Array.isArray(p.metadata)
+            ? (p.metadata as Record<string, unknown>)
+            : {};
+        const productAttributes =
+          meta.productAttributes && typeof meta.productAttributes === "object"
+            ? meta.productAttributes
+            : meta.attributes && typeof meta.attributes === "object"
+              ? meta.attributes
+              : {};
+        const variations = Array.isArray((p as any).variations)
+          ? ((p as any).variations as Record<string, unknown>[])
+          : [];
+
         setProduct({
           id: p.id,
           name: p.name,
@@ -51,6 +65,8 @@ export default function ProductRoute({
           image: mainImage,
           imageUrl: mainImage,
           images: gallery.length ? gallery : mainImage ? [mainImage] : [],
+          shortDescription: (p as any).shortDescription || "",
+          longDescription: (p as any).longDescription || "",
           description:
             (p as any).longDescription ||
             (p as any).shortDescription ||
@@ -60,8 +76,12 @@ export default function ProductRoute({
           reviews: 0,
           vendorId: p.vendorId,
           categoryId: p.categoryId,
-          brand: p.metadata?.brand ?? "",
-          specs: p.metadata ?? {},
+          brand: meta.brand ?? "",
+          metadata: meta,
+          productAttributes,
+          productType: meta.productType ?? "simple",
+          variations,
+          specs: meta,
         });
 
         // Load reviews in background so route transition is not blocked by review APIs.

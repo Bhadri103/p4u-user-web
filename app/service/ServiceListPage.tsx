@@ -299,6 +299,7 @@ export default function ServiceListPage({ onSelectSeller, busyServiceId }: Servi
   }, []);
 
   useEffect(() => {
+
     if (!requestedCategory || rootCategories.length === 0) return;
     const requested = normalizeCategoryToken(requestedCategory);
     const match = rootCategories.find((category) => {
@@ -312,6 +313,7 @@ export default function ServiceListPage({ onSelectSeller, busyServiceId }: Servi
   }, [parentCategoryId, requestedCategory, rootCategories]);
 
   useEffect(() => {
+
     if (!parentCategoryId) {
       setSubcategories([]);
       setSubcategoryId("");
