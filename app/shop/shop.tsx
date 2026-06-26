@@ -7,6 +7,7 @@ import {
   ShoppingBag, Filter, Tag,
   ArrowUp,
   ArrowDown,
+  Package,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -16,7 +17,7 @@ import {
 import { catalogApi, type Category } from "@/lib/api/catalog";
 import { Loader2 } from "lucide-react";
 import { resolveCatalogUnitPrice } from "@/lib/catalog/resolvePrice";
-import { resolveMediaUrl } from "@/lib/media";
+import { pickCategoryImage, resolveMediaUrl } from "@/lib/media";
 
 const SHOP_CARD_PLACEHOLDER =
   "https://placehold.co/600x400/f3f4f6/64748b?text=Shop";
@@ -135,6 +136,97 @@ function ProductBrowseCard({ item, onVendorSelect }: { item: ShopItem; onVendorS
     </div>
   );
 }
+
+type CategoryRailProps = {
+  categories: Category[];
+  selectedId: string;
+  allLabel: string;
+  onSelect: (categoryId: string) => void;
+  showAll?: boolean;
+};
+
+function CategoryThumb({
+  label,
+  image,
+  active,
+  onClick,
+  isAll = false,
+}: {
+  label: string;
+  image: string | null;
+  active: boolean;
+  onClick: () => void;
+  isAll?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      className="group flex w-[78px] shrink-0 flex-col items-center gap-2 bg-transparent p-0 text-center outline-none"
+    >
+      <span
+        className={`flex h-[78px] w-[78px] items-center justify-center overflow-hidden rounded-[21px] border-2 bg-white transition-all ${
+          active
+            ? "border-[#009999] shadow-[0_8px_18px_rgba(0,153,153,0.14)]"
+            : "border-slate-200 shadow-sm group-hover:border-[#88d3d1]"
+        }`}
+      >
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={image} alt="" className="h-[56px] w-[56px] rounded-full object-cover" />
+        ) : (
+          <span
+            className={`flex h-[44px] w-[44px] items-center justify-center rounded-full ${
+              isAll ? "bg-[#f3efe7] text-[#b3794a]" : "bg-slate-100 text-slate-400"
+            }`}
+          >
+            {isAll ? <Package className="h-6 w-6" /> : <ShoppingBag className="h-6 w-6" />}
+          </span>
+        )}
+      </span>
+      <span
+        className={`block w-full truncate text-[11px] leading-tight ${
+          active ? "font-semibold text-[#009999]" : "font-medium text-slate-700"
+        }`}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
+function CategoryRail({ categories, selectedId, allLabel, onSelect, showAll = true }: CategoryRailProps) {
+  return (
+    <div className="relative">
+      <div className="shop-category-rail flex gap-5 overflow-x-auto pb-2 pr-14">
+        {showAll && (
+          <CategoryThumb
+            label={allLabel}
+            image={null}
+            active={!selectedId}
+            isAll
+            onClick={() => onSelect("")}
+          />
+        )}
+        {categories.map((category) => (
+          <CategoryThumb
+            key={category.id}
+            label={category.name}
+            image={pickCategoryImage(category)}
+            active={selectedId === category.id}
+            onClick={() => onSelect(category.id)}
+          />
+        ))}
+      </div>
+      <div className="pointer-events-none absolute right-0 top-0 flex h-[82px] w-16 items-center justify-end bg-gradient-to-l from-[#f8fafc] via-[#f8fafc]/90 to-transparent">
+        <span className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-md">
+          <ChevronRight className="h-5 w-5" />
+        </span>
+      </div>
+    </div>
+  );
+}
  
 
 type PaginationProps = {
@@ -209,7 +301,7 @@ function SidebarContent({
     <div className="w-full space-y-3">
       <div className="rounded-2xl px-4 py-3 bg-white shadow-sm border border-gray-100 text-xs text-gray-500">
         <p className="font-semibold text-gray-600 mb-1">Category</p>
-        <p className="leading-relaxed">Use the category and subcategory menus above the product grid. Shop lists only products (not services).</p>
+        <p className="leading-relaxed">Use the category row above the product grid. Shop lists only products (not services).</p>
       </div>
       <div className="rounded-2xl px-4 py-3 bg-white shadow-sm border border-gray-100">
         <p className="text-xs font-semibold tracking-[0.15em] uppercase mb-3 flex items-center gap-2 text-gray-500">
@@ -384,6 +476,7 @@ export default function ShopPage({ onVendorSelect }: { onVendorSelect?: (vendorI
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const selectedParentCategory = rootCategories.find((category) => category.id === parentCategoryId);
 
   const activeFilters = [
     sortBy !== "popularity" ? sortBy : null,
@@ -424,44 +517,39 @@ export default function ShopPage({ onVendorSelect }: { onVendorSelect?: (vendorI
           </div>
         )} 
         <div className="flex-1 min-w-0"> 
+          <div className="mb-6 rounded-2xl bg-[#f8fafc] px-1 py-2">
+            <CategoryRail
+              categories={rootCategories}
+              selectedId={parentCategoryId}
+              allLabel="All"
+              onSelect={(categoryId) => {
+                setParentCategoryId(categoryId);
+                setSubcategoryId("");
+                setPage(1);
+              }}
+            />
+            {selectedParentCategory && subcategories.length > 0 && (
+              <div className="mt-8">
+                <h2 className="mb-5 text-[22px] font-bold leading-tight text-slate-950">
+                  Shop {selectedParentCategory.name}
+                </h2>
+                <CategoryRail
+                  categories={subcategories}
+                  selectedId={subcategoryId}
+                  allLabel="All"
+                  showAll={false}
+                  onSelect={(categoryId) => {
+                    setSubcategoryId(categoryId);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div className="space-y-2 min-w-0 flex-1">
               <h1 className="text-lg font-bold text-gray-900">Shop — Products</h1>
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={parentCategoryId}
-                  onChange={(e) => {
-                    setParentCategoryId(e.target.value);
-                    setPage(1);
-                  }}
-                  className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-800 max-w-[180px]"
-                >
-                  <option value="">All categories</option>
-                  {rootCategories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={subcategoryId}
-                  onChange={(e) => {
-                    setSubcategoryId(e.target.value);
-                    setPage(1);
-                  }}
-                  disabled={!parentCategoryId || subcategories.length === 0}
-                  className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-800 max-w-[180px] disabled:opacity-50"
-                >
-                  <option value="">
-                    {parentCategoryId ? (subcategories.length ? "All subcategories" : "No subcategories") : "Subcategory"}
-                  </option>
-                  {subcategories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
               <p className="text-xs text-gray-400 mt-0.5">
                 Showing {Math.min((page - 1) * ITEMS_PER_PAGE + 1, filtered.length)}–
                 {Math.min(page * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} results
