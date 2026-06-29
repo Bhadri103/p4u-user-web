@@ -1,15 +1,17 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+﻿import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Heart, MessageCircle, Send, Bookmark, MoreHorizontal,
   Search, X, PlusCircle, Phone, Video, Info, Image as ImageIcon,
   Smile, ArrowLeft, Volume2, VolumeX,
-  ChevronRight, ChevronLeft, Camera, Lock, Users, Eye,
+  ChevronRight, ChevronLeft, ChevronDown, Camera, Lock, Users, Eye,
   Bell, Archive, Activity, Globe, Clock, Star, FileText,
   MessageSquare, Tag, Share2, UserPlus, ThumbsUp,
   UserX, Check, Edit3, Home, Compass, Film, Settings,
-  User, Menu, Grid, Play, Layers, Loader2
+  User, Menu, Grid, Play, Pause, Layers, Loader2, Trash2, Mic
 } from "lucide-react";
-import { socialApi, type SocioUserProfile } from "@/lib/api/social";
+import { socialApi, type ActivityNotification, type LinkedProduct, type Post, type SocioUserProfile, type Story, type UserSummary } from "@/lib/api/social";
+import { profileApi } from "@/lib/api/profile";
+import { catalogApi, type Product } from "@/lib/api/catalog";
 import { resolveMediaUrl } from "@/lib/media";
 
 const TEAL = "linear-gradient(135deg, #009999, #007777)";
@@ -28,20 +30,55 @@ const FILTER_CSS: Record<string, string> = {
   Ludwig:    "contrast(1.05) brightness(1.05) saturate(1.1)",
 };
 const FILTER_NAMES = Object.keys(FILTER_CSS);
+const POST_CATEGORIES = ["Lifestyle", "Shopping", "Services", "Classifieds", "Food", "Travel", "Education", "Business", "Community"];
 
-// ── TYPES for local UI state ────────────────────────────────────────────────────
-interface StoryItem { id: number | string; mine: boolean; label: string; avatar: string | null; mediaUrl?: string }
-interface PostItem { id: number | string; userId: string; user: string; co: string; avatarA: string; avatarB: string | null; location: string; time: string; image: string; likes: number; comments: number; shares: number; caption: string; hashtags: string; isLiked?: boolean; isSaved?: boolean }
+// â”€â”€ TYPES for local UI state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+interface StorySegment { id: number | string; mediaUrl: string; mediaType: string; createdAt: string; viewCount: number; viewed?: boolean }
+interface StoryItem { id: number | string; userId?: string; mine: boolean; label: string; avatar: string | null; segments: StorySegment[]; viewed: boolean }
+interface PostItem { id: number | string; userId: string; user: string; co: string; avatarA: string; avatarB: string | null; location: string; time: string; image: string; mediaUrls?: string[]; postType?: string; likes: number; comments: number; shares: number; caption: string; hashtags: string; isLiked?: boolean; isSaved?: boolean; isFollowing?: boolean; isSelf?: boolean; category?: string | null; linkedProducts?: LinkedProduct[]; hideLikeCount?: boolean; commentPermission?: "everyone" | "followers" | "none" }
 interface ContactItem { id: number; name: string; avatar: string; lastMsg: string; time: string; unread: boolean }
-interface NotificationItem { id: string | number; userId: string; group: string; user: string; text: string; time: string; avatar: string; action: string }
-interface SearchItem { id: number; name: string; sub: string; avatar: string; verified: boolean }
+interface NotificationItem { id: string | number; userId: string; group: string; user: string; text: string; time: string; avatar: string; action: string; type: string; createdAt: string; postId?: string | number; reelId?: string | number; storyId?: string | number; relatedThumbnail?: string | null; isRead: boolean; isFollowing?: boolean; canMarkRead?: boolean }
+interface SearchItem { id: number; userId?: string; name: string; sub: string; avatar: string; verified: boolean }
 interface SuggestionItem { id: string | number; userId: string; name: string; sub: string; avatar: string }
-interface UserProfileData { userId: string; name: string; username: string; bio: string; website: string; posts: number; followers: string; following: string; avatar: string; images: string[]; verified: boolean; isSelf: boolean; isFollowing: boolean }
-interface ExplorePostItem { id: number | string; image: string; likes: number; comments: number }
-interface ReelItem { id: number | string; postId: string | number; userId: string; username: string; caption: string; video: string; likes: number; comments: number; shares: number; avatar: string; user: string; isLiked?: boolean }
+interface UserProfileData { userId: string; name: string; username: string; bio: string; website: string; posts: number; followers: number; following: number; avatar: string; images: ProfileGridMedia[]; reels: ReelItem[]; verified: boolean; isSelf: boolean; isFollowing: boolean }
+interface ExplorePostItem { id: number | string; image: string; likes: number; comments: number; type: "image" | "video"; reel?: ReelItem }
+interface ReelItem { id: number | string; postId: string | number; userId: string; username: string; caption: string; video: string; likes: number; comments: number; shares: number; avatar: string; user: string; isLiked?: boolean; isSaved?: boolean; isFollowing?: boolean; isSelf?: boolean; createdAt?: string; views?: number; audio?: string }
+interface ProfileGridMedia { id: string | number; url: string; type: "image" | "video" }
+
+function firstAlphabet(name?: string | null): string {
+  const trimmed = (name || "U").trim();
+  return (trimmed[0] || "U").toUpperCase();
+}
+
+function AvatarCircle({
+  src,
+  name,
+  size = "md",
+  className = "",
+}: {
+  src?: string | null;
+  name?: string | null;
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}) {
+  const sizeClass = size === "lg" ? "w-12 h-12 text-base" : size === "sm" ? "w-8 h-8 text-xs" : "w-10 h-10 text-sm";
+  const resolved = src?.trim() ? resolveMediaUrl(src.trim()) || src.trim() : "";
+  if (resolved) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={resolved} alt={name || "user"} className={`${sizeClass} rounded-full object-cover ${className}`} />
+    );
+  }
+  return (
+    <div className={`${sizeClass} rounded-full border-2 border-orange-400 bg-white flex items-center justify-center font-bold text-slate-950 ${className}`}>
+      {firstAlphabet(name)}
+    </div>
+  );
+}
 
 /** Map an API Post to the shape our PostCard expects */
-function mapApiPostToPostItem(p: { id: string | number; userId?: string | number; userName?: string; userAvatar?: string; content?: string; imageUrl?: string; likeCount: number; commentCount: number; shareCount?: number; isLiked?: boolean; isSaved?: boolean; createdAt: string }): PostItem {
+function mapApiPostToPostItem(p: { id: string | number; userId?: string | number; userName?: string; userAvatar?: string; content?: string; imageUrl?: string; mediaUrls?: string[]; postType?: string; likeCount: number; commentCount: number; shareCount?: number; isLiked?: boolean; isSaved?: boolean; isFollowing?: boolean; isSelf?: boolean; category?: string | null; linkedProducts?: LinkedProduct[]; hideLikeCount?: boolean; commentPermission?: "everyone" | "followers" | "none"; createdAt: string }): PostItem {
+  const mediaUrls = (p.mediaUrls ?? []).map((u) => (u.trim() ? resolveMediaUrl(u.trim()) || u : "")).filter(Boolean);
   return {
     id: p.id,
     userId: String(p.userId ?? ""),
@@ -56,39 +93,110 @@ function mapApiPostToPostItem(p: { id: string | number; userId?: string | number
     time: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "",
     image: (() => {
       const u = p.imageUrl ?? "";
-      return u.trim() ? resolveMediaUrl(u.trim()) || u : "";
+      return u.trim() ? resolveMediaUrl(u.trim()) || u : mediaUrls[0] ?? "";
     })(),
+    mediaUrls,
+    postType: p.postType,
     likes: p.likeCount,
     comments: p.commentCount,
     shares: p.shareCount ?? 0,
     isLiked: p.isLiked ?? false,
     isSaved: p.isSaved ?? false,
+    isFollowing: p.isFollowing ?? false,
+    isSelf: p.isSelf ?? false,
+    category: p.category ?? null,
+    linkedProducts: p.linkedProducts ?? [],
+    hideLikeCount: p.hideLikeCount ?? false,
+    commentPermission: p.commentPermission ?? "everyone",
     caption: p.content ?? "",
     hashtags: "",
   };
 }
 
-/** Map an API Story to the shape our StoryCircle expects */
-function mapApiStoryToStoryItem(s: { id: string | number; userName?: string; userAvatar?: string; mediaUrl?: string }): StoryItem {
+function isStoryExpired(s: Pick<Story, "createdAt" | "expiresAt">): boolean {
+  const expiresAt = s.expiresAt ? new Date(s.expiresAt).getTime() : NaN;
+  if (!Number.isNaN(expiresAt)) return expiresAt <= Date.now();
+  const createdAt = new Date(s.createdAt).getTime();
+  return !Number.isNaN(createdAt) && Date.now() - createdAt >= 24 * 60 * 60 * 1000;
+}
+
+function isVideoStory(segment: Pick<StorySegment, "mediaType" | "mediaUrl">): boolean {
+  return segment.mediaType === "video" || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(segment.mediaUrl);
+}
+
+function mapStorySegment(s: Story): StorySegment | null {
+  const mediaUrl = s.mediaUrl?.trim() ? resolveMediaUrl(s.mediaUrl.trim()) || s.mediaUrl.trim() : "";
+  if (!mediaUrl || isStoryExpired(s)) return null;
   return {
     id: s.id,
-    mine: false,
-    label: s.userName ?? "user",
-    avatar: (() => {
-      const u = s.userAvatar ?? "";
-      return u.trim() ? resolveMediaUrl(u.trim()) || u : null;
-    })(),
-    mediaUrl: (() => {
-      const u = s.mediaUrl ?? "";
-      return u.trim() ? resolveMediaUrl(u.trim()) || u : undefined;
-    })(),
+    mediaUrl,
+    mediaType: isVideoStory({ mediaType: s.mediaType, mediaUrl }) ? "video" : "image",
+    createdAt: s.createdAt,
+    viewCount: s.viewCount || 0,
+    viewed: Boolean(s.viewed),
   };
 }
 
+function buildStoryItems(
+  myStories: Story[],
+  feedStories: Story[],
+  me?: SocioUserProfile | null,
+): StoryItem[] {
+  const myUserId = me?.userId ? String(me.userId) : "";
+  const myAvatarRaw = me?.userAvatar ?? "";
+  const myAvatar = myAvatarRaw.trim() ? resolveMediaUrl(myAvatarRaw.trim()) || myAvatarRaw : null;
+  const mySegments = myStories
+    .map(mapStorySegment)
+    .filter((segment): segment is StorySegment => Boolean(segment))
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+  const items: StoryItem[] = [{
+    id: "my",
+    userId: myUserId,
+    mine: true,
+    label: "Your Story",
+    avatar: myAvatar,
+    segments: mySegments,
+    viewed: mySegments.length > 0 && mySegments.every((segment) => segment.viewed),
+  }];
+
+  const grouped = new Map<string, StoryItem>();
+  feedStories.forEach((story) => {
+    const userId = String(story.userId ?? story.userName ?? story.id);
+    if (myUserId && userId === myUserId) return;
+    const segment = mapStorySegment(story);
+    if (!segment) return;
+    const existing = grouped.get(userId);
+    if (existing) {
+      existing.segments.push(segment);
+      existing.viewed = existing.segments.every((row) => row.viewed);
+      return;
+    }
+    const avatarRaw = story.userAvatar ?? "";
+    grouped.set(userId, {
+      id: userId,
+      userId,
+      mine: false,
+      label: story.userName ?? "user",
+      avatar: avatarRaw.trim() ? resolveMediaUrl(avatarRaw.trim()) || avatarRaw : null,
+      segments: [segment],
+      viewed: Boolean(segment.viewed),
+    });
+  });
+
+  grouped.forEach((item) => {
+    item.segments.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    item.viewed = item.segments.every((segment) => segment.viewed);
+    items.push(item);
+  });
+
+  return items;
+}
+
 /** Map an API UserSummary to suggestion shape */
-function mapApiSuggestion(u: { id?: string | number; userId?: string; name?: string; avatar?: string }): SuggestionItem {
+function mapApiSuggestion(u: { id?: string | number; userId?: string; name?: string; avatar?: string; avatarUrl?: string; userAvatar?: string }): SuggestionItem {
   const uid = String(u.userId ?? u.id ?? "");
-  return { id: uid, userId: uid, name: u.name ?? "user", sub: "Suggested for you", avatar: (() => { const a = u.avatar ?? ""; return a.trim() ? resolveMediaUrl(a.trim()) || a : ""; })() };
+  return { id: uid, userId: uid, name: u.name ?? "user", sub: "Suggested for you", avatar: (() => { const a = u.userAvatar ?? u.avatarUrl ?? u.avatar ?? ""; return a.trim() ? resolveMediaUrl(a.trim()) || a : ""; })() };
 }
 
 function formatRelativeTime(iso: string): string {
@@ -108,7 +216,6 @@ function notificationGroup(iso: string): string {
   const d = new Date(iso);
   const diff = Date.now() - d.getTime();
   const days = Math.floor(diff / 86400000);
-  if (days < 1) return "Yesterday";
   if (days < 7) return "This Week";
   return "Earlier";
 }
@@ -119,7 +226,161 @@ function isVideoPost(p: { postType?: string; imageUrl?: string; mediaUrls?: stri
   return urls.some((u) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u));
 }
 
-// ── UTILS ─────────────────────────────────────────────────────────────────────
+// â”€â”€ UTILS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function postToProfileGridMedia(p: { id: string | number; imageUrl?: string; mediaUrls?: string[]; postType?: string }): ProfileGridMedia | null {
+  const raw = p.imageUrl || p.mediaUrls?.[0] || "";
+  const url = raw.trim() ? resolveMediaUrl(raw.trim()) || raw : "";
+  if (!url) return null;
+  return {
+    id: p.id,
+    url,
+    type: isVideoPost({ postType: p.postType, imageUrl: p.imageUrl, mediaUrls: p.mediaUrls }) ? "video" : "image",
+  };
+}
+
+function postToReelItem(p: { id: string | number; userId?: string | number; userName?: string; userAvatar?: string; content?: string; imageUrl?: string; mediaUrls?: string[]; postType?: string; likeCount: number; commentCount: number; shareCount?: number; isLiked?: boolean; isSaved?: boolean; isFollowing?: boolean; isSelf?: boolean; createdAt?: string }, index = 0): ReelItem | null {
+  if (!isVideoPost({ postType: p.postType, imageUrl: p.imageUrl, mediaUrls: p.mediaUrls })) return null;
+  const videoRaw = p.mediaUrls?.find((u) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u)) ?? p.mediaUrls?.[0] ?? p.imageUrl ?? "";
+  const video = videoRaw.trim() ? resolveMediaUrl(videoRaw.trim()) || videoRaw : "";
+  if (!video) return null;
+  const avatarRaw = p.userAvatar ?? "";
+  return {
+    id: p.id ?? index,
+    postId: p.id,
+    userId: String(p.userId ?? ""),
+    username: p.userName ?? "user",
+    user: p.userName ?? "user",
+    caption: p.content ?? "",
+    video,
+    likes: p.likeCount,
+    comments: p.commentCount,
+    shares: p.shareCount ?? 0,
+    avatar: avatarRaw.trim() ? resolveMediaUrl(avatarRaw.trim()) || avatarRaw : "",
+    isLiked: p.isLiked,
+    isSaved: p.isSaved,
+    isFollowing: p.isFollowing,
+    isSelf: p.isSelf,
+    createdAt: p.createdAt,
+    audio: "Original audio",
+  };
+}
+
+function ProfileMediaModal({ media, onClose }: { media: ProfileGridMedia; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center px-4" onClick={onClose}>
+      {media.type === "video" ? (
+        <video
+          src={media.url}
+          className="max-w-lg w-full max-h-[80vh] rounded-2xl object-contain bg-black"
+          controls
+          autoPlay
+          playsInline
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) : (
+        <img
+          src={media.url}
+          alt=""
+          className="max-w-lg w-full max-h-[80vh] rounded-2xl object-cover"
+          onClick={(e) => e.stopPropagation()}
+        />
+      )}
+      <button onClick={onClose} className="absolute top-4 right-4 bg-white/20 rounded-full p-2">
+        <X className="w-5 h-5 text-white" />
+      </button>
+    </div>
+  );
+}
+
+function ProfileReelsViewer({ reels, initialIndex, onClose, onUserClick }: { reels: ReelItem[]; initialIndex: number; onClose: () => void; onUserClick: (userId: string) => void }) {
+  const [globalMuted, setGlobalMuted] = useState(true);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const child = scroller.children[Math.max(0, Math.min(initialIndex, reels.length - 1))] as HTMLElement | undefined;
+    child?.scrollIntoView({ block: "start" });
+  }, [initialIndex, reels.length]);
+
+  if (reels.length === 0) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black">
+      <button onClick={onClose} className="absolute right-4 top-4 z-30 rounded-full bg-black/40 p-2 text-white">
+        <X className="h-6 w-6" />
+      </button>
+      <div ref={scrollerRef} className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth" style={{ scrollbarWidth: "none" }}>
+        {reels.map((reel) => (
+          <ReelCard
+            key={reel.id}
+            reel={reel}
+            globalMuted={globalMuted}
+            onMuteToggle={() => setGlobalMuted((v) => !v)}
+            onUserClick={onUserClick}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProfileGridCell({ media, onClick }: { media: ProfileGridMedia; onClick: () => void }) {
+  return (
+    <div className="relative aspect-square overflow-hidden cursor-pointer group bg-gray-100" onClick={onClick}>
+      {media.type === "video" ? (
+        <>
+          <video
+            src={media.url}
+            className="block h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            muted
+            playsInline
+            preload="metadata"
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/45 text-white">
+              <Play className="h-8 w-8 fill-white translate-x-0.5" />
+            </div>
+          </div>
+        </>
+      ) : (
+        <img src={media.url} alt="" loading="lazy" decoding="async" className="block h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+      )}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+    </div>
+  );
+}
+
+function ExploreMediaCell({ post, onClick }: { post: ExplorePostItem; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="relative block aspect-square w-full overflow-hidden rounded-xl bg-gray-200 text-left group break-inside-avoid"
+    >
+      {post.type === "video" && post.image ? (
+        <>
+          <video src={post.image} className="block h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" muted playsInline preload="metadata" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/45 text-white">
+              <Play className="h-7 w-7 fill-white translate-x-0.5" />
+            </div>
+          </div>
+        </>
+      ) : post.image ? (
+        <img src={post.image} alt="" loading="lazy" decoding="async" className="block h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-500">No media</div>
+      )}
+      <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/40" />
+      <div className="absolute inset-0 hidden items-center justify-center gap-4 group-hover:flex">
+        <div className="flex items-center gap-1 text-white"><Heart className="w-5 h-5 fill-white" /><span className="text-sm font-bold">{post.likes.toLocaleString()}</span></div>
+        <div className="flex items-center gap-1 text-white"><MessageCircle className="w-5 h-5 fill-white" /><span className="text-sm font-bold">{post.comments}</span></div>
+      </div>
+    </button>
+  );
+}
+
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button onClick={() => onChange(!checked)} className={`w-11 h-6 rounded-full transition-all relative shrink-0 ${checked ? "bg-teal-500" : "bg-gray-300"}`}>
@@ -128,65 +389,384 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   );
 }
 
-// ── STORY VIEWER ──────────────────────────────────────────────────────────────
-function StoryViewer({ story, onClose }: { story: StoryItem; onClose: () => void }) {
+// â”€â”€ STORY VIEWER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function StoryViewer({
+  story,
+  storyRail,
+  onClose,
+  onStoryChange,
+  onViewed,
+  onDeleted,
+}: {
+  story: StoryItem;
+  storyRail?: StoryItem[];
+  onClose: () => void;
+  onStoryChange?: (story: StoryItem) => void;
+  onViewed?: (storyId: string | number) => void;
+  onDeleted?: (storyId: string | number) => void;
+}) {
+  const [index, setIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const pointerStartY = useRef<number | null>(null);
+  const nextInitialIndex = useRef(0);
+  const segments = story.segments;
+  const active = segments[index];
+  const rail = (storyRail && storyRail.length > 0 ? storyRail : [story]).filter((item) => item.segments.length > 0);
+  const railIndex = Math.max(0, rail.findIndex((item) => item.id === story.id));
+
+  const openRailStory = useCallback((targetIndex: number, segmentIndex = 0) => {
+    const nextStory = rail[targetIndex];
+    if (!nextStory) return false;
+    nextInitialIndex.current = Math.max(0, Math.min(segmentIndex, nextStory.segments.length - 1));
+    setProgress(0);
+    onStoryChange?.(nextStory);
+    return true;
+  }, [onStoryChange, rail]);
+
+  const closeOrAdvance = useCallback(() => {
+    setIndex((current) => {
+      if (current >= segments.length - 1) {
+        if (!openRailStory(railIndex + 1, 0)) onClose();
+        return current;
+      }
+      return current + 1;
+    });
+  }, [onClose, openRailStory, railIndex, segments.length]);
+
+  const goBack = useCallback(() => {
+    setIndex((current) => {
+      if (current > 0) return current - 1;
+      const prevStory = rail[railIndex - 1];
+      if (prevStory) openRailStory(railIndex - 1, prevStory.segments.length - 1);
+      return current;
+    });
+  }, [openRailStory, rail, railIndex]);
+
   useEffect(() => {
-    if (story.id && story.id !== "my") {
-      socialApi.viewStory(story.id).catch(() => {});
-    }
-  }, [story.id]);
+    setIndex(Math.min(nextInitialIndex.current, Math.max(segments.length - 1, 0)));
+    nextInitialIndex.current = 0;
+    setProgress(0);
+    setPaused(false);
+  }, [segments.length, story.id]);
+
   useEffect(() => {
-    const t = setInterval(() => setProgress(p => { if (p >= 100) { onClose(); return 0; } return p + 2; }), 60);
-    return () => clearInterval(t);
-  }, []);
+    setProgress(0);
+    if (!active || story.mine) return;
+    socialApi.viewStory(active.id).catch(() => {});
+    onViewed?.(active.id);
+  }, [active?.id, onViewed, story.mine]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowRight") closeOrAdvance();
+      if (event.key === "ArrowLeft") goBack();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [closeOrAdvance, goBack, onClose]);
+
+  useEffect(() => {
+    if (!active || isVideoStory(active) || paused) return;
+    const interval = window.setInterval(() => {
+      setProgress((current) => {
+        if (current >= 100) {
+          closeOrAdvance();
+          return 100;
+        }
+        return Math.min(100, current + 2);
+      });
+    }, 100);
+    return () => window.clearInterval(interval);
+  }, [active, closeOrAdvance, paused]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !active || !isVideoStory(active)) return;
+    if (paused) video.pause();
+    else void video.play().catch(() => {});
+  }, [active, paused]);
+
+  const togglePaused = (event?: React.MouseEvent) => {
+    event?.stopPropagation();
+    setPaused((current) => !current);
+  };
+
+  const handleVideoProgress = (event: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = event.currentTarget;
+    if (video.duration) setProgress(Math.min(100, (video.currentTime / video.duration) * 100));
+  };
+
+  const handleDelete = async () => {
+    if (!active || deleting) return;
+    setDeleting(true);
+    try {
+      await socialApi.deleteStory(active.id);
+      onDeleted?.(active.id);
+      if (segments.length <= 1) onClose();
+      else if (index >= segments.length - 1) setIndex((current) => Math.max(0, current - 1));
+    } catch { /* ignore delete failures */ }
+    finally { setDeleting(false); }
+  };
+
+  if (!active) return null;
+  const isVideo = isVideoStory(active);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90" onClick={onClose}>
-      <div className="relative w-full max-w-xs sm:max-w-sm h-[85vh] max-h-[600px] rounded-2xl overflow-hidden bg-gray-900" onClick={e => e.stopPropagation()}>
-        {(story.mediaUrl || story.avatar) ? (
-        <img src={story.mediaUrl || story.avatar || ""} alt={story.label} className="w-full h-full object-cover bg-gray-800" />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#1a1a1a] px-3 py-4 sm:px-6"
+      onPointerDown={(event) => { pointerStartY.current = event.clientY; }}
+      onPointerUp={(event) => {
+        if (pointerStartY.current != null && event.clientY - pointerStartY.current > 80) onClose();
+        pointerStartY.current = null;
+      }}
+    >
+      {!isVideo && (
+        <img
+          src={active.mediaUrl}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-10 blur-3xl"
+        />
+      )}
+      <div className="pointer-events-none absolute inset-0 bg-[#111]/80" />
+      <div className="absolute left-4 top-4 z-20 hidden select-none text-[27px] font-semibold italic leading-none text-white md:block" style={{ fontFamily: "cursive" }}>
+        Instagram
+      </div>
+      <button
+        onClick={onClose}
+        className="absolute right-5 top-5 z-20 rounded-full p-2 text-white/95 transition hover:bg-white/10"
+        aria-label="Close story"
+      >
+        <X className="h-9 w-9 stroke-[2.2]" />
+      </button>
+      <div
+        className="relative z-10 aspect-[9/16] h-[min(92dvh,875px)] max-h-[92dvh] w-auto max-w-[min(92vw,492px)] overflow-hidden rounded-[10px] bg-black shadow-2xl ring-1 ring-white/10"
+        onClick={e => e.stopPropagation()}
+        onMouseDown={() => setPaused(true)}
+        onMouseUp={() => setPaused(false)}
+        onMouseLeave={() => setPaused(false)}
+        onTouchStart={() => setPaused(true)}
+        onTouchEnd={() => setPaused(false)}
+      >
+        {isVideoStory(active) ? (
+          <video
+            ref={videoRef}
+            key={active.id}
+            src={active.mediaUrl}
+            className="block h-full w-full object-cover"
+            playsInline
+            autoPlay
+            muted
+            onTimeUpdate={handleVideoProgress}
+            onEnded={closeOrAdvance}
+          />
         ) : (
-        <div className="w-full h-full bg-gray-800 flex items-center justify-center text-white text-sm">{story.label}</div>
+          <img src={active.mediaUrl} alt={story.label} className="block h-full w-full object-cover" decoding="async" />
         )}
-        <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/60 to-transparent">
-          <div className="h-0.5 bg-white/30 rounded-full mb-3 w-full">
-            <div className="h-full bg-white rounded-full transition-all" style={{ width: `${progress}%` }} />
+
+        <button type="button" aria-label="Previous story" onClick={goBack} className="absolute left-0 top-24 bottom-24 w-1/3" />
+        <button type="button" aria-label="Next story" onClick={closeOrAdvance} className="absolute right-0 top-24 bottom-24 w-1/3" />
+
+        <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/65 via-black/20 to-transparent">
+          <div className="mb-3 flex gap-[2px]">
+            {segments.map((segment, segmentIndex) => (
+              <div key={segment.id} className="h-[2px] flex-1 overflow-hidden rounded-full bg-white/40">
+                <div
+                  className="h-full rounded-full bg-white transition-[width]"
+                  style={{ width: `${segmentIndex < index ? 100 : segmentIndex === index ? progress : 0}%` }}
+                />
+              </div>
+            ))}
           </div>
-          <div className="flex items-center gap-3">
-            {story.avatar ? <img src={story.avatar} alt="" className="w-9 h-9 rounded-full border-2 border-teal-400 object-cover" /> : <div className="w-9 h-9 rounded-full border-2 border-teal-400 bg-gray-600" />}
-            <span className="text-white text-sm font-bold">{story.label}</span>
-            <span className="text-white/60 text-xs ml-auto">1h</span>
+          <div className="flex items-start gap-3">
+            <AvatarCircle src={story.avatar} name={story.label} size="sm" className="h-8 w-8 border border-white/70 text-xs" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="max-w-32 truncate text-sm font-bold text-white">{story.label}</span>
+                <Check className="h-3.5 w-3.5 rounded-full bg-white text-black" />
+                <span className="text-xs text-white/70">{formatRelativeTime(active.createdAt)}</span>
+              </div>
+              <div className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-white">
+                <Play className="h-3 w-3 fill-white" />
+                <span>Watch full reel</span>
+                <ChevronRight className="h-3 w-3" />
+              </div>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <VolumeX className="h-4 w-4 text-white" />
+              <button
+                onMouseDown={(event) => event.stopPropagation()}
+                onTouchStart={(event) => event.stopPropagation()}
+                onClick={togglePaused}
+                className="rounded-full p-0.5 text-white transition hover:bg-white/10"
+                aria-label={paused ? "Play story" : "Pause story"}
+              >
+                {paused ? <Play className="h-5 w-5 fill-white" /> : <Pause className="h-5 w-5 fill-white" />}
+              </button>
+              <MoreHorizontal className="h-5 w-5 text-white" />
+              {story.mine && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-black/35 px-2 py-1 text-[11px] font-semibold text-white">
+                  <Eye className="h-3.5 w-3.5" /> {active.viewCount}
+                </span>
+              )}
+              {story.mine && (
+                <button
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onTouchStart={(event) => event.stopPropagation()}
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="rounded-full bg-black/35 p-1.5 text-white disabled:opacity-60"
+                >
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                </button>
+              )}
+              <button
+                onMouseDown={(event) => event.stopPropagation()}
+                onTouchStart={(event) => event.stopPropagation()}
+                onClick={onClose}
+                className="rounded-full bg-black/35 p-1.5 sm:hidden"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
           </div>
         </div>
-        <button onClick={onClose} className="absolute top-4 right-4 bg-black/40 rounded-full p-1.5"><X className="w-4 h-4 text-white" /></button>
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/55 to-transparent" />
+        <div className="absolute bottom-4 left-4 right-4 flex items-center gap-3">
+          <input
+            readOnly
+            value=""
+            placeholder={`Reply to ${story.label}...`}
+            onMouseDown={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
+            className="h-11 min-w-0 flex-1 rounded-full border border-white/80 bg-transparent px-5 text-sm font-medium text-white placeholder-white/90 outline-none"
+          />
+          <button
+            type="button"
+            onMouseDown={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
+            className="text-white"
+          >
+            <Heart className="h-8 w-8" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
+            className="text-white"
+          >
+            <Send className="h-8 w-8" />
+          </button>
+        </div>
       </div>
+      <button
+        type="button"
+        aria-label="Next story"
+        onClick={closeOrAdvance}
+        className="absolute left-[calc(50%+260px)] top-1/2 z-20 hidden h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white/70 transition hover:bg-white/25 lg:flex"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
     </div>
   );
 }
 
-function StoryCircle({ story, onClick }: { story: StoryItem; onClick: () => void }) {
+function StoryCircle({ story, onClick, onCreate }: { story: StoryItem; onClick: () => void; onCreate?: () => void }) {
+  const cover = story.segments[0]?.mediaUrl || story.avatar || "";
+  const ringClass = story.segments.length === 0
+    ? "border-dashed border-gray-300"
+    : story.viewed ? "border-gray-300" : "border-teal-400";
   return (
     <div className="flex flex-col items-center gap-1 shrink-0 cursor-pointer" onClick={onClick}>
-      <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 overflow-hidden transition-transform hover:scale-105 ${story.mine ? "border-dashed border-gray-300" : "border-teal-400"}`}>
-        {story.mine
-          ? <div className="w-full h-full bg-gray-100 flex items-center justify-center"><PlusCircle className="w-5 h-5 text-teal-400" /></div>
-          : story.avatar || story.mediaUrl
-            ? <img src={story.avatar || story.mediaUrl} alt={story.label} className="w-full h-full object-cover" />
-            : <div className="w-full h-full bg-gray-200 flex items-center justify-center text-[9px] text-gray-500 text-center px-1">{story.label}</div>}
+      <div className={`relative w-14 h-14 rounded-full flex items-center justify-center border-2 overflow-hidden transition-transform hover:scale-105 ${ringClass}`}>
+        {cover
+          ? isVideoStory({ mediaType: story.segments[0]?.mediaType ?? "image", mediaUrl: cover })
+            ? <video src={cover} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+            : <img src={cover} alt={story.label} className="w-full h-full object-cover" />
+          : <div className="w-full h-full bg-gray-100 flex items-center justify-center"><PlusCircle className="w-5 h-5 text-teal-400" /></div>}
+        {story.mine && story.segments.length > 0 && onCreate && (
+          <button
+            onClick={(event) => { event.stopPropagation(); onCreate(); }}
+            className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-teal-500 text-white ring-2 ring-white"
+          >
+            <PlusCircle className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
       <span className="text-[10px] text-gray-500 truncate w-14 text-center">{story.label}</span>
     </div>
   );
 }
 
-// ── POST CARD ─────────────────────────────────────────────────────────────────
-function PostCard({ post: p, onUserClick }: { post: PostItem; onUserClick: (userId: string) => void }) {
+// â”€â”€ POST CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function FeedVideo({
+  src,
+  postId,
+}: {
+  src: string;
+  postId: string | number;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [muted, setMuted] = useState(true);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const key = String(postId);
+
+    const pauseForOtherVideo = (event: Event) => {
+      const detail = (event as CustomEvent<{ postId?: string }>).detail;
+      if (detail?.postId !== key) video.pause();
+    };
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+          window.dispatchEvent(new CustomEvent("socio-video-play", { detail: { postId: key } }));
+          void video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: [0, 0.6, 1] },
+    );
+
+    observer.observe(video);
+    window.addEventListener("socio-video-play", pauseForOtherVideo);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("socio-video-play", pauseForOtherVideo);
+      video.pause();
+    };
+  }, [postId]);
+
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      className="block h-full w-full object-cover bg-black"
+      controls
+      muted={muted}
+      playsInline
+      preload="metadata"
+      onVolumeChange={(event) => setMuted(event.currentTarget.muted)}
+    />
+  );
+}
+
+function PostCard({ post: p, onUserClick, myUserId }: { post: PostItem; onUserClick: (userId: string) => void; myUserId?: string }) {
   const [liked, setLiked] = useState(p.isLiked ?? false);
   const [saved, setSaved] = useState(p.isSaved ?? false);
+  const [following, setFollowing] = useState(p.isFollowing ?? false);
   const [likes, setLikes] = useState(p.likes);
   const [shares, setShares] = useState(p.shares);
   const [comment, setComment] = useState("");
-  const [commentList, setCommentList] = useState<{ id: string | number; user: string; text: string }[]>([]);
+  const [commentList, setCommentList] = useState<{ id: string | number; user: string; avatar?: string | null; text: string }[]>([]);
   const [commentCount, setCommentCount] = useState(p.comments);
   const [showComments, setShowComments] = useState(false);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
@@ -194,28 +774,34 @@ function PostCard({ post: p, onUserClick }: { post: PostItem; onUserClick: (user
   const [showMenu, setShowMenu] = useState(false);
   const [likeBusy, setLikeBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
 
   useEffect(() => {
     setLiked(p.isLiked ?? false);
     setSaved(p.isSaved ?? false);
+    setFollowing(p.isFollowing ?? false);
     setLikes(p.likes);
     setShares(p.shares);
     setCommentCount(p.comments);
-  }, [p.id, p.isLiked, p.isSaved, p.likes, p.shares, p.comments]);
+  }, [p.id, p.isLiked, p.isSaved, p.isFollowing, p.likes, p.shares, p.comments]);
+
+  const isSelfPost = Boolean(p.isSelf || (myUserId && p.userId && String(myUserId) === String(p.userId)));
+  const canComment = p.commentPermission !== "none" && (p.commentPermission !== "followers" || following || isSelfPost);
+  const showLikeTotal = !p.hideLikeCount || isSelfPost;
+  const videoUrl = isVideoPost({ postType: p.postType, imageUrl: p.image, mediaUrls: p.mediaUrls }) ? (p.mediaUrls?.[0] || p.image) : "";
 
   const toggleLike = async () => {
     if (likeBusy) return;
     const next = !liked;
     setLiked(next);
-    setLikes(v => (next ? v + 1 : v - 1));
+    setLikes(v => (next ? v + 1 : Math.max(0, v - 1)));
     setLikeBusy(true);
     try {
       if (next) await socialApi.likePost(p.id);
       else await socialApi.unlikePost(p.id);
     } catch {
-      // revert optimistic update on failure
       setLiked(!next);
-      setLikes(v => (next ? v - 1 : v + 1));
+      setLikes(v => (next ? Math.max(0, v - 1) : v + 1));
     } finally {
       setLikeBusy(false);
     }
@@ -252,18 +838,34 @@ function PostCard({ post: p, onUserClick }: { post: PostItem; onUserClick: (user
   const loadComments = async () => {
     try {
       const rows = await socialApi.getComments(p.id);
-      setCommentList(rows.map(c => ({ id: c.id, user: c.userName ?? "user", text: c.content })));
+      setCommentList(rows.map(c => ({ id: c.id, user: c.userName ?? "user", avatar: c.userAvatar ?? null, text: c.content })));
       setCommentCount(prev => Math.max(prev, rows.length));
     } catch { /* feed may be unreachable */ }
     setCommentsLoaded(true);
   };
 
   const toggleComments = () => {
+    if (!canComment) return;
     setShowComments(v => {
       const next = !v;
-      if (next && !commentsLoaded) loadComments();
+      if (next && !commentsLoaded) void loadComments();
       return next;
     });
+  };
+
+  const toggleFollow = async () => {
+    if (!p.userId || isSelfPost || followBusy) return;
+    const next = !following;
+    setFollowing(next);
+    setFollowBusy(true);
+    try {
+      if (next) await socialApi.followUser(p.userId);
+      else await socialApi.unfollowUser(p.userId);
+    } catch {
+      setFollowing(!next);
+    } finally {
+      setFollowBusy(false);
+    }
   };
 
   const submitComment = async () => {
@@ -272,40 +874,50 @@ function PostCard({ post: p, onUserClick }: { post: PostItem; onUserClick: (user
     setComment("");
     setShowComments(true);
     const tempId = `temp-${Date.now()}`;
-    setCommentList(list => [...list, { id: tempId, user: "you", text }]);
+    setCommentList(list => [...list, { id: tempId, user: "You", text }]);
     setCommentCount(c => c + 1);
     setCommentBusy(true);
     try {
       const saved = await socialApi.createComment(p.id, { contentText: text });
-      setCommentList(list => list.map(c => (c.id === tempId ? { id: saved.id, user: saved.userName ?? "You", text: saved.content || text } : c)));
+      setCommentList(list => list.map(c => (c.id === tempId ? { id: saved.id, user: saved.userName ?? "You", avatar: saved.userAvatar ?? null, text: saved.content || text } : c)));
     } catch {
       setCommentList(list => list.filter(c => c.id !== tempId));
-      setCommentCount(c => c - 1);
+      setCommentCount(c => Math.max(0, c - 1));
       setComment(text);
     } finally {
       setCommentBusy(false);
     }
   };
 
+  const addEmoji = (emoji: string) => setComment((value) => `${value}${emoji}`);
+  const commentEmojis = ["😊", "🎉", "🔥", "💯", "👏", "💖", "🥳", "🫶", "💐", "🌟"];
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4">
-      <div className="flex items-center gap-3 px-4 py-3">
-        <button onClick={() => p.userId && onUserClick(p.userId)} className="relative w-10 h-10 shrink-0">
-          {p.avatarA ? (
-          <img src={p.avatarA} alt={p.user} className="w-10 h-10 rounded-full object-cover border-2 border-teal-400 hover:border-teal-600 transition" />
-          ) : (
-          <div className="w-10 h-10 rounded-full border-2 border-teal-400 bg-gray-200 flex items-center justify-center text-[10px] text-gray-500 font-bold">?</div>
-          )}
-          {p.avatarB && <img src={p.avatarB} alt="" className="w-7 h-7 rounded-full object-cover border-2 border-white absolute -bottom-1 -right-1" />}
+    <div className="bg-white shadow-sm border border-gray-100 overflow-hidden mb-4">
+      <div className="flex items-center gap-4 px-5 py-4">
+        <button onClick={() => p.userId && onUserClick(p.userId)} className="relative shrink-0">
+          <AvatarCircle src={p.avatarA} name={p.user} size="lg" className="border-2 border-orange-400 hover:border-teal-600 transition" />
         </button>
         <div className="flex-1 min-w-0">
-          <button onClick={() => p.userId && onUserClick(p.userId)} className="text-sm font-bold text-gray-900 truncate hover:text-teal-600 transition text-left">
+          <button onClick={() => p.userId && onUserClick(p.userId)} className="text-[20px] font-bold text-slate-950 truncate hover:text-teal-600 transition text-left leading-tight">
             {p.user} {p.co && <span className="font-normal text-gray-500 text-xs">{p.co}</span>}
           </button>
-          <p className="text-[11px] text-gray-400">{p.location} · {p.time}</p>
+          <p className="text-[12px] text-slate-500">{p.time}</p>
         </div>
+        {!isSelfPost && (
+          <button
+            type="button"
+            onClick={toggleFollow}
+            disabled={followBusy}
+            className={`rounded-full px-5 py-2 text-sm font-bold transition disabled:opacity-60 ${
+              following ? "bg-slate-100 text-slate-800" : "bg-[#009999] text-white hover:bg-[#007f7f]"
+            }`}
+          >
+            {following ? "Following" : "Follow"}
+          </button>
+        )}
         <div className="relative">
-          <button onClick={() => setShowMenu(true)} className="p-1 text-gray-400 hover:text-gray-700"><MoreHorizontal className="w-4 h-4" /></button>
+          <button onClick={() => setShowMenu(true)} className="p-1 text-slate-950 hover:text-gray-700"><MoreHorizontal className="w-5 h-5" /></button>
           {showMenu && (
             <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50" onClick={() => setShowMenu(false)}>
               <div className="bg-white rounded-2xl shadow-2xl w-72 overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -318,56 +930,100 @@ function PostCard({ post: p, onUserClick }: { post: PostItem; onUserClick: (user
           )}
         </div>
       </div>
-      <div className="relative w-full aspect-[4/3] bg-gray-100">
-        {p.image ? (
-        <img src={p.image} alt="post" className="w-full h-full object-cover" />
+      <div className="relative w-full aspect-[4/5] overflow-hidden bg-gray-100">
+        {videoUrl ? (
+        <FeedVideo src={videoUrl} postId={p.id} />
+        ) : p.image ? (
+        <img src={p.image} alt="post" loading="lazy" decoding="async" className="block h-full w-full object-cover" />
         ) : (
         <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">No media</div>
         )}
       </div>
-      <div className="px-4 py-3">
+      <div className="px-5 py-3">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-4">
             <button onClick={toggleLike} disabled={likeBusy} className="flex items-center gap-1 group disabled:opacity-60">
-              <Heart className={`w-5 h-5 transition-all ${liked ? "fill-red-500 text-red-500 scale-110" : "text-gray-500 group-hover:text-red-400"}`} />
-              <span className="text-xs font-semibold text-gray-600">{likes.toLocaleString()}</span>
+              <Heart className={`w-8 h-8 transition-all ${liked ? "fill-red-500 text-red-500 scale-110" : "text-slate-950 group-hover:text-red-400"}`} />
+              {showLikeTotal && <span className="text-lg text-slate-950">{likes.toLocaleString()}</span>}
             </button>
-            <button onClick={toggleComments} className="flex items-center gap-1 group">
-              <MessageCircle className="w-5 h-5 text-gray-500 group-hover:text-teal-500 transition" />
-              <span className="text-xs font-semibold text-gray-600">{commentCount}</span>
+            <button onClick={toggleComments} disabled={!canComment} className="flex items-center gap-1 group disabled:opacity-40">
+              <MessageCircle className="w-8 h-8 text-slate-950 group-hover:text-teal-500 transition" />
+              <span className="text-lg text-slate-950">{commentCount}</span>
             </button>
             <button onClick={handleShare} className="flex items-center gap-1 group">
-              <Send className="w-5 h-5 text-gray-500 group-hover:text-blue-500 transition" />
-              <span className="text-xs font-semibold text-gray-600">{shares}</span>
+              <Send className="w-8 h-8 text-slate-950 group-hover:text-blue-500 transition" />
+              <span className="text-lg text-slate-950">{shares}</span>
             </button>
           </div>
           <button onClick={toggleSave} disabled={saveBusy}>
-            <Bookmark className={`w-5 h-5 transition ${saved ? "fill-teal-500 text-teal-500" : "text-gray-400 hover:text-teal-500"}`} />
+            <Bookmark className={`w-8 h-8 transition ${saved ? "fill-teal-500 text-teal-500" : "text-slate-950 hover:text-teal-500"}`} />
           </button>
         </div>
-        <p className="text-xs text-gray-700 mb-1"><span className="font-semibold">{p.user}</span> {p.caption}</p>
-        <p className="text-xs text-teal-600">{p.hashtags}</p>
-        {showComments && commentList.length > 0 && (
-          <div className="mt-2 space-y-1">
-            {commentList.map((c) => <p key={c.id} className="text-xs text-gray-700"><span className="font-semibold">{c.user} </span>{c.text}</p>)}
+        <p className="text-[20px] text-slate-950 mb-1 leading-snug"><span className="font-bold">{p.user}</span> {p.caption}</p>
+        {p.category && <p className="text-sm font-semibold text-slate-500 mb-2">Category: {p.category}</p>}
+        <p className="text-[20px] text-[#009999]">{p.hashtags}</p>
+        {p.linkedProducts && p.linkedProducts.length > 0 && (
+          <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+            {p.linkedProducts.map((product) => (
+              <div key={product.id} className="flex min-w-48 items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-2">
+                {product.image ? (
+                  <img src={resolveMediaUrl(product.image) || product.image} alt={product.name} className="h-12 w-12 rounded-lg object-cover" />
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-xs font-bold text-slate-400">P</div>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-slate-950">{product.name}</p>
+                  {product.price != null && <p className="text-xs text-slate-500">₹{product.price}</p>}
+                </div>
+              </div>
+            ))}
           </div>
         )}
-        <div className="mt-2 flex gap-2">
-          <input value={comment} onChange={e => setComment(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") submitComment(); }}
-            placeholder="Add a comment… (Enter to post)"
-            className="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 outline-none focus:border-teal-400" />
-          {comment.trim() && (
-            <button onClick={submitComment} disabled={commentBusy}
-              className="text-xs font-bold text-teal-500 hover:text-teal-700 px-2 disabled:opacity-60">Post</button>
-          )}
-        </div>
+        {showComments && (
+          <div className="mt-4">
+            <textarea
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              placeholder="Add a comment..."
+              rows={4}
+              className="w-full resize-none rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4 text-lg text-slate-900 outline-none placeholder:text-slate-400 focus:border-teal-400"
+            />
+            <div className="mt-4 flex flex-wrap items-center gap-4">
+              {commentEmojis.map((emoji) => (
+                <button key={emoji} type="button" onClick={() => addEmoji(emoji)} className="text-2xl leading-none hover:scale-110 transition">
+                  {emoji}
+                </button>
+              ))}
+              <button type="button" className="rounded-full border border-teal-200 px-4 py-2 text-sm text-[#009999]">
+                😊 More
+              </button>
+            </div>
+            <div className="mt-4 flex justify-end gap-4">
+              <button type="button" onClick={() => { setComment(""); setShowComments(false); }} className="rounded-full border border-slate-200 px-5 py-2 text-base font-semibold text-slate-950">
+                Cancel
+              </button>
+              <button type="button" onClick={submitComment} disabled={!comment.trim() || commentBusy} className="rounded-full bg-[#7fd3d0] px-6 py-2 text-base font-bold text-white disabled:opacity-50">
+                Post
+              </button>
+            </div>
+            {commentList.length > 0 && (
+              <div className="mt-4 space-y-3">
+                {commentList.map((c) => (
+                  <div key={c.id} className="flex items-start gap-3 text-sm text-slate-800">
+                    <AvatarCircle src={c.avatar} name={c.user} size="sm" />
+                    <p><span className="font-semibold">{c.user} </span>{c.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ── CREATE STORY MODAL ────────────────────────────────────────────────────────
+// Post card end
 function CreateStoryModal({ onClose, onCreated }: { onClose: () => void; onCreated?: () => void }) {
   const [preview, setPreview] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -430,7 +1086,7 @@ function CreateStoryModal({ onClose, onCreated }: { onClose: () => void; onCreat
                 <img src={preview} alt="story" className="w-full h-full object-cover" style={{ filter: FILTER_CSS[filter] }} />
               )}
               <div className="absolute bottom-3 left-3 right-3">
-                <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="Add caption…"
+                <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="Add captionâ€¦"
                   className="w-full text-xs bg-black/40 text-white placeholder-white/60 rounded-lg px-3 py-2 outline-none border border-white/20 backdrop-blur" />
               </div>
             </div>
@@ -455,7 +1111,7 @@ function CreateStoryModal({ onClose, onCreated }: { onClose: () => void; onCreat
           <button onClick={onClose} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition disabled:opacity-50">Cancel</button>
           {preview && (
             <button onClick={handleShare} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white shadow transition hover:opacity-90 disabled:opacity-60" style={{ background: TEAL }}>
-              {submitting ? "Sharing…" : "Share to Story"}
+              {submitting ? "Sharingâ€¦" : "Share to Story"}
             </button>
           )}
         </div>
@@ -464,13 +1120,15 @@ function CreateStoryModal({ onClose, onCreated }: { onClose: () => void; onCreat
   );
 }
 
-// ── USER PROFILE PAGE ─────────────────────────────────────────────────────────
-function UserProfilePage({ userId, onBack }: { userId: string; onBack: () => void }) {
+// â”€â”€ USER PROFILE PAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function UserProfilePage({ userId, onBack, onUserClick, onMessage }: { userId: string; onBack: () => void; onUserClick: (userId: string) => void; onMessage: (userId: string) => void }) {
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
-  const [selectedImg, setSelectedImg] = useState<string | null>(null);
+  const [followList, setFollowList] = useState<FollowListTab | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<ProfileGridMedia | null>(null);
+  const [selectedReelIndex, setSelectedReelIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("Posts");
 
   useEffect(() => {
@@ -483,11 +1141,11 @@ function UserProfilePage({ userId, onBack }: { userId: string; onBack: () => voi
       .then(([prof, postRes]) => {
         if (cancelled) return;
         const images = postRes.data
-          .map((p) => {
-            const u = p.imageUrl ?? "";
-            return u.trim() ? resolveMediaUrl(u.trim()) || u : "";
-          })
-          .filter(Boolean);
+          .map(postToProfileGridMedia)
+          .filter((item): item is ProfileGridMedia => Boolean(item));
+        const reels = postRes.data
+          .map(postToReelItem)
+          .filter((item): item is ReelItem => Boolean(item));
         setProfile({
           userId: prof.userId,
           name: prof.userName,
@@ -495,10 +1153,11 @@ function UserProfilePage({ userId, onBack }: { userId: string; onBack: () => voi
           bio: prof.bio ?? "",
           website: "",
           posts: prof.postCount,
-          followers: prof.followerCount.toLocaleString(),
-          following: prof.followingCount.toLocaleString(),
+          followers: prof.followerCount,
+          following: prof.followingCount,
           avatar: prof.userAvatar ? resolveMediaUrl(prof.userAvatar) || prof.userAvatar : "",
           images,
+          reels,
           verified: false,
           isSelf: prof.isSelf,
           isFollowing: prof.isFollowing,
@@ -518,12 +1177,14 @@ function UserProfilePage({ userId, onBack }: { userId: string; onBack: () => voi
     if (!profile || profile.isSelf || followBusy) return;
     const next = !following;
     setFollowing(next);
+    setProfile((current) => current ? { ...current, followers: Math.max(0, current.followers + (next ? 1 : -1)), isFollowing: next } : current);
     setFollowBusy(true);
     try {
       if (next) await socialApi.followUser(userId);
       else await socialApi.unfollowUser(userId);
     } catch {
       setFollowing(!next);
+      setProfile((current) => current ? { ...current, followers: Math.max(0, current.followers + (next ? -1 : 1)), isFollowing: !next } : current);
     } finally {
       setFollowBusy(false);
     }
@@ -543,119 +1204,139 @@ function UserProfilePage({ userId, onBack }: { userId: string; onBack: () => voi
       <div className="flex flex-col items-center justify-center h-full py-20 px-4">
         <User className="w-16 h-16 text-gray-300 mb-4" />
         <p className="text-gray-500 text-sm">Profile not found</p>
-        <button onClick={onBack} className="mt-4 text-teal-500 text-sm font-semibold">← Go back</button>
+        <button onClick={onBack} className="mt-4 text-teal-500 text-sm font-semibold">â† Go back</button>
       </div>
     );
   }
 
   const TABS = ["Posts", "Reels", "Tagged"];
 
+  if (followList) {
+    return (
+      <FollowListScreen
+        ownerId={profile.userId}
+        initialTab={followList}
+        onBack={() => setFollowList(null)}
+        onUserClick={(nextUserId) => {
+          setFollowList(null);
+          onUserClick(nextUserId);
+        }}
+        onRelationshipChange={({ targetUserId, isFollowing, delta }) => {
+          if (targetUserId === profile.userId) {
+            setFollowing(isFollowing);
+            setProfile((current) => current ? { ...current, followers: Math.max(0, current.followers + delta), isFollowing } : current);
+          }
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-full bg-white">
-      {selectedImg && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center px-4" onClick={() => setSelectedImg(null)}>
-          <img src={selectedImg} alt="" className="max-w-full max-h-[85vh] rounded-2xl object-cover" />
-          <button className="absolute top-4 right-4 bg-white/20 rounded-full p-2"><X className="w-5 h-5 text-white" /></button>
-        </div>
+    <div className="min-h-full max-w-3xl bg-white">
+      {selectedMedia && <ProfileMediaModal media={selectedMedia} onClose={() => setSelectedMedia(null)} />}
+      {selectedReelIndex != null && (
+        <ProfileReelsViewer
+          reels={profile.reels}
+          initialIndex={selectedReelIndex}
+          onClose={() => setSelectedReelIndex(null)}
+          onUserClick={onUserClick}
+        />
       )}
 
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 sticky top-0 bg-white z-10">
-        <button onClick={onBack} className="p-1.5 hover:bg-gray-100 rounded-xl transition">
-          <ArrowLeft className="w-5 h-5 text-gray-700" />
+      <div className="px-9 pb-5 pt-5">
+        <button onClick={onBack} className="mb-2 -ml-2 inline-flex items-center rounded-xl p-2 text-slate-950 hover:bg-slate-50">
+          <ArrowLeft className="h-5 w-5" />
         </button>
-        <div className="flex-1">
-          <p className="text-sm font-bold text-gray-900">{profile.username}</p>
-          <p className="text-[11px] text-gray-400">{profile.posts} posts</p>
-        </div>
-        <button className="p-1.5 hover:bg-gray-100 rounded-xl"><MoreHorizontal className="w-5 h-5 text-gray-600" /></button>
-      </div>
-
-      <div className="px-4 pt-5 pb-2">
-        {/* Profile info row */}
-        <div className="flex items-start gap-4 mb-4">
-          <div className="relative shrink-0">
-            {profile.avatar ? (
-            <img src={profile.avatar} alt={profile.name} className="w-20 h-20 rounded-full object-cover border-3 border-teal-400 ring-2 ring-teal-100" style={{ border: "3px solid #0d9488" }} />
-            ) : (
-            <div className="w-20 h-20 rounded-full border-3 border-teal-400 bg-gray-200 flex items-center justify-center" style={{ border: "3px solid #0d9488" }}><User className="w-8 h-8 text-gray-400" /></div>
-            )}
-            {profile.verified && (
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center border-2 border-white">
-                <Check className="w-3 h-3 text-white" />
-              </div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-base font-bold text-gray-900">{profile.name}</h1>
-              {profile.verified && <span className="text-teal-500 text-xs">✓</span>}
-            </div>
-            {/* Stats */}
-            <div className="flex gap-4 mb-3">
-              {[[profile.posts.toLocaleString(),"Posts"],[profile.followers,"Followers"],[profile.following,"Following"]].map(([v,l]) => (
-                <div key={l} className="text-center">
-                  <p className="text-sm font-bold text-gray-900">{v}</p>
-                  <p className="text-[10px] text-gray-500">{l}</p>
-                </div>
-              ))}
-            </div>
+        <div className="mb-5 grid grid-cols-[128px_1fr] items-center gap-6">
+          <AvatarCircle src={profile.avatar} name={profile.name} className="h-28 w-28 text-3xl border-white shadow-sm" />
+          <div className="grid grid-cols-3 gap-3 text-center">
+            {[[profile.posts,"Posts"],[profile.followers,"Followers"],[profile.following,"Following"]].map(([v,l]) => {
+              const clickable = l === "Followers" || l === "Following";
+              return (
+                <button
+                  key={l}
+                  type="button"
+                  disabled={!clickable}
+                  onClick={() => setFollowList(l === "Followers" ? "followers" : "following")}
+                  className="disabled:cursor-default"
+                >
+                  <p className="text-2xl font-bold text-slate-950">{v}</p>
+                  <p className="mt-1 text-base text-slate-500">{l}</p>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Bio */}
-        <div className="mb-4">
-          <p className="text-xs text-gray-700 leading-relaxed">{profile.bio}</p>
-          {profile.website && <a href="#" className="text-xs text-teal-600 font-semibold mt-0.5 block">🔗 {profile.website}</a>}
+        <h1 className="mb-4 text-xl font-bold text-slate-950">{profile.name}</h1>
+
+        <div className="mb-5 flex items-center gap-3 rounded-full bg-[#fff9f2] px-3 py-3 text-base text-slate-500">
+          <div className="flex -space-x-2">
+            <AvatarCircle src={profile.avatar} name={profile.name} size="sm" className="border-2 border-white bg-slate-100" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-teal-50 text-xs font-bold text-slate-500">+</span>
+          </div>
+          <span className="min-w-0 truncate">
+            Followed by <b className="text-slate-950">{profile.name}</b>
+          </span>
         </div>
 
-        {/* Action buttons */}
-        <div className="flex gap-2 mb-5">
+        <div className="grid grid-cols-[1fr_1fr_52px] gap-3">
           {!profile.isSelf && (
           <button onClick={toggleFollow} disabled={followBusy}
-            className={`flex-1 py-2 rounded-xl text-sm font-bold transition ${following ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "text-white hover:opacity-90"}`}
+            className={`flex items-center justify-center gap-2 rounded-2xl py-3 text-lg font-bold transition disabled:opacity-60 ${following ? "bg-teal-50 text-slate-950" : "text-white"}`}
             style={following ? {} : { background: TEAL }}>
             {following ? "Following" : "Follow"}
+            {following && <ChevronDown className="h-5 w-5" />}
           </button>
           )}
-          <button className="flex-1 py-2 rounded-xl text-sm font-bold bg-gray-100 text-gray-800 hover:bg-gray-200 transition" disabled>Message</button>
+          <button onClick={() => !profile.isSelf && onMessage(profile.userId)} className="rounded-2xl bg-teal-50 py-3 text-lg font-bold text-slate-950">Message</button>
+          <button className="flex items-center justify-center rounded-2xl bg-teal-50 text-slate-950">
+            <UserPlus className="h-6 w-6" />
+          </button>
         </div>
-
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-100">
+      <div className="grid grid-cols-3 border-t border-slate-100">
         {TABS.map(t => (
           <button key={t} onClick={() => setActiveTab(t)}
-            className={`flex-1 py-3 text-xs font-semibold border-b-2 transition flex items-center justify-center gap-1.5 ${activeTab === t ? "text-teal-600 border-teal-500" : "text-gray-400 border-transparent hover:text-gray-600"}`}>
-            {t === "Posts" && <Grid className="w-4 h-4" />}
-            {t === "Reels" && <Play className="w-4 h-4" />}
-            {t === "Tagged" && <Tag className="w-4 h-4" />}
-            <span className="hidden sm:inline">{t}</span>
+            className={`py-5 border-b-2 transition flex items-center justify-center ${activeTab === t ? "text-slate-950 border-slate-950" : "text-slate-500 border-transparent"}`}>
+            {t === "Posts" && <Grid className="w-6 h-6" />}
+            {t === "Reels" && <Film className="w-6 h-6" />}
+            {t === "Tagged" && <Users className="w-6 h-6" />}
           </button>
         ))}
       </div>
 
-      {/* Grid */}
-      {profile.images.length === 0 ? (
+      {activeTab === "Reels" ? (
+        profile.reels.length === 0 ? (
+          <div className="text-center py-16 text-gray-400 text-sm">No reels yet.</div>
+        ) : (
+          <div className="grid grid-cols-3 gap-0.5">
+            {profile.reels.map((reel, index) => (
+              <ProfileGridCell key={reel.id} media={{ id: reel.id, url: reel.video, type: "video" }} onClick={() => setSelectedReelIndex(index)} />
+            ))}
+          </div>
+        )
+      ) : activeTab === "Tagged" ? (
+        <div className="text-center py-16 text-gray-400 text-sm">No tagged posts yet.</div>
+      ) : profile.images.length === 0 ? (
         <div className="text-center py-16 text-gray-400 text-sm">No posts yet.</div>
       ) : (
-      <div className="grid grid-cols-3 gap-0.5 p-0.5">
-        {profile.images.map((img, i) => (
-          <div key={i} className="relative aspect-square overflow-hidden cursor-pointer group" onClick={() => setSelectedImg(img)}>
-            <img src={img} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-          </div>
-        ))}
-      </div>
+        <div className="grid grid-cols-3 gap-0.5">
+          {profile.images.map((media) => (
+            <ProfileGridCell key={media.id} media={media} onClick={() => setSelectedMedia(media)} />
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-// ── HOME SECTION ──────────────────────────────────────────────────────────────
+// â”€â”€ HOME SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
-  const [stories, setStories] = useState<StoryItem[]>([{ id: "my", mine: true, label: "Your Story", avatar: null }]);
+  const [stories, setStories] = useState<StoryItem[]>([{ id: "my", mine: true, label: "Your Story", avatar: null, segments: [], viewed: false }]);
   const [posts, setPosts] = useState<PostItem[]>([]);
+  const [myUserId, setMyUserId] = useState("");
   const [searches, setSearches] = useState<SearchItem[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [followedIds, setFollowedIds] = useState<Record<string, boolean>>({});
@@ -684,16 +1365,26 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
 
   const loadFeed = useCallback(async () => {
     try {
-      const [feedRes, storyRes, suggestionsRes] = await Promise.allSettled([
-        socialApi.getFeed({ limit: 20 }),
+      setLoadingFeed(true);
+      const [feedRes, storyRes, suggestionsRes, meRes, myStoriesRes] = await Promise.allSettled([
+        socialApi.getPublicFeed({ limit: 20 }),
         socialApi.getStoryFeed(),
         socialApi.getSuggestions(),
+        socialApi.getMyProfile(),
+        socialApi.getMyStories(),
       ]);
       if (feedRes.status === "fulfilled") {
         setPosts(feedRes.value.data.map(mapApiPostToPostItem));
       }
-      if (storyRes.status === "fulfilled") {
-        setStories([{ id: "my", mine: true, label: "Your Story", avatar: null }, ...storyRes.value.map(mapApiStoryToStoryItem)]);
+      if (meRes.status === "fulfilled") {
+        setMyUserId(meRes.value.userId);
+      }
+      if (storyRes.status === "fulfilled" || myStoriesRes.status === "fulfilled" || meRes.status === "fulfilled") {
+        setStories(buildStoryItems(
+          myStoriesRes.status === "fulfilled" ? myStoriesRes.value : [],
+          storyRes.status === "fulfilled" ? storyRes.value : [],
+          meRes.status === "fulfilled" ? meRes.value : null,
+        ));
       }
       if (suggestionsRes.status === "fulfilled" && Array.isArray(suggestionsRes.value)) {
         setSuggestions(suggestionsRes.value.map(mapApiSuggestion));
@@ -711,9 +1402,36 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
     return () => { cancelled = true; };
   }, [loadFeed]);
 
+  const markStoryViewed = useCallback((storyId: string | number) => {
+    setStories((current) => current.map((item) => {
+      const segments = item.segments.map((segment) => segment.id === storyId ? { ...segment, viewed: true } : segment);
+      return { ...item, segments, viewed: segments.length > 0 && segments.every((segment) => segment.viewed) };
+    }));
+  }, []);
+
+  const removeStorySegment = useCallback((storyId: string | number) => {
+    const removeFromItem = (item: StoryItem): StoryItem => {
+      const segments = item.segments.filter((segment) => segment.id !== storyId);
+      return { ...item, segments, viewed: segments.length > 0 && segments.every((segment) => segment.viewed) };
+    };
+    setStories((current) => current
+      .map(removeFromItem)
+      .filter((item) => item.mine || item.segments.length > 0));
+    setStoryView((current) => current.story ? { ...current, story: removeFromItem(current.story) } : current);
+  }, []);
+
   return (
     <div className="w-full px-3 sm:px-4 py-4 flex gap-6 items-start bg-gray-50 min-h-screen">
-      {storyView.open && storyView.story && <StoryViewer story={storyView.story} onClose={() => setStoryView({ open: false, story: null })} />}
+      {storyView.open && storyView.story && (
+        <StoryViewer
+          story={storyView.story}
+          storyRail={stories}
+          onClose={() => setStoryView({ open: false, story: null })}
+          onStoryChange={(nextStory) => setStoryView({ open: true, story: nextStory })}
+          onViewed={markStoryViewed}
+          onDeleted={removeStorySegment}
+        />
+      )}
       {showCreateStory && <CreateStoryModal onClose={() => setShowCreateStory(false)} onCreated={loadFeed} />}
 
       <div className="flex-1 min-w-0 w-full max-w-[600px] mx-auto xl:mx-0">
@@ -723,7 +1441,8 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
           <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
             {stories.map(s => (
               <StoryCircle key={s.id} story={s}
-                onClick={() => s.mine ? setShowCreateStory(true) : setStoryView({ open: true, story: s })} />
+                onCreate={() => setShowCreateStory(true)}
+                onClick={() => s.mine && s.segments.length === 0 ? setShowCreateStory(true) : setStoryView({ open: true, story: s })} />
             ))}
           </div>
         </div>
@@ -732,10 +1451,10 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
         )}
         {!loadingFeed && posts.length === 0 && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center mb-4">
-            <p className="text-sm text-gray-400">No posts yet. Follow people to see their posts here.</p>
+            <p className="text-sm text-gray-400">No posts yet. Create a post to start the global feed.</p>
           </div>
         )}
-        {posts.map(post => <PostCard key={post.id} post={post} onUserClick={onUserClick} />)}
+        {posts.map(post => <PostCard key={post.id} post={post} onUserClick={onUserClick} myUserId={myUserId} />)}
       </div>
 
       {/* Sidebar */}
@@ -753,12 +1472,12 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
           <div className="space-y-2.5">
             {filtered.map(r => (
               <div key={r.id} className="flex items-center gap-2.5">
-                <button onClick={() => onUserClick(r.name)}>
-                  <img src={r.avatar} alt={r.name} className="w-9 h-9 rounded-full object-cover shrink-0 hover:ring-2 ring-teal-400 transition" />
+                <button onClick={() => onUserClick(r.userId ?? r.name)}>
+                  <AvatarCircle src={r.avatar} name={r.name} size="md" className="shrink-0 hover:ring-2 ring-teal-400 transition" />
                 </button>
                 <div className="flex-1 min-w-0">
-                  <button onClick={() => onUserClick(r.name)} className="text-xs font-semibold text-gray-800 flex items-center gap-1 hover:text-teal-600 transition">
-                    {r.name}{r.verified && <span className="text-teal-500 text-[10px]">✓</span>}
+                  <button onClick={() => onUserClick(r.userId ?? r.name)} className="text-xs font-semibold text-gray-800 flex items-center gap-1 hover:text-teal-600 transition">
+                    {r.name}{r.verified && <span className="text-teal-500 text-[10px]">âœ“</span>}
                   </button>
                   {r.sub && <p className="text-[10px] text-gray-400 truncate">{r.sub}</p>}
                 </div>
@@ -777,11 +1496,7 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
             {suggestions.map(s => (
               <div key={s.id} className="flex items-center gap-2.5">
                 <button onClick={() => onUserClick(s.userId)}>
-                  {s.avatar ? (
-                  <img src={s.avatar} alt={s.name} className="w-9 h-9 rounded-full object-cover shrink-0 hover:ring-2 ring-teal-400 transition" />
-                  ) : (
-                  <div className="w-9 h-9 rounded-full bg-gray-200 shrink-0 hover:ring-2 ring-teal-400 flex items-center justify-center text-[10px] text-gray-500 font-bold">?</div>
-                  )}
+                  <AvatarCircle src={s.avatar} name={s.name} size="md" className="shrink-0 hover:ring-2 ring-teal-400 transition" />
                 </button>
                 <div className="flex-1 min-w-0">
                   <button onClick={() => onUserClick(s.userId)} className="text-xs font-semibold text-gray-800 truncate hover:text-teal-600 transition block">{s.name}</button>
@@ -803,18 +1518,22 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
   );
 }
 
-// ── EXPLORE SECTION ───────────────────────────────────────────────────────────
+// â”€â”€ EXPLORE SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
   const [tab, setTab] = useState("Top");
-  const [hover, setHover] = useState<number | string | null>(null);
   const [search, setSearch] = useState("");
   const [explorePosts, setExplorePosts] = useState<ExplorePostItem[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<ProfileGridMedia | null>(null);
+  const [selectedReelIndex, setSelectedReelIndex] = useState<number | null>(null);
   const [people, setPeople] = useState<{ userId: string; username: string; name: string; avatar: string; posts: number }[]>([]);
   const [followedIds, setFollowedIds] = useState<Record<string, boolean>>({});
   const [tags, setTags] = useState<{ tag: string; postCount: number }[]>([]);
   const [places, setPlaces] = useState<{ place: string; postCount: number }[]>([]);
   const [loadingExplore, setLoadingExplore] = useState(true);
+  const exploreReels = explorePosts
+    .map((post) => post.reel)
+    .filter((reel): reel is ReelItem => Boolean(reel));
 
   const handleFollowPerson = async (userId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -843,13 +1562,16 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
         if (cancelled) return;
         if (feedRes.status === "fulfilled") {
           setExplorePosts(feedRes.value.data.map((p, i) => {
-            const raw = p.imageUrl ?? "";
+            const reel = postToReelItem(p, i);
+            const raw = reel?.video ?? p.imageUrl ?? p.mediaUrls?.[0] ?? "";
             const image = raw.trim() ? resolveMediaUrl(raw.trim()) || raw : "";
             return {
               id: p.id ?? i + 1,
               image,
               likes: p.likeCount,
               comments: p.commentCount,
+              type: reel ? "video" : "image",
+              reel: reel ?? undefined,
             };
           }));
         }
@@ -857,7 +1579,7 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
           setPeople(
             sugRes.value.map((u) => {
               const uid = String(u.userId ?? u.id ?? "");
-              const avatarRaw = u.avatar ?? "";
+              const avatarRaw = u.userAvatar ?? u.avatarUrl ?? u.avatar ?? "";
               return {
                 userId: uid,
                 username: (u.name ?? "user").toLowerCase().replace(/\s+/g, "_"),
@@ -883,9 +1605,18 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
 
   return (
     <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6">
+      {selectedMedia && <ProfileMediaModal media={selectedMedia} onClose={() => setSelectedMedia(null)} />}
+      {selectedReelIndex != null && (
+        <ProfileReelsViewer
+          reels={exploreReels}
+          initialIndex={selectedReelIndex}
+          onClose={() => setSelectedReelIndex(null)}
+          onUserClick={onUserClick}
+        />
+      )}
       <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl px-4 py-3 shadow-sm mb-5">
         <Search className="w-4 h-4 text-gray-400 shrink-0" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search people, tags, places…" className="flex-1 text-sm bg-transparent outline-none text-gray-700 placeholder-gray-400" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search people, tags, placesâ€¦" className="flex-1 text-sm bg-transparent outline-none text-gray-700 placeholder-gray-400" />
         {search && <button onClick={() => setSearch("")}><X className="w-4 h-4 text-gray-400" /></button>}
       </div>
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
@@ -898,11 +1629,7 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           {        people.map((p) => (
             <div key={p.userId} className="bg-white rounded-2xl p-4 flex flex-col items-center gap-2 border border-gray-100 shadow-sm hover:shadow-md transition cursor-pointer" onClick={() => onUserClick(p.userId)}>
-              {p.avatar ? (
-              <img src={p.avatar} alt={p.name} className="w-16 h-16 rounded-full object-cover border-2 border-teal-300" />
-              ) : (
-              <div className="w-16 h-16 rounded-full border-2 border-teal-300 bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold">?</div>
-              )}
+              <AvatarCircle src={p.avatar} name={p.name} className="w-16 h-16 text-xl border-teal-300" />
               <p className="text-sm font-bold text-gray-900 text-center truncate w-full">{p.name}</p>
               <p className="text-xs text-gray-400">{p.posts} posts</p>
               <button
@@ -946,7 +1673,7 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
                     <p className="text-sm font-bold text-gray-900">{p.place}</p>
                     <p className="text-xs text-gray-400">{p.postCount} posts</p>
                   </div>
-                  <span className="text-lg">📍</span>
+                  <span className="text-lg">ðŸ“</span>
                 </div>
               ))}
           </div>
@@ -955,22 +1682,20 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
         <>
         {loadingExplore && explorePosts.length === 0 && <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-teal-500 animate-spin" /></div>}
         {!loadingExplore && explorePosts.length === 0 && <div className="text-center py-12 text-gray-400 text-sm">No posts to explore yet.</div>}
-        <div className="columns-2 sm:columns-3 gap-2 space-y-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {explorePosts.map(post => (
-            <div key={post.id} className="relative overflow-hidden rounded-xl cursor-pointer group break-inside-avoid"
-              onMouseEnter={() => setHover(post.id)} onMouseLeave={() => setHover(null)}>
-              {post.image ? (
-              <img src={post.image} alt="" className="w-full aspect-square object-cover transition-transform duration-300 group-hover:scale-105" />
-              ) : (
-              <div className="w-full aspect-square bg-gray-200 flex items-center justify-center text-[10px] text-gray-500">No image</div>
-              )}
-              {hover === post.id && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-4">
-                  <div className="flex items-center gap-1 text-white"><Heart className="w-5 h-5 fill-white" /><span className="text-sm font-bold">{post.likes.toLocaleString()}</span></div>
-                  <div className="flex items-center gap-1 text-white"><MessageCircle className="w-5 h-5 fill-white" /><span className="text-sm font-bold">{post.comments}</span></div>
-                </div>
-              )}
-            </div>
+            <ExploreMediaCell
+              key={post.id}
+              post={post}
+              onClick={() => {
+                if (post.reel) {
+                  const reelIndex = exploreReels.findIndex((reel) => reel.postId === post.reel?.postId);
+                  setSelectedReelIndex(Math.max(0, reelIndex));
+                } else {
+                  setSelectedMedia({ id: post.id, url: post.image, type: "image" });
+                }
+              }}
+            />
           ))}
         </div>
         </>
@@ -979,303 +1704,273 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
   );
 }
 
-// ── REELS SECTION ─────────────────────────────────────────────────────────────
+// â”€â”€ REELS SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// Single reel card with its own video ref + intersection observer
 function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: ReelItem; globalMuted: boolean; onMuteToggle: () => void; onUserClick: (userId: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [playing, setPlaying]   = useState(false);
-  const [liked, setLiked]       = useState(reel.isLiked ?? false);
-  const [saved, setSaved]       = useState(false);
-  const [followed, setFollowed] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [showComment, setShowComment] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [liked, setLiked] = useState(reel.isLiked ?? false);
+  const [likes, setLikes] = useState(reel.likes);
+  const [saved, setSaved] = useState(reel.isSaved ?? false);
+  const [following, setFollowing] = useState(reel.isFollowing ?? false);
+  const [commentCount, setCommentCount] = useState(reel.comments);
+  const [shares, setShares] = useState(reel.shares);
+  const [comments, setComments] = useState<{ id: string | number; user: string; avatar?: string | null; text: string }[]>([]);
+  const [commentsLoaded, setCommentsLoaded] = useState(false);
   const [commentText, setCommentText] = useState("");
-  const [comments, setComments] = useState<string[]>([]);
-  const [doubleTapHeart, setDoubleTapHeart] = useState(false);
-  const lastTap = useRef(0);
+  const [showComments, setShowComments] = useState(false);
+  const [captionOpen, setCaptionOpen] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [busy, setBusy] = useState<string | null>(null);
 
-  // Auto-play when ≥60% visible
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
+    const video = videoRef.current;
+    if (!el || !video) return;
+    const key = String(reel.postId);
+    const pauseForOther = (event: Event) => {
+      const detail = (event as CustomEvent<{ postId?: string }>).detail;
+      if (detail?.postId !== key) video.pause();
+    };
+    const observer = new IntersectionObserver(
       ([entry]) => {
-        const vid = videoRef.current;
-        if (!vid) return;
-        if (entry.intersectionRatio >= 0.6) {
-          vid.play().then(() => setPlaying(true)).catch(() => {});
+        if (!entry) return;
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.72) {
+          window.dispatchEvent(new CustomEvent("socio-reel-play", { detail: { postId: key } }));
+          void video.play().catch(() => {});
         } else {
-          vid.pause();
-          setPlaying(false);
+          video.pause();
         }
       },
-      { threshold: [0, 0.6, 1] }
+      { threshold: [0, 0.35, 0.72, 1] },
     );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
+    observer.observe(el);
+    window.addEventListener("socio-reel-play", pauseForOther);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("socio-reel-play", pauseForOther);
+      video.pause();
+    };
+  }, [reel.postId]);
 
-  // Sync muted state
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = globalMuted;
   }, [globalMuted]);
 
   const togglePlay = () => {
-    const vid = videoRef.current;
-    if (!vid) return;
-    if (vid.paused) { vid.play(); setPlaying(true); }
-    else            { vid.pause(); setPlaying(false); }
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) void video.play().catch(() => {});
+    else video.pause();
   };
 
-  const handleTap = () => {
-    const now = Date.now();
-    if (now - lastTap.current < 300) {
-      setLiked(true);
-      socialApi.likePost(reel.postId).catch(() => {});
-      setDoubleTapHeart(true);
-      setTimeout(() => setDoubleTapHeart(false), 900);
-    } else {
-      togglePlay();
-    }
-    lastTap.current = now;
-  };
-
-  const handleTimeUpdate = () => {
-    const vid = videoRef.current;
-    if (vid && vid.duration) {
-      setProgress((vid.currentTime / vid.duration) * 100);
-      setDuration(vid.duration);
+  const toggleLike = async () => {
+    if (busy === "like") return;
+    const next = !liked;
+    setLiked(next);
+    setLikes((v) => next ? v + 1 : Math.max(0, v - 1));
+    setBusy("like");
+    try {
+      if (next) await socialApi.likePost(reel.postId);
+      else await socialApi.unlikePost(reel.postId);
+    } catch {
+      setLiked(!next);
+      setLikes((v) => next ? Math.max(0, v - 1) : v + 1);
+    } finally {
+      setBusy(null);
     }
   };
 
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    const vid = videoRef.current;
-    if (!vid || !vid.duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct  = (e.clientX - rect.left) / rect.width;
-    vid.currentTime = pct * vid.duration;
+  const toggleSave = async () => {
+    if (busy === "save") return;
+    const next = !saved;
+    setSaved(next);
+    setBusy("save");
+    try {
+      if (next) await socialApi.savePost(reel.postId);
+      else await socialApi.unsavePost(reel.postId);
+    } catch {
+      setSaved(!next);
+    } finally {
+      setBusy(null);
+    }
   };
 
-  const fmt = (s: number) => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
+  const toggleFollow = async () => {
+    if (!reel.userId || reel.isSelf || busy === "follow") return;
+    const next = !following;
+    setFollowing(next);
+    setBusy("follow");
+    try {
+      if (next) await socialApi.followUser(reel.userId);
+      else await socialApi.unfollowUser(reel.userId);
+    } catch {
+      setFollowing(!next);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      await socialApi.sharePost(reel.postId);
+      setShares((v) => v + 1);
+      if (navigator.share) await navigator.share({ title: "P4U Reel", text: reel.caption, url: window.location.href }).catch(() => {});
+      else if (navigator.clipboard) await navigator.clipboard.writeText(window.location.href);
+    } catch { /* ignore */ }
+  };
+
+  const openComments = async () => {
+    setShowComments(true);
+    if (commentsLoaded) return;
+    try {
+      const rows = await socialApi.getComments(reel.postId);
+      setComments(rows.map((c) => ({ id: c.id, user: c.userName ?? "user", avatar: c.userAvatar ?? null, text: c.content })));
+      setCommentCount((prev) => Math.max(prev, rows.length));
+    } catch { /* ignore */ }
+    setCommentsLoaded(true);
+  };
+
+  const submitComment = async () => {
+    const text = commentText.trim();
+    if (!text || busy === "comment") return;
+    const tempId = `temp-${Date.now()}`;
+    setCommentText("");
+    setComments((list) => [...list, { id: tempId, user: "You", text }]);
+    setCommentCount((c) => c + 1);
+    setBusy("comment");
+    try {
+      const savedComment = await socialApi.createComment(reel.postId, { contentText: text });
+      setComments((list) => list.map((c) => c.id === tempId ? { id: savedComment.id, user: savedComment.userName ?? "You", avatar: savedComment.userAvatar ?? null, text: savedComment.content || text } : c));
+    } catch {
+      setComments((list) => list.filter((c) => c.id !== tempId));
+      setCommentCount((c) => Math.max(0, c - 1));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const longCaption = reel.caption.length > 95;
+  const shownCaption = captionOpen || !longCaption ? reel.caption : `${reel.caption.slice(0, 95).trim()}...`;
 
   return (
-    <div
-      ref={containerRef}
-      className="relative bg-black overflow-hidden"
-      style={{ aspectRatio: "9/16", maxHeight: "92vh", borderRadius: "1.25rem" }}
-    >
-      {/* VIDEO */}
-      <video
-        ref={videoRef}
-        src={reel.video}
-        className="w-full h-full object-cover"
-        loop
-        playsInline
-        muted={globalMuted}
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleTimeUpdate}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-      />
-
-      {/* tap overlay */}
-      <div className="absolute inset-0" onClick={handleTap} />
-
-      {/* double-tap heart burst */}
-      {doubleTapHeart && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <Heart className="w-24 h-24 fill-white text-white opacity-90 animate-ping" style={{ animationIterationCount: 1, animationDuration: "0.6s" }} />
-        </div>
-      )}
-
-      {/* gradient */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent pointer-events-none" />
-
-      {/* pause indicator */}
-      {!playing && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-14 h-14 rounded-full bg-black/40 flex items-center justify-center">
-            <Play className="w-7 h-7 text-white fill-white ml-1" />
-          </div>
-        </div>
-      )}
-
-      {/* TOP ROW: mute + more */}
-      <div className="absolute top-4 left-0 right-0 flex items-center justify-between px-4 pointer-events-none">
-        <span className="text-white/70 text-xs font-semibold bg-black/30 rounded-full px-2.5 py-1">Reels</span>
-        <div className="flex items-center gap-2 pointer-events-auto">
-          <button
-            onClick={(e) => { e.stopPropagation(); onMuteToggle(); }}
-            className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-sm"
-          >
-            {globalMuted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
-          </button>
-          <button
-            onClick={(e) => e.stopPropagation()}
-            className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-sm"
-          >
-            <MoreHorizontal className="w-4 h-4 text-white" />
-          </button>
-        </div>
-      </div>
-
-      {/* RIGHT SIDE ACTIONS */}
-      <div className="absolute right-3 bottom-28 flex flex-col items-center gap-5 pointer-events-auto">
-        {/* Avatar */}
-        <div className="relative">
-          <button onClick={(e) => { e.stopPropagation(); reel.userId && onUserClick(reel.userId); }}>
-            {reel.avatar ? (
-            <img src={reel.avatar} alt={reel.username} className="w-10 h-10 rounded-full border-2 border-white object-cover" />
-            ) : (
-            <div className="w-10 h-10 rounded-full border-2 border-white bg-gray-600 flex items-center justify-center text-[10px] text-white font-bold">?</div>
-            )}
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!reel.userId) return;
-              const next = !followed;
-              setFollowed(next);
-              (next ? socialApi.followUser(reel.userId) : socialApi.unfollowUser(reel.userId)).catch(() => setFollowed(!next));
-            }}
-            className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full flex items-center justify-center text-xs font-black border-2 border-black transition ${followed ? "bg-gray-400 text-white" : "text-white"}`}
-            style={followed ? {} : { background: "#0d9488" }}
-          >+</button>
-        </div>
-
-        {/* Like */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            const next = !liked;
-            setLiked(next);
-            (next ? socialApi.likePost(reel.postId) : socialApi.unlikePost(reel.postId)).catch(() => setLiked(!next));
+    <section ref={containerRef} className="flex h-[100dvh] w-full snap-start snap-always items-center justify-center overflow-hidden bg-black p-0">
+      <div className="relative h-full w-full max-w-[760px] overflow-hidden bg-black shadow-2xl sm:w-[min(76vw,760px)]">
+        <video
+          ref={videoRef}
+          src={reel.video}
+          className="block h-full w-full object-cover"
+          loop
+          playsInline
+          muted={globalMuted}
+          preload="metadata"
+          onLoadedMetadata={(event) => {
+            setProgress(0);
+            const next = containerRef.current?.nextElementSibling?.querySelector("video") as HTMLVideoElement | null;
+            next?.load();
           }}
-          className="flex flex-col items-center gap-0.5"
-        >
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition ${liked ? "bg-red-500/20" : "bg-black/30"} backdrop-blur-sm`}>
-            <Heart className={`w-5 h-5 transition-all ${liked ? "fill-red-500 text-red-500 scale-110" : "text-white"}`} />
-          </div>
-          <span className="text-[10px] text-white font-semibold drop-shadow">
-            {((liked ? reel.likes + 1 : reel.likes) / 1000).toFixed(1)}K
-          </span>
-        </button>
-
-        {/* Comment */}
-        <button
-          onClick={(e) => { e.stopPropagation(); setShowComment(v => !v); }}
-          className="flex flex-col items-center gap-0.5"
-        >
-          <div className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center">
-            <MessageCircle className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-[10px] text-white font-semibold drop-shadow">{reel.comments + comments.length}</span>
-        </button>
-
-        {/* Share */}
-        <button onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5">
-          <div className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center">
-            <Send className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-[10px] text-white font-semibold drop-shadow">{reel.shares}</span>
-        </button>
-
-        {/* Save */}
-        <button
-          onClick={(e) => { e.stopPropagation(); setSaved(v => !v); }}
-          className="flex flex-col items-center gap-0.5"
-        >
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-sm transition ${saved ? "bg-teal-500/30" : "bg-black/30"}`}>
-            <Bookmark className={`w-5 h-5 transition ${saved ? "fill-teal-400 text-teal-400" : "text-white"}`} />
-          </div>
-        </button>
-      </div>
-
-      {/* BOTTOM: user info + caption */}
-      <div className="absolute bottom-0 left-0 right-16 px-4 pb-14 pointer-events-auto">
-        <div className="flex items-center gap-2 mb-1.5">
-          <button onClick={(e) => { e.stopPropagation(); reel.userId && onUserClick(reel.userId); }}
-            className="text-sm font-bold text-white hover:underline">{reel.username}</button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setFollowed(v => !v); }}
-            className={`text-[11px] font-bold border rounded-full px-2.5 py-0.5 transition ${followed ? "bg-white text-gray-800 border-white" : "border-white/70 text-white hover:bg-white/20"}`}>
-            {followed ? "Following" : "Follow"}
-          </button>
-        </div>
-        <p className="text-xs text-white/90 leading-relaxed line-clamp-2">{reel.caption}</p>
-
-        {/* Scrolling music tag */}
-        <div className="flex items-center gap-2 mt-2 overflow-hidden">
-          <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ background: TEAL }}>
-            <span className="text-[8px] text-white">♪</span>
-          </div>
-          <div className="overflow-hidden flex-1">
-            <p className="text-[10px] text-white/70 whitespace-nowrap" style={{ animation: "marquee 8s linear infinite" }}>
-              Original Audio · {reel.username} · Trending · P4U Music
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* PROGRESS BAR */}
-      <div
-        className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/20 cursor-pointer pointer-events-auto"
-        onClick={(e) => { e.stopPropagation(); handleSeek(e); }}
-      >
-        <div className="h-full bg-white transition-all" style={{ width: `${progress}%` }} />
-        {/* draggable thumb */}
-        <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-md -translate-x-1/2"
-          style={{ left: `${progress}%`, transition: "left 0.1s" }} />
-      </div>
-
-      {/* time */}
-      <div className="absolute bottom-2 left-4 text-[9px] text-white/50 font-mono pointer-events-none">
-        {videoRef.current ? fmt(videoRef.current.currentTime) : "0:00"} / {fmt(duration)}
-      </div>
-
-      {/* COMMENT SHEET */}
-      {showComment && (
-        <div
-          className="absolute inset-0 flex flex-col justify-end"
-          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 50%, transparent)" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="px-4 pt-4 pb-3 max-h-64 overflow-y-auto space-y-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-white text-sm font-bold">Comments</span>
-              <button onClick={() => setShowComment(false)}><X className="w-4 h-4 text-white/70" /></button>
+          onTimeUpdate={(event) => {
+            const video = event.currentTarget;
+            if (video.duration) setProgress((video.currentTime / video.duration) * 100);
+          }}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+        />
+        <button type="button" aria-label="Play or pause reel" onClick={togglePlay} className="absolute inset-0" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-black/25" />
+        {!playing && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-black/35">
+              <Play className="ml-1 h-8 w-8 fill-white text-white" />
             </div>
-            {comments.length === 0 && (
-              <p className="text-white/40 text-xs text-center py-4">No comments yet. Be first!</p>
+          </div>
+        )}
+
+      <div className="absolute right-3 bottom-24 z-10 flex flex-col items-center gap-5 text-white">
+        <button onClick={() => reel.userId && onUserClick(reel.userId)} className="overflow-hidden rounded-full border-2 border-white">
+          <AvatarCircle src={reel.avatar} name={reel.username} size="md" />
+        </button>
+        <button onClick={toggleLike} disabled={busy === "like"} className="flex flex-col items-center gap-1 disabled:opacity-60">
+          <Heart className={`h-8 w-8 ${liked ? "fill-red-500 text-red-500" : "text-white"}`} />
+          <span className="text-xs font-bold">{likes.toLocaleString()}</span>
+        </button>
+        <button onClick={openComments} className="flex flex-col items-center gap-1">
+          <MessageCircle className="h-8 w-8 text-white" />
+          <span className="text-xs font-bold">{commentCount.toLocaleString()}</span>
+        </button>
+        <button onClick={handleShare} className="flex flex-col items-center gap-1">
+          <Send className="h-8 w-8 text-white" />
+          <span className="text-xs font-bold">{shares.toLocaleString()}</span>
+        </button>
+        <button onClick={toggleSave} disabled={busy === "save"} className="disabled:opacity-60">
+          <Bookmark className={`h-8 w-8 ${saved ? "fill-white text-white" : "text-white"}`} />
+        </button>
+        <button onClick={onMuteToggle} className="rounded-full bg-black/35 p-2">
+          {globalMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+        </button>
+      </div>
+
+      <div className="absolute bottom-8 left-4 right-20 z-10 text-white">
+        <div className="mb-2 flex items-center gap-2">
+          <button onClick={() => reel.userId && onUserClick(reel.userId)} className="text-sm font-bold hover:underline">{reel.username}</button>
+          {!reel.isSelf && (
+            <button onClick={toggleFollow} disabled={busy === "follow"} className="rounded-full border border-white/70 px-3 py-1 text-xs font-bold disabled:opacity-60">
+              {following ? "Following" : "Follow"}
+            </button>
+          )}
+        </div>
+        {reel.caption && (
+          <p className="text-sm leading-snug text-white/95">
+            {shownCaption}
+            {longCaption && (
+              <button onClick={() => setCaptionOpen((v) => !v)} className="ml-1 font-semibold text-white/75">
+                {captionOpen ? "less" : "See more"}
+              </button>
             )}
-            {comments.map((c, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <div className="w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center shrink-0 text-[10px] font-bold text-white">Y</div>
-                <p className="text-white text-xs leading-snug">{c}</p>
+          </p>
+        )}
+        <div className="mt-2 flex items-center gap-2 text-xs text-white/75">
+          <span>{reel.audio || `Original audio - ${reel.username}`}</span>
+          {reel.createdAt && <span>• {formatRelativeTime(reel.createdAt)}</span>}
+          {typeof reel.views === "number" && <span>• {reel.views.toLocaleString()} views</span>}
+        </div>
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/20">
+        <div className="h-full bg-white" style={{ width: `${progress}%` }} />
+      </div>
+
+      {showComments && (
+        <div className="absolute inset-x-0 bottom-0 z-20 rounded-t-3xl bg-white text-slate-950 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <h3 className="text-base font-bold">Comments</h3>
+            <button onClick={() => setShowComments(false)}><X className="h-5 w-5" /></button>
+          </div>
+          <div className="max-h-72 overflow-y-auto px-5 py-4 space-y-4">
+            {comments.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-400">No comments yet.</p>
+            ) : comments.map((comment) => (
+              <div key={comment.id} className="flex items-start gap-3">
+                <AvatarCircle src={comment.avatar} name={comment.user} size="sm" />
+                <p className="text-sm"><span className="font-bold">{comment.user}</span> {comment.text}</p>
               </div>
             ))}
           </div>
-          <div className="flex gap-2 px-4 pb-4">
+          <div className="flex items-center gap-3 border-t border-slate-100 px-5 py-3">
             <input
               value={commentText}
-              onChange={e => setCommentText(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && commentText.trim()) { setComments(p => [...p, commentText.trim()]); setCommentText(""); }}}
-              placeholder="Add a comment…"
-              className="flex-1 text-xs bg-white/10 backdrop-blur border border-white/20 rounded-full px-3 py-2 text-white placeholder-white/40 outline-none focus:border-teal-400 transition"
+              onChange={(event) => setCommentText(event.target.value)}
+              onKeyDown={(event) => { if (event.key === "Enter") void submitComment(); }}
+              placeholder="Add a comment..."
+              className="min-w-0 flex-1 rounded-full bg-slate-100 px-4 py-2 text-sm outline-none"
             />
-            {commentText.trim() && (
-              <button
-                onClick={() => { setComments(p => [...p, commentText.trim()]); setCommentText(""); }}
-                className="text-xs font-bold text-teal-400 px-2"
-              >Post</button>
-            )}
+            <button onClick={submitComment} disabled={!commentText.trim() || busy === "comment"} className="text-sm font-bold text-teal-600 disabled:opacity-40">Post</button>
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </section>
   );
 }
 
@@ -1286,15 +1981,12 @@ function ReelsSection({ onUserClick }: { onUserClick: (userId: string) => void }
 
   useEffect(() => {
     let cancelled = false;
-    socialApi.getPublicFeed({ limit: 50 })
+    socialApi.getPublicFeed({ limit: 80 })
       .then((res) => {
         if (cancelled) return;
-        const videoPosts = res.data.filter(isVideoPost);
-        setReels(videoPosts.map((p, i) => {
-          const videoRaw = p.mediaUrls?.find((u) => /\.(mp4|webm|mov|m4v)/i.test(u)) ?? p.imageUrl ?? "";
-          const video = videoRaw.trim() ? resolveMediaUrl(videoRaw.trim()) || videoRaw : "";
+        setReels(res.data.filter(isVideoPost).map((p, i) => {
+          const videoRaw = p.mediaUrls?.find((u) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u)) ?? p.mediaUrls?.[0] ?? p.imageUrl ?? "";
           const avatarRaw = p.userAvatar ?? "";
-          const avatar = avatarRaw.trim() ? resolveMediaUrl(avatarRaw.trim()) || avatarRaw : "";
           return {
             id: p.id ?? i,
             postId: p.id,
@@ -1302,14 +1994,19 @@ function ReelsSection({ onUserClick }: { onUserClick: (userId: string) => void }
             username: p.userName ?? "user",
             user: p.userName ?? "user",
             caption: p.content ?? "",
-            video,
+            video: videoRaw.trim() ? resolveMediaUrl(videoRaw.trim()) || videoRaw : "",
             likes: p.likeCount,
             comments: p.commentCount,
             shares: p.shareCount ?? 0,
-            avatar,
+            avatar: avatarRaw.trim() ? resolveMediaUrl(avatarRaw.trim()) || avatarRaw : "",
             isLiked: p.isLiked,
+            isSaved: p.isSaved,
+            isFollowing: p.isFollowing,
+            isSelf: p.isSelf,
+            createdAt: p.createdAt,
+            audio: "Original audio",
           };
-        }));
+        }).filter((reel) => Boolean(reel.video)));
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoadingReels(false); });
@@ -1317,260 +2014,392 @@ function ReelsSection({ onUserClick }: { onUserClick: (userId: string) => void }
   }, []);
 
   return (
-    <div className="bg-black min-h-screen">
-      <style>{`
-        @keyframes marquee {
-          0%   { transform: translateX(100%); }
-          100% { transform: translateX(-100%); }
-        }
-      `}</style>
-
+    <div className="relative h-[100dvh] overflow-hidden bg-black">
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-30 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 py-4 text-white">
+        <h1 className="text-xl font-black">Reels</h1>
+        <Camera className="h-6 w-6" />
+      </div>
       {loadingReels && reels.length === 0 && (
-        <div className="flex flex-col items-center justify-center h-[60vh] text-white/50">
-          <Loader2 className="w-10 h-10 mb-3 animate-spin text-teal-400" />
-          <p className="text-sm">Loading reels…</p>
+        <div className="flex h-full flex-col items-center justify-center text-white/60">
+          <Loader2 className="mb-3 h-8 w-8 animate-spin text-teal-400" />
+          <p className="text-sm">Loading reels...</p>
         </div>
       )}
       {!loadingReels && reels.length === 0 && (
-        <div className="flex flex-col items-center justify-center h-[60vh] text-white/50">
-          <Film className="w-12 h-12 mb-3" />
+        <div className="flex h-full flex-col items-center justify-center px-6 text-center text-white/60">
+          <Film className="mb-3 h-12 w-12" />
           <p className="text-sm">No video posts yet. Share a video from Create to see it here.</p>
         </div>
       )}
-
-      {/* Header */}
-      <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
-        <span className="text-white text-base font-black tracking-tight pointer-events-auto">Reels</span>
-        <div className="flex items-center gap-3 pointer-events-auto">
-          <button className="text-white/80 hover:text-white transition">
-            <Camera className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Reel feed — snapping scroll */}
-      <div
-        className="overflow-y-scroll"
-        style={{
-          height: "100dvh",
-          scrollSnapType: "y mandatory",
-          scrollbarWidth: "none",
-          marginTop: "-52px",   /* pull up under header */
-        }}
-      >
+      <div className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth" style={{ scrollbarWidth: "none" }}>
         {reels.map((reel) => (
-          <div
+          <ReelCard
             key={reel.id}
-            style={{ scrollSnapAlign: "start", height: "100dvh" }}
-            className="flex items-center justify-center bg-black px-0 sm:px-6 md:px-16 lg:px-32"
-          >
-            <div className="w-full h-full sm:h-auto sm:max-w-sm sm:rounded-2xl overflow-hidden">
-              <ReelCard
-                reel={reel}
-                globalMuted={globalMuted}
-                onMuteToggle={() => setGlobalMuted(v => !v)}
-                onUserClick={onUserClick}
-              />
-            </div>
-          </div>
+            reel={reel}
+            globalMuted={globalMuted}
+            onMuteToggle={() => setGlobalMuted((v) => !v)}
+            onUserClick={onUserClick}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-// ── MESSAGES SECTION ──────────────────────────────────────────────────────────
-function MessagesSection({ onUserClick }: { onUserClick: (username: string) => void }) {
-  const [contacts] = useState<ContactItem[]>([]);
-  const [active, setActive] = useState<number | null>(null);
-  const [tab, setTab] = useState("PRIMARY");
-  const [msgText, setMsgText] = useState("");
+// â”€â”€ MESSAGES SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
+  type MockConversation = {
+    id: string;
+    userId: string;
+    username: string;
+    avatar: string;
+    lastMessage: string;
+    timestamp: string;
+    unread: number;
+    request?: boolean;
+    online?: boolean;
+  };
+  type MockMessage = {
+    id: string;
+    conversationId: string;
+    mine?: boolean;
+    type: "text" | "image" | "emoji";
+    content: string;
+    timestamp: string;
+  };
+
+  const mockConversations: MockConversation[] = [
+    { id: "1", userId: "anand", username: "anand_bens_joy", avatar: "https://i.pravatar.cc/120?img=12", lastMessage: "That reel was too good 😂", timestamp: "2m", unread: 2, online: true },
+    { id: "2", userId: "arthini", username: "arthini", avatar: "https://i.pravatar.cc/120?img=32", lastMessage: "Sent a photo", timestamp: "14m", unread: 0, online: true },
+    { id: "3", userId: "kokilavani", username: "kokilavani", avatar: "https://i.pravatar.cc/120?img=47", lastMessage: "Can you share the details?", timestamp: "1h", unread: 1 },
+    { id: "4", userId: "surya", username: "surya_a_forr", avatar: "", lastMessage: "Sure, tomorrow works.", timestamp: "4h", unread: 0 },
+    { id: "5", userId: "karthick", username: "karthicksri_rs", avatar: "", lastMessage: "Liked your story", timestamp: "1d", unread: 0 },
+    { id: "6", userId: "raji", username: "raji_ramesh_3nb1", avatar: "", lastMessage: "wants to send you a message", timestamp: "2d", unread: 1, request: true },
+  ];
+
+  const mockMessages: MockMessage[] = [
+    { id: "m1", conversationId: "1", type: "text", content: "Hey! Did you see the new reel?", timestamp: "10:21 AM" },
+    { id: "m2", conversationId: "1", mine: true, type: "text", content: "Yes, it looked amazing.", timestamp: "10:22 AM" },
+    { id: "m3", conversationId: "1", type: "emoji", content: "😂😂", timestamp: "10:23 AM" },
+    { id: "m4", conversationId: "1", mine: true, type: "image", content: "https://picsum.photos/seed/p4u-chat-1/640/640", timestamp: "10:25 AM" },
+    { id: "m5", conversationId: "1", type: "text", content: "That one. The edit was clean!", timestamp: "10:26 AM" },
+    { id: "m6", conversationId: "2", type: "image", content: "https://picsum.photos/seed/p4u-chat-2/640/720", timestamp: "9:12 AM" },
+    { id: "m7", conversationId: "2", mine: true, type: "text", content: "This looks great!", timestamp: "9:15 AM" },
+    { id: "m8", conversationId: "3", type: "text", content: "Can you share the details?", timestamp: "8:04 AM" },
+    { id: "m9", conversationId: "3", mine: true, type: "emoji", content: "👍", timestamp: "8:05 AM" },
+  ];
+
+  const [tab, setTab] = useState<"primary" | "requests">("primary");
+  const [query, setQuery] = useState("");
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
-  const [messages, setMessages] = useState<{ id: number; sender: string; text?: string; image?: string }[]>([]);
-  const contact = contacts.find(c => c.id === active);
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<MockMessage[]>(mockMessages);
+  const [viewer, setViewer] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const activeConversation = mockConversations.find((conversation) => conversation.id === activeId);
+  const visibleConversations = mockConversations
+    .filter((conversation) => tab === "requests" ? conversation.request : !conversation.request)
+    .filter((conversation) => !query.trim() || conversation.username.toLowerCase().includes(query.toLowerCase()));
+  const activeMessages = messages.filter((message) => message.conversationId === activeId);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [activeId, messages]);
 
-  const sendMsg = () => {
-    if (!msgText.trim()) return;
-    setMessages(p => [...p, { id: Date.now(), sender: "me", text: msgText.trim() }]);
-    setMsgText("");
+  const openConversation = (conversationId: string) => {
+    setActiveId(conversationId);
+    setShowChat(true);
+  };
+
+  const sendMockMessage = () => {
+    const text = input.trim();
+    if (!text || !activeId) return;
+    setMessages((rows) => [...rows, {
+      id: `mock-${Date.now()}`,
+      conversationId: activeId,
+      mine: true,
+      type: "text",
+      content: text,
+      timestamp: "Now",
+    }]);
+    setInput("");
   };
 
   return (
-    <div className="flex bg-gray-50" style={{ height: "calc(100vh - 120px)", minHeight: "400px" }}>
-      {/* Contact list */}
-      <div className={`w-full sm:w-72 bg-white border-r border-gray-100 flex flex-col shrink-0 ${showChat ? "hidden sm:flex" : "flex"}`}>
-        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-1">
-            <span className="text-sm font-bold text-gray-800">Messages</span>
+    <div className="flex h-full min-h-[calc(100vh-120px)] bg-[#fafafa]">
+      {viewer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 px-4" onClick={() => setViewer(null)}>
+          <img src={viewer} alt="" className="max-h-[86vh] max-w-3xl rounded-2xl object-contain" onClick={(event) => event.stopPropagation()} />
+          <button onClick={() => setViewer(null)} className="absolute right-4 top-4 rounded-full bg-white/20 p-2"><X className="h-5 w-5 text-white" /></button>
+        </div>
+      )}
+
+      <aside className={`w-full border-r border-gray-100 bg-white sm:w-80 lg:w-96 ${showChat ? "hidden sm:flex" : "flex"} flex-col`}>
+        <div className="flex items-center justify-between px-5 py-4">
+          <h1 className="text-xl font-bold text-slate-950">Messages</h1>
+          <button className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-950">
+            <PlusCircle className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="px-5 pb-3">
+          <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5">
+            <Search className="h-4 w-4 text-slate-500" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-500" />
           </div>
-          <button className="p-1 hover:bg-gray-100 rounded-lg"><Edit3 className="w-4 h-4 text-gray-500" /></button>
         </div>
-        <div className="flex border-b border-gray-100 shrink-0">
-          {["PRIMARY","GENERAL"].map(t => (
-            <button key={t} onClick={() => setTab(t)} className={`flex-1 py-3 text-xs font-bold tracking-wide transition-all ${tab === t ? "text-teal-600 border-b-2 border-teal-500" : "text-gray-400"}`}>{t}</button>
-          ))}
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {contacts.map(c => (
-            <button key={c.id} onClick={() => { setActive(c.id); setShowChat(true); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition text-left ${active === c.id ? "bg-teal-50" : ""}`}>
-              <div className="relative shrink-0">
-                <img src={c.avatar} alt={c.name} className="w-10 h-10 rounded-full object-cover" />
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-white rounded-full" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-800 truncate">{c.name}</p>
-                <p className="text-xs text-gray-400 truncate">{c.lastMsg}</p>
-              </div>
-              {c.unread && <span className="w-2 h-2 bg-teal-500 rounded-full shrink-0" />}
+        <div className="grid grid-cols-2 border-b border-slate-100 px-5">
+          {[
+            ["primary", "Primary"],
+            ["requests", "Requests"],
+          ].map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key as "primary" | "requests")} className={`py-3 text-sm font-bold ${tab === key ? "border-b-2 border-slate-950 text-slate-950" : "text-slate-400"}`}>
+              {label}
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Chat area */}
-      <div className={`flex-1 flex flex-col bg-white min-w-0 ${!showChat ? "hidden sm:flex" : "flex"}`}>
-        {contact ? (
-          <>
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 shrink-0">
-              <button onClick={() => setShowChat(false)} className="sm:hidden mr-1 p-1"><ArrowLeft className="w-5 h-5 text-gray-500" /></button>
-              <button onClick={() => onUserClick(contact.name.toLowerCase().replace(" ","_"))}>
-                <img src={contact.avatar} alt={contact.name} className="w-9 h-9 rounded-full object-cover hover:ring-2 ring-teal-400 transition" />
-              </button>
-              <div className="flex-1">
-                <button onClick={() => onUserClick(contact.name.toLowerCase().replace(" ","_"))} className="text-sm font-bold text-gray-900 hover:text-teal-600 transition text-left">{contact.name}</button>
-                <p className="text-[11px] text-green-500">Active {contact.time} ago</p>
+        <div className="flex-1 overflow-y-auto py-2">
+          {visibleConversations.map((conversation) => (
+            <button key={conversation.id} onClick={() => openConversation(conversation.id)} className={`flex w-full items-center gap-3 px-5 py-3 text-left transition hover:bg-slate-50 ${activeId === conversation.id ? "bg-slate-50" : ""}`}>
+              <div className="relative">
+                <AvatarCircle src={conversation.avatar} name={conversation.username} className="h-14 w-14 text-base" />
+                {conversation.online && <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500" />}
               </div>
-              <div className="flex items-center gap-1">
-                {[Phone, Video, Info].map((Icon, i) => <button key={i} className="p-1.5 hover:bg-gray-100 rounded-lg transition"><Icon className="w-4 h-4 text-gray-600" /></button>)}
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              {messages.map(m => (
-                <div key={m.id} className={`flex ${m.sender === "me" ? "justify-end" : "justify-start"} gap-2`}>
-                  {m.sender === "them" && <img src={contact.avatar} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 self-end" />}
-                  <div className="max-w-[70%]">
-                    {m.image && <img src={m.image} alt="shared" className="rounded-2xl w-full object-cover max-w-xs mb-1" />}
-                    {m.text && <div className={`rounded-2xl px-3.5 py-2.5 text-xs ${m.sender === "me" ? "text-white" : "bg-gray-100 text-gray-800"}`} style={m.sender === "me" ? { background: TEAL } : {}}>{m.text}</div>}
-                  </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-bold text-slate-950">{conversation.username}</p>
+                  <span className="ml-auto text-xs text-slate-400">{conversation.timestamp}</span>
                 </div>
-              ))}
-              <div ref={messagesEndRef} />
+                <p className={`truncate text-sm ${conversation.unread ? "font-semibold text-slate-800" : "text-slate-500"}`}>{conversation.lastMessage}</p>
+              </div>
+              {conversation.unread > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#009999] px-1.5 text-[11px] font-bold text-white">{conversation.unread}</span>}
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <main className={`min-w-0 flex-1 bg-white ${!showChat ? "hidden sm:flex" : "flex"} flex-col`}>
+        {activeConversation ? (
+          <>
+            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
+              <button onClick={() => setShowChat(false)} className="rounded-full p-1 sm:hidden"><ArrowLeft className="h-6 w-6 text-slate-950" /></button>
+              <button onClick={() => onUserClick(activeConversation.userId)}>
+                <AvatarCircle src={activeConversation.avatar} name={activeConversation.username} className="h-11 w-11" />
+              </button>
+              <div className="min-w-0 flex-1">
+                <button onClick={() => onUserClick(activeConversation.userId)} className="block truncate text-left text-base font-bold text-slate-950">{activeConversation.username}</button>
+                <p className="text-xs text-slate-500">{activeConversation.online ? "Active now" : "Active today"}</p>
+              </div>
+              <button className="rounded-full p-2 hover:bg-slate-100"><Phone className="h-5 w-5 text-slate-950" /></button>
+              <button className="rounded-full p-2 hover:bg-slate-100"><Video className="h-5 w-5 text-slate-950" /></button>
             </div>
-            <div className="px-4 py-3 border-t border-gray-100 flex items-center gap-2 sm:gap-3 shrink-0">
-              <button><Smile className="w-5 h-5 text-gray-400 hover:text-gray-700" /></button>
-              <input value={msgText} onChange={e => setMsgText(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && sendMsg()}
-                placeholder="Message…"
-                className="flex-1 text-sm bg-gray-50 border border-gray-200 rounded-full px-4 py-2 outline-none focus:border-teal-400 transition" />
-              {msgText.trim()
-                ? <button onClick={sendMsg} className="text-teal-500 font-bold text-sm hover:text-teal-700 whitespace-nowrap">Send</button>
-                : <>
-                    <button><ImageIcon className="w-5 h-5 text-gray-400 hover:text-gray-700" /></button>
-                    <button><Heart className="w-5 h-5 text-gray-400 hover:text-red-400 transition" /></button>
-                  </>}
+
+            <div className="flex-1 overflow-y-auto px-4 py-5">
+              <div className="mb-6 flex flex-col items-center text-center">
+                <AvatarCircle src={activeConversation.avatar} name={activeConversation.username} className="h-20 w-20 text-2xl" />
+                <p className="mt-3 text-lg font-bold text-slate-950">{activeConversation.username}</p>
+                <p className="text-sm text-slate-500">P4U Social</p>
+              </div>
+              <div className="mb-5 flex items-center justify-center gap-2 text-xs text-slate-400">
+                <Lock className="h-4 w-4" />
+                <span>Messages are private. Only people in this chat can see them.</span>
+              </div>
+              <div className="space-y-4">
+                {activeMessages.map((message) => (
+                  <div key={message.id} className={`flex items-end gap-2 ${message.mine ? "justify-end" : "justify-start"}`}>
+                    {!message.mine && <AvatarCircle src={activeConversation.avatar} name={activeConversation.username} size="sm" className="shrink-0" />}
+                    <div className={`max-w-[72%] ${message.mine ? "items-end" : "items-start"} flex flex-col`}>
+                      {message.type === "image" ? (
+                        <button onClick={() => setViewer(message.content)} className="overflow-hidden rounded-3xl">
+                          <img src={message.content} alt="" className="max-h-72 max-w-xs object-cover" />
+                        </button>
+                      ) : (
+                        <div className={`rounded-3xl px-4 py-2.5 text-sm ${message.type === "emoji" ? "text-4xl" : message.mine ? "text-white" : "bg-slate-100 text-slate-950"}`} style={message.mine && message.type !== "emoji" ? { background: TEAL } : {}}>
+                          {message.content}
+                        </div>
+                      )}
+                      <span className="mt-1 text-[11px] text-slate-400">{message.timestamp}</span>
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 px-4 py-3">
+              <div className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2">
+                <button className="text-slate-500"><ImageIcon className="h-5 w-5" /></button>
+                <button onClick={() => setInput((value) => `${value}😊`)} className="text-slate-500"><Smile className="h-5 w-5" /></button>
+                <input value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") sendMockMessage(); }} placeholder="Message..." className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+                <button className="text-slate-500"><Mic className="h-5 w-5" /></button>
+                <button onClick={sendMockMessage} disabled={!input.trim()} className="rounded-full px-3 py-1 text-sm font-bold text-[#009999] disabled:text-slate-300">Send</button>
+              </div>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-sm px-6 text-center">
-            <MessageCircle className="w-12 h-12 text-gray-300 mb-3" />
-            <p className="font-medium text-gray-600 mb-1">Direct messages are not available yet</p>
-            <p className="text-xs text-gray-400">You can still like, comment, and follow people from posts and notifications.</p>
+          <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+            <MessageCircle className="mb-4 h-16 w-16 text-slate-300" />
+            <p className="text-xl font-bold text-slate-950">Your messages</p>
+            <p className="mt-1 text-sm text-slate-500">Send private photos and messages to a friend or group.</p>
+            <button className="mt-5 rounded-xl bg-[#009999] px-5 py-2.5 text-sm font-bold text-white">Send message</button>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }
 
-// ── NOTIFICATIONS SECTION ─────────────────────────────────────────────────────
+// â”€â”€ NOTIFICATIONS SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function NotificationsSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
   const [notifs, setNotifs] = useState<NotificationItem[]>([]);
   const [followed, setFollowed] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
-  const dismiss = (id: string | number) => setNotifs(p => p.filter(n => n.id !== id));
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [limit, setLimit] = useState(40);
+
+  const mapNotification = useCallback((n: ActivityNotification): NotificationItem => {
+    const avatar = n.actorAvatar ? resolveMediaUrl(n.actorAvatar) || n.actorAvatar : "";
+    const thumb = n.relatedThumbnail ? resolveMediaUrl(n.relatedThumbnail) || n.relatedThumbnail : null;
+    return {
+      id: n.id,
+      userId: String(n.actorId || n.targetUserId || ""),
+      group: notificationGroup(n.createdAt),
+      user: n.actorName || "Someone",
+      text: n.text,
+      time: formatRelativeTime(n.createdAt),
+      avatar,
+      action: n.type.includes("follow") ? "Follow" : "",
+      type: n.type,
+      createdAt: n.createdAt,
+      postId: n.postId,
+      reelId: n.reelId,
+      storyId: n.storyId,
+      relatedThumbnail: thumb,
+      isRead: Boolean(n.isRead),
+      isFollowing: n.isFollowing,
+      canMarkRead: n.canMarkRead,
+    };
+  }, []);
+
+  const loadNotifications = useCallback(async (nextLimit: number, append = false) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
+    setError(null);
+    try {
+      const rows = await socialApi.getNotifications({ limit: nextLimit });
+      const mapped = rows.map(mapNotification).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setNotifs(mapped);
+      setFollowed((prev) => {
+        const next = { ...prev };
+        mapped.forEach((n) => {
+          if (n.action === "Follow" && n.isFollowing !== undefined && next[n.userId] === undefined) {
+            next[n.userId] = Boolean(n.isFollowing);
+          }
+        });
+        return next;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load notifications.");
+      if (!append) setNotifs([]);
+    } finally {
+      if (append) setLoadingMore(false);
+      else setLoading(false);
+    }
+  }, [mapNotification]);
 
   useEffect(() => {
     let cancelled = false;
-    socialApi.getNotifications({ limit: 40 })
-      .then((rows) => {
-        if (cancelled) return;
-        setNotifs(rows.map((n) => ({
-          id: n.id,
-          userId: n.actorId,
-          group: notificationGroup(n.createdAt),
-          user: n.actorName,
-          text: n.text,
-          time: formatRelativeTime(n.createdAt),
-          avatar: n.actorAvatar ? resolveMediaUrl(n.actorAvatar) || n.actorAvatar : "",
-          action: n.type === "follow" ? "Follow" : "",
-        })));
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
+    loadNotifications(40).finally(() => {
+      if (cancelled) return;
+    });
     return () => { cancelled = true; };
-  }, []);
+  }, [loadNotifications]);
 
   const toggleFollowNotif = async (n: NotificationItem) => {
-    const already = followed[String(n.id)];
+    if (!n.userId) return;
+    const already = followed[n.userId] ?? Boolean(n.isFollowing);
     const next = !already;
-    setFollowed((p) => ({ ...p, [String(n.id)]: next }));
+    setFollowed((p) => ({ ...p, [n.userId]: next }));
     try {
       if (next) await socialApi.followUser(n.userId);
       else await socialApi.unfollowUser(n.userId);
     } catch {
-      setFollowed((p) => ({ ...p, [String(n.id)]: !next }));
+      setFollowed((p) => ({ ...p, [n.userId]: !next }));
     }
   };
+
+  const markRead = async (n: NotificationItem) => {
+    if (n.isRead) return;
+    setNotifs((prev) => prev.map((item) => (item.id === n.id ? { ...item, isRead: true } : item)));
+    if (!n.canMarkRead) return;
+    try {
+      await socialApi.markNotificationRead(n.id);
+    } catch {
+      setNotifs((prev) => prev.map((item) => (item.id === n.id ? { ...item, isRead: false } : item)));
+    }
+  };
+
+  const openNotification = async (n: NotificationItem) => {
+    await markRead(n);
+    if (n.userId) onUserClick(n.userId);
+  };
+
+  const hasMore = notifs.length >= limit;
 
   return (
     <div className="max-w-2xl mx-auto px-3 sm:px-4 py-6">
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-lg font-semibold text-gray-900">Notifications</h1>
-        <button onClick={() => setNotifs([])} className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 transition">Clear all</button>
+        <button onClick={() => loadNotifications(limit)} className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 transition">Refresh</button>
       </div>
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 text-teal-500 animate-spin" /></div>
+      ) : error ? (
+        <div className="bg-white rounded-2xl p-10 text-center text-gray-500 shadow-sm border border-gray-100">
+          <Bell className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+          <p className="text-sm font-semibold text-gray-800">Could not load notifications</p>
+          <p className="mt-1 text-xs text-gray-400">{error}</p>
+          <button onClick={() => loadNotifications(limit)} className="mt-4 rounded-xl px-4 py-2 text-xs font-bold text-white" style={{ background: TEAL }}>Try again</button>
+        </div>
       ) : notifs.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center text-gray-400 shadow-sm border border-gray-100">
           <Bell className="w-10 h-10 mx-auto mb-3 text-gray-300" />
           <p className="text-sm">No notifications yet</p>
         </div>
       ) : (
+        <>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          {["Yesterday","This Week","Earlier"].map(group => {
+          {["This Week","Earlier"].map(group => {
             const items = notifs.filter(n => n.group === group);
             if (!items.length) return null;
             return (
               <div key={group}>
                 <div className="px-4 pt-4 pb-2"><span className="text-xs font-semibold tracking-widest uppercase text-gray-400">{group}</span></div>
                 {items.map((n, idx) => (
-                  <div key={n.id} className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition ${idx < items.length - 1 ? "border-b border-gray-50" : ""}`}>
-                    <button onClick={() => onUserClick(n.userId)}>
-                      {n.avatar ? (
-                      <img src={n.avatar} alt={n.user} className="w-10 h-10 rounded-full object-cover shrink-0 mt-0.5 hover:ring-2 ring-teal-400 transition" />
-                      ) : (
-                      <div className="w-10 h-10 rounded-full bg-gray-200 shrink-0 mt-0.5 flex items-center justify-center"><User className="w-4 h-4 text-gray-500" /></div>
-                      )}
+                  <div key={`${group}-${n.id}`} className={`flex items-center gap-3 px-4 py-3 transition ${n.isRead ? "hover:bg-gray-50" : "bg-teal-50/70 hover:bg-teal-50"} ${idx < items.length - 1 ? "border-b border-gray-50" : ""}`}>
+                    <button onClick={() => openNotification(n)} className="shrink-0">
+                      <AvatarCircle src={n.avatar} name={n.user} />
                     </button>
-                    <div className="flex-1 min-w-0">
+                    <button onClick={() => openNotification(n)} className="flex-1 min-w-0 text-left">
                       <p className="text-xs text-gray-800 leading-snug">
-                        <button onClick={() => onUserClick(n.userId)} className="font-semibold hover:text-teal-600 transition">{n.user}</button>
+                        <span className="font-semibold">{n.user}</span>
                         {" "}<span className="text-gray-500">{n.text}</span>
                       </p>
                       <p className="text-[10px] text-gray-400 mt-0.5">{n.time}</p>
-                    </div>
+                    </button>
+                    {n.relatedThumbnail && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={n.relatedThumbnail} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover border border-gray-100" />
+                    )}
                     {n.action === "Follow" ? (
-                      <button onClick={() => toggleFollowNotif(n)}
-                        className={`shrink-0 text-xs font-bold px-3 py-1.5 rounded-xl transition ${followed[String(n.id)] ? "bg-gray-100 text-gray-700" : "text-white hover:opacity-90"}`}
-                        style={!followed[String(n.id)] ? { background: TEAL } : {}}>
-                        {followed[String(n.id)] ? "Following" : "Follow"}
+                      <button onClick={(event) => { event.stopPropagation(); toggleFollowNotif(n); }}
+                        className={`shrink-0 text-xs font-bold px-3 py-1.5 rounded-xl transition ${(followed[n.userId] ?? Boolean(n.isFollowing)) ? "bg-gray-100 text-gray-700" : "text-white hover:opacity-90"}`}
+                        style={!(followed[n.userId] ?? Boolean(n.isFollowing)) ? { background: TEAL } : {}}>
+                        {(followed[n.userId] ?? Boolean(n.isFollowing)) ? "Following" : "Follow"}
                       </button>
                     ) : (
-                      <button onClick={() => dismiss(n.id)} className="shrink-0 p-1 hover:bg-gray-100 rounded-full"><X className="w-3.5 h-3.5 text-gray-400" /></button>
+                      !n.isRead && <span className="h-2 w-2 shrink-0 rounded-full bg-teal-500" />
                     )}
                   </div>
                 ))}
@@ -1578,12 +2407,24 @@ function NotificationsSection({ onUserClick }: { onUserClick: (userId: string) =
             );
           })}
         </div>
+        {hasMore && (
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={() => { const next = limit + 40; setLimit(next); loadNotifications(next, true); }}
+              disabled={loadingMore}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-60"
+            >
+              {loadingMore ? "Loading..." : "Load more"}
+            </button>
+          </div>
+        )}
+        </>
       )}
     </div>
   );
 }
 
-// ── CREATE SECTION ────────────────────────────────────────────────────────────
+// â”€â”€ CREATE SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
   const [step, setStep] = useState("upload");
   const [preview, setPreview] = useState<string | null>(null);
@@ -1592,6 +2433,14 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
   const [caption, setCaption] = useState("");
   const [location, setLocation] = useState("");
   const [tags, setTags] = useState("");
+  const [category, setCategory] = useState("");
+  const [audience, setAudience] = useState<"public" | "private">("public");
+  const [hideLikeCount, setHideLikeCount] = useState(false);
+  const [commentPermission, setCommentPermission] = useState<"everyone" | "followers" | "none">("everyone");
+  const [productQuery, setProductQuery] = useState("");
+  const [productResults, setProductResults] = useState<Product[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<LinkedProduct[]>([]);
+  const [productLoading, setProductLoading] = useState(false);
   const [shared, setShared] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1607,11 +2456,57 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
   };
   const reset = () => {
     setStep("upload"); setPreview(null); setPendingFile(null); setFilter("Normal");
-    setCaption(""); setLocation(""); setTags(""); setShared(false); setError(null);
+    setCaption(""); setLocation(""); setTags(""); setCategory(""); setAudience("public");
+    setHideLikeCount(false); setCommentPermission("everyone"); setProductQuery("");
+    setProductResults([]); setSelectedProducts([]); setShared(false); setError(null);
+  };
+
+  useEffect(() => {
+    if (step !== "details" || !productQuery.trim()) {
+      setProductResults([]);
+      return;
+    }
+    let cancelled = false;
+    setProductLoading(true);
+    catalogApi.search(productQuery.trim(), { limit: 8 })
+      .then((res) => {
+        if (cancelled) return;
+        setProductResults(res.products ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setProductResults([]);
+      })
+      .finally(() => {
+        if (!cancelled) setProductLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [productQuery, step]);
+
+  const toLinkedProduct = (product: Product): LinkedProduct => ({
+    id: String(product.id),
+    name: product.name,
+    image: product.thumbnailUrl ?? product.image ?? product.metadata?.imageUrl ?? null,
+    price: product.finalPrice ?? product.sellPrice ?? product.price ?? null,
+    vendorId: product.vendorId ?? null,
+  });
+
+  const pendingIsVideo = Boolean(pendingFile?.type.startsWith("video/"));
+
+  const toggleLinkedProduct = (product: Product) => {
+    const linked = toLinkedProduct(product);
+    setSelectedProducts((items) =>
+      items.some((item) => item.id === linked.id)
+        ? items.filter((item) => item.id !== linked.id)
+        : [...items, linked],
+    );
   };
 
   const handleShare = async () => {
     if (!pendingFile || submitting) return;
+    if (!category) {
+      setError("Please select a category before sharing.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -1624,9 +2519,13 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
         contentText: caption.trim() || undefined,
         mediaUrls: [uploaded.url],
         postType: uploaded.mediaType,
-        visibility: "public",
+        visibility: audience,
         location: location.trim() || undefined,
         tags: tagList.length ? tagList : undefined,
+        category,
+        linkedProducts: selectedProducts,
+        hideLikeCount,
+        commentPermission,
       });
       setShared(true);
       onPosted?.();
@@ -1643,7 +2542,7 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
         <Check className="w-8 h-8 text-teal-600" />
       </div>
       <h2 className="text-lg font-semibold text-gray-900">Post Shared!</h2>
-      <p className="text-sm text-gray-500 text-center">Your post has been shared to your followers.</p>
+      <p className="text-sm text-gray-500 text-center">Your post has been shared to everyone.</p>
       <button onClick={reset} className="text-white font-bold px-6 py-2.5 rounded-xl shadow" style={{ background: TEAL }}>Create another</button>
     </div>
   );
@@ -1659,7 +2558,7 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
           {step === "edit"
             ? <button onClick={() => setStep("details")} className="text-xs font-bold text-teal-500 hover:text-teal-700">Next</button>
             : step === "details"
-            ? <button onClick={handleShare} disabled={submitting} className="text-xs font-bold text-teal-500 hover:text-teal-700 disabled:opacity-50">{submitting ? "Sharing…" : "Share"}</button>
+            ? <button onClick={handleShare} disabled={submitting} className="text-xs font-bold text-teal-500 hover:text-teal-700 disabled:opacity-50">{submitting ? "Sharingâ€¦" : "Share"}</button>
             : <div />}
         </div>
         {step === "upload" && (
@@ -1677,10 +2576,17 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
         {step === "edit" && preview && (
           <div className="flex flex-col sm:flex-row">
             <div className="flex-1 bg-black">
-              <img src={preview} alt="preview" className="w-full aspect-square object-cover" style={{ filter: FILTER_CSS[filter] }} />
+              {pendingIsVideo ? (
+                <video src={preview} className="w-full aspect-square object-cover" controls muted playsInline preload="metadata" />
+              ) : (
+                <img src={preview} alt="preview" className="w-full aspect-square object-cover" style={{ filter: FILTER_CSS[filter] }} />
+              )}
             </div>
             <div className="sm:w-52 p-4 bg-gray-50">
               <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Filters</p>
+              {pendingIsVideo ? (
+                <p className="text-xs text-gray-500">Video posts use the original media.</p>
+              ) : (
               <div className="grid grid-cols-5 sm:grid-cols-2 gap-2 overflow-y-auto max-h-80">
                 {FILTER_NAMES.map(f => (
                   <button key={f} onClick={() => setFilter(f)} className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition ${filter === f ? "border-teal-400 bg-teal-50" : "border-transparent hover:bg-white"}`}>
@@ -1691,32 +2597,93 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
                   </button>
                 ))}
               </div>
+              )}
             </div>
           </div>
         )}
         {step === "details" && preview && (
           <div className="flex flex-col sm:flex-row">
             <div className="sm:w-64 bg-black shrink-0">
-              <img src={preview} alt="preview" className="w-full aspect-square object-cover" style={{ filter: FILTER_CSS[filter] }} />
+              {pendingIsVideo ? (
+                <video src={preview} className="w-full aspect-square object-cover" controls muted playsInline preload="metadata" />
+              ) : (
+                <img src={preview} alt="preview" className="w-full aspect-square object-cover" style={{ filter: FILTER_CSS[filter] }} />
+              )}
             </div>
             <div className="flex-1 p-5 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center shrink-0"><User className="w-4 h-4 text-gray-500" /></div>
                 <span className="text-sm font-bold text-gray-800">You</span>
               </div>
-              <textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="Write a caption…" rows={4}
+              <textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="Write a captionâ€¦" rows={4}
                 className="w-full text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 outline-none focus:border-teal-400 resize-none" />
-              <input value={location} onChange={e => setLocation(e.target.value)} placeholder="📍 Add location"
+              <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
+                <Tag className="h-5 w-5 text-slate-500" />
+                <span className="flex-1 text-sm font-semibold text-slate-950">Category <span className="text-red-500">*</span></span>
+                <select value={category} onChange={(e) => setCategory(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none">
+                  <option value="">Select</option>
+                  {POST_CATEGORIES.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </div>
+              <input value={location} onChange={e => setLocation(e.target.value)} placeholder="Add location"
                 className="w-full text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 outline-none focus:border-teal-400" />
-              <input value={tags} onChange={e => setTags(e.target.value)} placeholder="🏷 Tag people (@username)"
+              <input value={tags} onChange={e => setTags(e.target.value)} placeholder="Tag people (@username)"
                 className="w-full text-sm text-gray-700 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200 outline-none focus:border-teal-400" />
-              {["Accessibility","Advanced settings"].map(s => (
-                <div key={s} className="flex items-center justify-between py-2 border-b border-gray-100 cursor-pointer hover:bg-gray-50 rounded-lg px-1 transition">
-                  <span className="text-sm text-gray-700">{s}</span><ChevronRight className="w-4 h-4 text-gray-400" />
+              <div className="rounded-xl border border-gray-100 p-3">
+                <div className="mb-2 flex items-center gap-3">
+                  <Bookmark className="h-5 w-5 text-slate-500" />
+                  <span className="text-sm font-semibold text-slate-950">Link Product</span>
                 </div>
-              ))}
+                <input value={productQuery} onChange={(e) => setProductQuery(e.target.value)} placeholder="Search products..."
+                  className="mb-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-teal-400" />
+                {selectedProducts.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    {selectedProducts.map((product) => (
+                      <button key={product.id} onClick={() => setSelectedProducts((items) => items.filter((item) => item.id !== product.id))} className="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">
+                        {product.name} ×
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {productLoading && <p className="text-xs text-slate-400">Searching...</p>}
+                {productResults.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-100">
+                    {productResults.map((product) => {
+                      const selected = selectedProducts.some((item) => item.id === String(product.id));
+                      return (
+                        <button key={product.id} onClick={() => toggleLinkedProduct(product)} className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${selected ? "bg-teal-50 text-teal-700" : "hover:bg-slate-50"}`}>
+                          <span className="truncate">{product.name}</span>
+                          <span className="text-xs font-semibold">{selected ? "Selected" : "Add"}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
+                <Eye className="h-5 w-5 text-slate-500" />
+                <span className="flex-1 text-sm font-semibold text-slate-950">Audience</span>
+                <select value={audience} onChange={(e) => setAudience(e.target.value as "public" | "private")} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none">
+                  <option value="public">Public</option>
+                  <option value="private">Private</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
+                <Heart className="h-5 w-5 text-slate-500" />
+                <span className="flex-1 text-sm font-semibold text-slate-950">Hide like count</span>
+                <Toggle checked={hideLikeCount} onChange={setHideLikeCount} />
+              </div>
+              <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
+                <MessageCircle className="h-5 w-5 text-slate-500" />
+                <span className="flex-1 text-sm font-semibold text-slate-950">Comments</span>
+                <select value={commentPermission} onChange={(e) => setCommentPermission(e.target.value as "everyone" | "followers" | "none")} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none">
+                  <option value="everyone">Everyone</option>
+                  <option value="followers">Followers Only</option>
+                  <option value="none">No One</option>
+                </select>
+              </div>
               {error && <p className="text-xs text-red-600">{error}</p>}
-              <button onClick={handleShare} disabled={submitting} className="w-full text-white text-sm font-bold py-3 rounded-xl shadow transition hover:opacity-90 disabled:opacity-60" style={{ background: TEAL }}>{submitting ? "Sharing…" : "Share"}</button>
+              <button onClick={handleShare} disabled={submitting} className="w-full text-white text-sm font-bold py-3 rounded-xl shadow transition hover:opacity-90 disabled:opacity-60" style={{ background: TEAL }}>{submitting ? "Sharingâ€¦" : "Share"}</button>
             </div>
           </div>
         )}
@@ -1725,15 +2692,267 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
   );
 }
 
-// ── MY PROFILE SECTION ────────────────────────────────────────────────────────
-const PROFILE_TABS_LIST = ["Posts","Reels","Tagged","Saved"];
+// â”€â”€ MY PROFILE SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const PROFILE_TABS_LIST = ["Posts","Reels","Saved","Tagged"];
 
-function MyProfileSection() {
+type FollowListTab = "followers" | "following";
+type FollowListUser = {
+  userId: string;
+  username: string;
+  name: string;
+  avatar: string;
+  isFollowing: boolean;
+  isSelf: boolean;
+};
+
+function normalizeFollowUser(u: UserSummary, followingIds: Set<string>, myUserId: string, forceFollowing = false): FollowListUser {
+  const userId = String(u.userId ?? u.id ?? "");
+  const name = u.name?.trim() || "P4U User";
+  const avatarRaw = u.userAvatar ?? u.avatarUrl ?? u.avatar ?? "";
+  return {
+    userId,
+    username: name.toLowerCase().replace(/\s+/g, "_"),
+    name,
+    avatar: avatarRaw.trim() ? resolveMediaUrl(avatarRaw.trim()) || avatarRaw : "",
+    isFollowing: forceFollowing || followingIds.has(userId),
+    isSelf: Boolean(myUserId && userId === myUserId),
+  };
+}
+
+function ProfileEditModal({
+  profile,
+  onClose,
+  onSaved,
+}: {
+  profile: SocioUserProfile | null;
+  onClose: () => void;
+  onSaved: (profile: SocioUserProfile) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState(profile?.userName ?? "");
+  const [bio, setBio] = useState(profile?.bio ?? "");
+  const [preview, setPreview] = useState<string | null>(profile?.userAvatar ?? null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      let avatarUrl = profile?.userAvatar ?? "";
+      if (pendingFile) {
+        const uploaded = await socialApi.uploadMedia(pendingFile);
+        avatarUrl = uploaded.url;
+      }
+      await profileApi.updateMe({
+        name: name.trim() || profile?.userName || "",
+        bio: bio.trim(),
+        avatar: avatarUrl,
+      });
+      socialApi.getMyProfile()
+        .then((fresh) => {
+          onSaved(fresh);
+          onClose();
+        })
+        .catch(() => {
+          if (profile) onSaved({ ...profile, userName: name.trim() || profile.userName, bio: bio.trim(), userAvatar: avatarUrl });
+          onClose();
+        });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+          <h2 className="text-base font-bold text-slate-950">Edit Profile</h2>
+          <button onClick={onClose} disabled={saving}><X className="h-5 w-5 text-slate-500" /></button>
+        </div>
+        <div className="px-5 py-5">
+          <div className="mb-5 flex items-center gap-4">
+            <button type="button" onClick={() => fileRef.current?.click()} className="relative">
+              <AvatarCircle src={preview} name={name || "Profile"} className="h-20 w-20 text-2xl border-teal-400" />
+              <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#009999] text-white ring-2 ring-white">
+                <Camera className="h-4 w-4" />
+              </span>
+            </button>
+            <div>
+              <p className="text-sm font-bold text-slate-950">{name || "Your profile"}</p>
+              <button type="button" onClick={() => fileRef.current?.click()} className="mt-1 text-xs font-semibold text-[#009999]">
+                Change profile photo
+              </button>
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setPendingFile(file);
+                setPreview(URL.createObjectURL(file));
+              }}
+            />
+          </div>
+          <label className="mb-1 block text-xs font-semibold text-slate-600">Name</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} className="mb-4 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-teal-400" />
+          <label className="mb-1 block text-xs font-semibold text-slate-600">Bio</label>
+          <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} maxLength={150} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-teal-400" />
+          {error && <p className="mt-3 text-xs text-red-500">{error}</p>}
+        </div>
+        <div className="flex justify-end gap-3 border-t border-gray-100 px-5 py-4">
+          <button onClick={onClose} disabled={saving} className="rounded-full border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-950">Cancel</button>
+          <button onClick={save} disabled={saving} className="rounded-full bg-[#009999] px-6 py-2 text-sm font-bold text-white disabled:opacity-60">
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FollowListScreen({
+  ownerId,
+  initialTab,
+  onBack,
+  onUserClick,
+  onRelationshipChange,
+}: {
+  ownerId: string;
+  initialTab: FollowListTab;
+  onBack: () => void;
+  onUserClick: (userId: string) => void;
+  onRelationshipChange?: (change: { targetUserId: string; isFollowing: boolean; delta: number }) => void;
+}) {
+  const [tab, setTab] = useState<FollowListTab>(initialTab);
+  const [rows, setRows] = useState<FollowListUser[]>([]);
+  const [myUserId, setMyUserId] = useState("");
+  const [q, setQ] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const isOwnerList = Boolean(myUserId && ownerId === myUserId);
+
+  const loadRows = useCallback(async () => {
+    setLoading(true);
+    try {
+      const me = await socialApi.getMyProfile();
+      const myFollowing = await socialApi.getFollowing(me.userId);
+      const followingIds = new Set(myFollowing.map((u) => String(u.userId ?? u.id ?? "")));
+      const list = tab === "followers"
+        ? await socialApi.getFollowers(ownerId)
+        : await socialApi.getFollowing(ownerId);
+      setMyUserId(me.userId);
+      setRows(list.map((u) => normalizeFollowUser(u, followingIds, me.userId, tab === "following" && ownerId === me.userId)));
+    } catch {
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [ownerId, tab]);
+
+  useEffect(() => {
+    void loadRows();
+  }, [loadRows]);
+
+  const toggleFollow = async (user: FollowListUser) => {
+    if (user.isSelf || busyId) return;
+    const next = !user.isFollowing;
+    setBusyId(user.userId);
+    setRows((prev) => prev.map((row) => row.userId === user.userId ? { ...row, isFollowing: next } : row));
+    onRelationshipChange?.({ targetUserId: user.userId, isFollowing: next, delta: next ? 1 : -1 });
+    try {
+      if (next) await socialApi.followUser(user.userId);
+      else await socialApi.unfollowUser(user.userId);
+    } catch {
+      setRows((prev) => prev.map((row) => row.userId === user.userId ? { ...row, isFollowing: !next } : row));
+      onRelationshipChange?.({ targetUserId: user.userId, isFollowing: !next, delta: next ? -1 : 1 });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const filtered = rows.filter((row) => {
+    const needle = q.trim().toLowerCase();
+    return !needle || row.username.toLowerCase().includes(needle) || row.name.toLowerCase().includes(needle);
+  });
+
+  return (
+    <div className="min-h-full bg-white">
+      <div className="sticky top-0 z-10 flex items-center gap-4 bg-white px-6 py-5">
+        <button onClick={onBack} className="p-1"><ArrowLeft className="h-6 w-6 text-slate-950" /></button>
+        <h1 className="text-2xl font-bold text-slate-950">Profile</h1>
+      </div>
+      <div className="grid grid-cols-2 border-b border-slate-100">
+        {(["followers", "following"] as FollowListTab[]).map((item) => (
+          <button
+            key={item}
+            onClick={() => setTab(item)}
+            className={`py-4 text-base font-bold capitalize ${tab === item ? "border-b-2 border-slate-950 text-slate-950" : "text-slate-500"}`}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+      <div className="px-6 py-5">
+        <div className="mb-5 flex items-center gap-3 rounded-2xl bg-slate-50 px-5 py-3">
+          <Search className="h-5 w-5 text-slate-500" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="w-full bg-transparent text-base text-slate-700 outline-none placeholder:text-slate-500" />
+        </div>
+        {loading ? (
+          <div className="flex justify-center py-14"><Loader2 className="h-7 w-7 animate-spin text-teal-500" /></div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {filtered.map((user) => (
+              <div key={user.userId} className="flex items-center gap-5 py-5">
+                <button onClick={() => onUserClick(user.userId)} className="shrink-0">
+                  <AvatarCircle src={user.avatar} name={user.name} className="h-16 w-16 text-lg border-0 bg-slate-100" />
+                </button>
+                <button onClick={() => onUserClick(user.userId)} className="min-w-0 flex-1 text-left">
+                  <p className="truncate text-base font-bold text-slate-950">{user.username}</p>
+                  <p className="truncate text-sm text-slate-500">{user.name}</p>
+                </button>
+                {!user.isSelf && (
+                  <button
+                    onClick={() => toggleFollow(user)}
+                    disabled={busyId === user.userId}
+                    className={`rounded-full px-6 py-3 text-base font-bold disabled:opacity-60 ${
+                      user.isFollowing ? "bg-teal-50 text-slate-950" : "bg-[#009999] text-white"
+                    }`}
+                  >
+                    {user.isFollowing ? "Following" : "Follow"}
+                  </button>
+                )}
+                {isOwnerList && tab === "followers" && user.userId !== myUserId && (
+                  <button onClick={() => setRows((prev) => prev.filter((row) => row.userId !== user.userId))} className="p-2">
+                    <X className="h-5 w-5 text-slate-500" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MyProfileSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
   const [activeTab, setActiveTab] = useState("Posts");
-  const [selectedImg, setSelectedImg] = useState<string | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<ProfileGridMedia | null>(null);
+  const [selectedReelIndex, setSelectedReelIndex] = useState<number | null>(null);
   const [profile, setProfile] = useState<SocioUserProfile | null>(null);
-  const [gridImages, setGridImages] = useState<string[]>([]);
-  const [savedImages, setSavedImages] = useState<string[]>([]);
+  const [gridImages, setGridImages] = useState<ProfileGridMedia[]>([]);
+  const [savedImages, setSavedImages] = useState<ProfileGridMedia[]>([]);
+  const [gridReels, setGridReels] = useState<ReelItem[]>([]);
+  const [followList, setFollowList] = useState<FollowListTab | null>(null);
+  const [showEdit, setShowEdit] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -1748,12 +2967,9 @@ function MyProfileSection() {
           socialApi.getSavedPosts({ limit: 30 }),
         ]);
         if (cancelled) return;
-        const toUrl = (p: { imageUrl?: string }) => {
-          const u = p.imageUrl ?? "";
-          return u.trim() ? resolveMediaUrl(u.trim()) || u : "";
-        };
-        setGridImages(userPosts.data.map(toUrl).filter(Boolean));
-        setSavedImages(savedPosts.data.map(toUrl).filter(Boolean));
+        setGridImages(userPosts.data.map(postToProfileGridMedia).filter((item): item is ProfileGridMedia => Boolean(item)));
+        setSavedImages(savedPosts.data.map(postToProfileGridMedia).filter((item): item is ProfileGridMedia => Boolean(item)));
+        setGridReels(userPosts.data.map(postToReelItem).filter((item): item is ReelItem => Boolean(item)));
       })
       .catch(() => { if (!cancelled) setError("Could not load your profile."); })
       .finally(() => { if (!cancelled) setLoadingProfile(false); });
@@ -1763,65 +2979,121 @@ function MyProfileSection() {
   const displayImages = activeTab === "Saved" ? savedImages : gridImages;
   const avatar = profile?.userAvatar ? resolveMediaUrl(profile.userAvatar) || profile.userAvatar : null;
 
+  if (followList && profile) {
+    return (
+      <FollowListScreen
+        ownerId={profile.userId}
+        initialTab={followList}
+        onBack={() => setFollowList(null)}
+        onUserClick={onUserClick}
+      />
+    );
+  }
+
   return (
-    <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6">
-      {selectedImg && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center px-4" onClick={() => setSelectedImg(null)}>
-          <img src={selectedImg} alt="" className="max-w-lg w-full max-h-[80vh] rounded-2xl object-cover" />
-          <button className="absolute top-4 right-4 bg-white/20 rounded-full p-2"><X className="w-5 h-5 text-white" /></button>
-        </div>
+    <div className="min-h-full max-w-3xl bg-white">
+      {selectedMedia && <ProfileMediaModal media={selectedMedia} onClose={() => setSelectedMedia(null)} />}
+      {selectedReelIndex != null && (
+        <ProfileReelsViewer
+          reels={gridReels}
+          initialIndex={selectedReelIndex}
+          onClose={() => setSelectedReelIndex(null)}
+          onUserClick={onUserClick}
+        />
       )}
-      <div className="flex flex-col sm:flex-row sm:items-start gap-5 mb-6">
-        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 border-teal-400 shrink-0 bg-gray-100 flex items-center justify-center">
-          {avatar ? (
-          <img src={avatar} alt={profile?.userName ?? "Profile"} className="w-full h-full object-cover" />
-          ) : (
-          <User className="w-10 h-10 text-gray-400" />
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-base font-semibold text-gray-900 mb-2">{profile?.userName ?? "Your profile"}</h1>
-          <div className="flex gap-5 mb-3">
+      {showEdit && (
+        <ProfileEditModal
+          profile={profile}
+          onClose={() => setShowEdit(false)}
+          onSaved={(fresh) => setProfile(fresh)}
+        />
+      )}
+      <div className="px-7 pb-5 pt-5">
+        <div className="mb-5 grid grid-cols-[120px_1fr] items-center gap-6">
+          <button type="button" onClick={() => setShowEdit(true)} className="relative justify-self-start">
+            <AvatarCircle src={avatar} name={profile?.userName ?? "Profile"} className="h-28 w-28 text-3xl border-white shadow-sm" />
+            <span className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#009999] text-white ring-2 ring-white">
+              <PlusCircle className="h-5 w-5" />
+            </span>
+          </button>
+          <div className="grid grid-cols-3 gap-3 text-center">
             {[
               [profile?.postCount?.toLocaleString() ?? "0", "Posts"],
               [profile?.followerCount?.toLocaleString() ?? "0", "Followers"],
               [profile?.followingCount?.toLocaleString() ?? "0", "Following"],
-            ].map(([v, l]) => (
-              <div key={l}><p className="text-sm font-semibold text-gray-900">{v}</p><p className="text-[11px] text-gray-500">{l}</p></div>
-            ))}
+            ].map(([v, l]) => {
+              const clickable = l === "Followers" || l === "Following";
+              return (
+                <button
+                  key={l}
+                  type="button"
+                  disabled={!clickable}
+                  onClick={() => setFollowList(l === "Followers" ? "followers" : "following")}
+                  className="disabled:cursor-default"
+                >
+                  <p className="text-2xl font-bold text-slate-950">{v}</p>
+                  <p className="mt-1 text-base text-slate-500">{l}</p>
+                </button>
+              );
+            })}
           </div>
-          {profile?.bio && <p className="text-xs text-gray-600 mb-3 leading-relaxed">{profile.bio}</p>}
-          {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+        </div>
+        <h1 className="mb-6 text-xl font-bold text-slate-950">{profile?.userName ?? "Your profile"}</h1>
+        {profile?.bio && <p className="mb-4 text-sm text-slate-600">{profile.bio}</p>}
+        {error && <p className="mb-3 text-xs text-red-500">{error}</p>}
+        <div className="grid grid-cols-[1fr_1fr_52px] gap-3">
+          <button onClick={() => setShowEdit(true)} className="rounded-2xl bg-teal-50 py-3 text-lg font-bold text-slate-950">Edit Profile</button>
+          <button
+            onClick={() => {
+              const url = typeof window !== "undefined" ? window.location.href : "";
+              if (navigator.share) void navigator.share({ title: "P4U Socio Profile", url }).catch(() => {});
+              else if (navigator.clipboard) void navigator.clipboard.writeText(url);
+            }}
+            className="rounded-2xl bg-teal-50 py-3 text-lg font-bold text-slate-950"
+          >
+            Share Profile
+          </button>
+          <button className="flex items-center justify-center rounded-2xl bg-teal-50 text-slate-950">
+            <UserPlus className="h-6 w-6" />
+          </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-100 mb-1">
+      <div className="grid grid-cols-4 border-t border-slate-100">
         {PROFILE_TABS_LIST.map(t => (
           <button key={t} onClick={() => setActiveTab(t)}
-            className={`flex-1 py-3 text-xs font-semibold border-b-2 transition-all flex items-center justify-center gap-1 ${activeTab === t ? "text-teal-600 border-teal-500" : "text-gray-400 border-transparent hover:text-gray-600"}`}>
-            {t === "Posts" && <Grid className="w-3.5 h-3.5" />}
-            {t === "Reels" && <Play className="w-3.5 h-3.5" />}
-            {t === "Tagged" && <Tag className="w-3.5 h-3.5" />}
-            {t === "Saved" && <Bookmark className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{t}</span>
+            className={`py-5 border-b-2 transition-all flex items-center justify-center ${activeTab === t ? "text-slate-950 border-slate-950" : "text-slate-500 border-transparent"}`}>
+            {t === "Posts" && <Grid className="w-6 h-6" />}
+            {t === "Reels" && <Film className="w-6 h-6" />}
+            {t === "Tagged" && <Users className="w-6 h-6" />}
+            {t === "Saved" && <Bookmark className="w-6 h-6" />}
           </button>
         ))}
       </div>
 
       {loadingProfile ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 text-teal-500 animate-spin" /></div>
+      ) : activeTab === "Reels" ? (
+        gridReels.length === 0 ? (
+          <div className="text-center py-16 text-gray-400 text-sm">No reels yet.</div>
+        ) : (
+          <div className="grid grid-cols-3 gap-0.5">
+            {gridReels.map((reel, index) => (
+              <ProfileGridCell key={reel.id} media={{ id: reel.id, url: reel.video, type: "video" }} onClick={() => setSelectedReelIndex(index)} />
+            ))}
+          </div>
+        )
+      ) : activeTab === "Tagged" ? (
+        <div className="text-center py-16 text-gray-400 text-sm">No tagged posts yet.</div>
       ) : displayImages.length === 0 ? (
         <div className="text-center py-16 text-gray-400 text-sm">
           {activeTab === "Saved" ? "No saved posts yet." : "No posts yet. Create your first post from the Create tab."}
         </div>
       ) : (
-      <div className="grid grid-cols-3 gap-0.5 sm:gap-1">
-        {displayImages.map((img, i) => (
-          <div key={i} className="relative aspect-square overflow-hidden rounded-sm cursor-pointer group" onClick={() => setSelectedImg(img)}>
-            <img src={img} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-          </div>
+      <div className="grid grid-cols-3 gap-0.5">
+        {displayImages.map((media) => (
+          <ProfileGridCell key={media.id} media={media} onClick={() => setSelectedMedia(media)} />
         ))}
       </div>
       )}
@@ -1829,7 +3101,7 @@ function MyProfileSection() {
   );
 }
 
-// ── SETTINGS SECTION ──────────────────────────────────────────────────────────
+// â”€â”€ SETTINGS SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SETTINGS_NAV = [
   { heading: "How you use", items: [
     { key: "edit_profile", label: "Edit profile", icon: Edit3 },
@@ -1864,9 +3136,71 @@ const SETTINGS_NAV = [
 function EditProfilePanel() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [avatar, setAvatar] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [form, setForm] = useState<Record<string, string | boolean>>({ name:"", username:"", website:"", bio:"", email:"", phone:"", gender:"", showSuggestions: true });
   const upd = (k: string, v: string | boolean) => setForm(p => ({ ...p, [k]: v }));
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.allSettled([profileApi.getMe(), socialApi.getMyProfile()])
+      .then(([profileRes, socioRes]) => {
+        if (cancelled) return;
+        if (profileRes.status === "fulfilled") {
+          setForm((prev) => ({
+            ...prev,
+            name: profileRes.value.name ?? "",
+            email: profileRes.value.email ?? "",
+            phone: profileRes.value.phone ?? "",
+            gender: profileRes.value.gender ?? "",
+            bio: profileRes.value.bio ?? "",
+          }));
+          if (profileRes.value.avatar) setAvatar(profileRes.value.avatar);
+        }
+        if (socioRes.status === "fulfilled") {
+          setForm((prev) => ({
+            ...prev,
+            name: prev.name || socioRes.value.userName,
+            username: socioRes.value.userName,
+            bio: prev.bio || socioRes.value.bio || "",
+          }));
+          if (!avatar && socioRes.value.userAvatar) setAvatar(resolveMediaUrl(socioRes.value.userAvatar) || socioRes.value.userAvatar);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const saveProfile = async () => {
+    if (saving) return;
+    setSaving(true);
+    setSaved(false);
+    setError(null);
+    try {
+      let avatarUrl = avatar ?? "";
+      if (pendingFile) {
+        const uploaded = await socialApi.uploadMedia(pendingFile);
+        avatarUrl = uploaded.url;
+      }
+      const savedProfile = await profileApi.updateMe({
+        name: String(form.name || "").trim(),
+        email: String(form.email || "").trim(),
+        phone: String(form.phone || "").trim(),
+        gender: String(form.gender || "").trim(),
+        bio: String(form.bio || "").trim(),
+        avatar: avatarUrl,
+      });
+      setAvatar(savedProfile.avatar ?? avatarUrl);
+      setPendingFile(null);
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -1882,18 +3216,19 @@ function EditProfilePanel() {
             <div className="absolute inset-0 rounded-2xl bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition">
               <Camera className="w-5 h-5 text-white" />
             </div>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setAvatar(URL.createObjectURL(f)); }} />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) { setPendingFile(f); setAvatar(URL.createObjectURL(f)); } }} />
           </div>
           <div>
-            <p className="text-sm font-bold text-gray-800">UPVOX_</p>
+            <p className="text-sm font-bold text-gray-800">{String(form.name || form.username || "Profile")}</p>
             <button onClick={() => fileRef.current?.click()} className="text-xs text-teal-500 font-semibold hover:underline mt-0.5">Change profile photo</button>
           </div>
         </div>
+        {error && <p className="mb-3 text-xs text-red-500">{error}</p>}
         {[
           { label:"Name", key:"name", placeholder:"Planext4U", hint:"Help people discover your account." },
           { label:"Username", key:"username", placeholder:"Planext4U", hint:"You can change username back within 14 days." },
           { label:"Website", key:"website", placeholder:"https://", hint:"Editing links is available on mobile." },
-          { label:"Bio", key:"bio", placeholder:"Tell your story…", hint:`${String(form.bio).length}/150`, multi: true },
+          { label:"Bio", key:"bio", placeholder:"Tell your storyâ€¦", hint:`${String(form.bio).length}/150`, multi: true },
           { label:"Email", key:"email", placeholder:"email@example.com" },
           { label:"Phone", key:"phone", placeholder:"+91 97100 00000" },
           { label:"Gender", key:"gender", placeholder:"Prefer not to say" },
@@ -1910,7 +3245,7 @@ function EditProfilePanel() {
         ))}
         <div className="flex gap-3 mt-6">
           <button className="text-xs text-red-400 hover:text-red-600 underline underline-offset-2">Deactivate account</button>
-          <button onClick={() => setSaved(true)} className="ml-auto text-white text-sm font-bold px-5 py-2 rounded-xl shadow hover:opacity-90 transition" style={{ background: TEAL }}>Save</button>
+          <button onClick={saveProfile} disabled={saving} className="ml-auto text-white text-sm font-bold px-5 py-2 rounded-xl shadow hover:opacity-90 transition disabled:opacity-60" style={{ background: TEAL }}>{saving ? "Saving..." : "Save"}</button>
         </div>
       </div>
     </div>
@@ -2025,7 +3360,7 @@ function RewardsPanel() {
       <h2 className="text-base font-semibold text-gray-900 mb-6">Reward Points</h2>
       <div className="rounded-2xl text-white p-6 mb-5 text-center" style={{ background: TEAL }}>
         <Star className="w-8 h-8 mx-auto mb-2 fill-white" />
-        <p className="text-3xl font-semibold">—</p>
+        <p className="text-3xl font-semibold">â€”</p>
         <p className="text-sm text-white/80 mt-1">Total points when rewards API is connected</p>
       </div>
       <p className="text-sm text-gray-500 text-center">No reward activity loaded yet.</p>
@@ -2034,10 +3369,148 @@ function RewardsPanel() {
 }
 
 function SavedPanel() {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<ProfileGridMedia | null>(null);
+  const [selectedReelIndex, setSelectedReelIndex] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [unsavingId, setUnsavingId] = useState<string | number | null>(null);
+  const limit = 30;
+
+  const loadSaved = useCallback(async (offset = 0, append = false) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
+    setError(null);
+    try {
+      const result = await socialApi.getSavedPosts({ limit, offset });
+      setTotal(result.total ?? result.data.length);
+      setPosts((prev) => append ? [...prev, ...result.data] : result.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load saved posts.");
+      if (!append) setPosts([]);
+    } finally {
+      if (append) setLoadingMore(false);
+      else setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSaved();
+  }, [loadSaved]);
+
+  useEffect(() => {
+    const onSaveChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ postId?: string; saved?: boolean }>).detail;
+      if (!detail?.postId) return;
+      if (detail.saved === false) {
+        setPosts((prev) => prev.filter((post) => String(post.id) !== String(detail.postId)));
+        setTotal((prev) => Math.max(0, prev - 1));
+        return;
+      }
+      loadSaved();
+    };
+    window.addEventListener("p4u:socio-save-changed", onSaveChanged);
+    return () => window.removeEventListener("p4u:socio-save-changed", onSaveChanged);
+  }, [loadSaved]);
+
+  const mediaItems = posts
+    .map(postToProfileGridMedia)
+    .filter((item): item is ProfileGridMedia => Boolean(item));
+  const reels = posts
+    .map(postToReelItem)
+    .filter((item): item is ReelItem => Boolean(item));
+
+  const openSavedPost = (media: ProfileGridMedia) => {
+    if (media.type === "video") {
+      const index = reels.findIndex((reel) => String(reel.postId) === String(media.id));
+      setSelectedReelIndex(index >= 0 ? index : 0);
+      return;
+    }
+    setSelectedMedia(media);
+  };
+
+  const unsaveFromPanel = async (postId: string | number) => {
+    if (unsavingId != null) return;
+    const previous = posts;
+    setUnsavingId(postId);
+    setPosts((prev) => prev.filter((post) => String(post.id) !== String(postId)));
+    setTotal((prev) => Math.max(0, prev - 1));
+    try {
+      await socialApi.unsavePost(postId);
+    } catch (err) {
+      setPosts(previous);
+      setTotal(previous.length);
+      setError(err instanceof Error ? err.message : "Could not unsave this post.");
+    } finally {
+      setUnsavingId(null);
+    }
+  };
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
+      {selectedMedia && <ProfileMediaModal media={selectedMedia} onClose={() => setSelectedMedia(null)} />}
+      {selectedReelIndex != null && (
+        <ProfileReelsViewer
+          reels={reels}
+          initialIndex={selectedReelIndex}
+          onClose={() => setSelectedReelIndex(null)}
+          onUserClick={() => {}}
+        />
+      )}
       <h2 className="text-base font-semibold text-gray-900 mb-6">Saved</h2>
-      <p className="text-sm text-gray-500 text-center py-12">No saved posts yet.</p>
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-7 w-7 animate-spin text-teal-500" />
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center">
+          <Bookmark className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+          <p className="text-sm font-semibold text-gray-900">Could not load saved posts</p>
+          <p className="mt-1 text-xs text-gray-400">{error}</p>
+          <button onClick={() => loadSaved()} className="mt-4 rounded-xl px-4 py-2 text-xs font-bold text-white" style={{ background: TEAL }}>Try again</button>
+        </div>
+      ) : mediaItems.length === 0 ? (
+        <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center">
+          <Bookmark className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+          <p className="text-sm font-semibold text-gray-900">No saved posts yet</p>
+          <p className="mt-1 text-xs text-gray-400">Posts you save will appear here.</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-1">
+            {mediaItems.map((media) => (
+              <div key={media.id} className="relative group">
+                <ProfileGridCell media={media} onClick={() => openSavedPost(media)} />
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    unsaveFromPanel(media.id);
+                  }}
+                  disabled={unsavingId === media.id}
+                  className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white opacity-100 transition hover:bg-black/75 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-60"
+                  aria-label="Unsave post"
+                >
+                  {unsavingId === media.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className="h-4 w-4 fill-white" />}
+                </button>
+              </div>
+            ))}
+          </div>
+          {posts.length < total && (
+            <div className="mt-5 flex justify-center">
+              <button
+                onClick={() => loadSaved(posts.length, true)}
+                disabled={loadingMore}
+                className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-60"
+              >
+                {loadingMore ? "Loading..." : "Load more"}
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -2066,7 +3539,7 @@ function CloseFriendsPanel() {
             <div className="flex-1"><p className="text-sm font-semibold text-gray-900">{s.name}</p><p className="text-xs text-gray-400">{s.sub}</p></div>
             <button onClick={() => setFriends(p => p.includes(s.userId) ? p.filter(x=>x!==s.userId) : [...p,s.userId])}
               className={`text-xs font-bold px-3 py-1.5 rounded-xl transition ${friends.includes(s.userId) ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
-              {friends.includes(s.userId) ? "Added ✓" : "Add"}
+              {friends.includes(s.userId) ? "Added âœ“" : "Add"}
             </button>
           </div>
         ))}
@@ -2197,7 +3670,7 @@ function SettingsSection() {
   );
 }
 
-// ── NAV CONFIG ────────────────────────────────────────────────────────────────
+// â”€â”€ NAV CONFIG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const NAV_ITEMS = [
   { key: "home", label: "Home", icon: Home },
   { key: "explore", label: "Explore", icon: Compass },
@@ -2209,18 +3682,55 @@ const NAV_ITEMS = [
   { key: "settings", label: "Settings", icon: Settings },
 ];
 
-// ── MAIN APP ──────────────────────────────────────────────────────────────────
+// â”€â”€ MAIN APP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function SocialApp() {
   const [section, setSection] = useState("home");
   const [userProfile, setUserProfile] = useState<{ userId: string } | null>(null);
+  const [pendingMessageUserId, setPendingMessageUserId] = useState<string | null>(null);
+  const [accountProfile, setAccountProfile] = useState<SocioUserProfile | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+    socialApi.getMyProfile()
+      .then((profile) => {
+        if (!cancelled) setAccountProfile(profile);
+      })
+      .catch(() => {
+        if (!cancelled) setAccountProfile(null);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (accountProfile && userProfile && String(accountProfile.userId) === String(userProfile.userId)) {
+      setUserProfile(null);
+      setSection("profile");
+    }
+  }, [accountProfile, userProfile]);
+
   const handleUserClick = (userId: string) => {
-    if (userId) setUserProfile({ userId });
+    if (!userId) return;
+    if (accountProfile && String(accountProfile.userId) === String(userId)) {
+      setUserProfile(null);
+      setSection("profile");
+      setMobileNavOpen(false);
+      return;
+    }
+    setUserProfile({ userId });
   };
 
   const handleBackFromProfile = () => {
     setUserProfile(null);
+  };
+
+  const handleMessageUser = (userId: string) => {
+    if (!userId) return;
+    if (accountProfile && String(accountProfile.userId) === String(userId)) return;
+    setPendingMessageUserId(userId);
+    setUserProfile(null);
+    setSection("messages");
+    setMobileNavOpen(false);
   };
 
   const handleNavClick = (key: string) => {
@@ -2232,7 +3742,7 @@ export default function SocialApp() {
   const renderContent = () => {
     // User profile overlay takes priority
     if (userProfile) {
-      return <UserProfilePage userId={userProfile.userId} onBack={handleBackFromProfile} />;
+      return <UserProfilePage userId={userProfile.userId} onBack={handleBackFromProfile} onUserClick={handleUserClick} onMessage={handleMessageUser} />;
     }
     switch (section) {
       case "home": return <HomeSection onUserClick={handleUserClick} />;
@@ -2240,8 +3750,8 @@ export default function SocialApp() {
       case "reels": return <ReelsSection onUserClick={handleUserClick} />;
       case "messages": return <MessagesSection onUserClick={handleUserClick} />;
       case "notifications": return <NotificationsSection onUserClick={handleUserClick} />;
-      case "create": return <CreateSection />;
-      case "profile": return <MyProfileSection />;
+      case "create": return <CreateSection onPosted={() => setSection("home")} />;
+      case "profile": return <MyProfileSection onUserClick={handleUserClick} />;
       case "settings": return <SettingsSection />;
       default: return <HomeSection onUserClick={handleUserClick} />;
     }
@@ -2249,7 +3759,7 @@ export default function SocialApp() {
 
   return (
      <div className="max-w-[1300px] mx-auto flex h-screen overflow-hidden font-sans">
-      {/* ── Desktop Sidebar ── */}
+      {/* â”€â”€ Desktop Sidebar â”€â”€ */}
       <nav className="hidden md:flex flex-col w-16 lg:w-56 bg-white border-r border-gray-100 shrink-0 py-4 px-2 lg:px-3">
         {/* Logo */}
         <div className="px-2 mb-6 flex items-center gap-3">
@@ -2267,16 +3777,16 @@ export default function SocialApp() {
         ))}
         <div className="mt-auto pt-4 border-t border-gray-100">
           <div className="flex items-center gap-3 px-2 py-2">
-            <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 flex items-center justify-center"><User className="w-4 h-4 text-gray-500" /></div>
+            <AvatarCircle src={accountProfile?.userAvatar} name={accountProfile?.userName ?? "Account"} size="sm" className="shrink-0" />
             <div className="hidden lg:block min-w-0">
-              <p className="text-xs font-bold text-gray-900 truncate">Account</p>
+              <p className="text-xs font-bold text-gray-900 truncate">{accountProfile?.userName ?? "Account"}</p>
               <p className="text-[10px] text-gray-400">View profile</p>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* ── Main Content ── */}
+      {/* â”€â”€ Main Content â”€â”€ */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile Top Bar */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 shrink-0 z-10">
@@ -2340,3 +3850,4 @@ export default function SocialApp() {
     </div>
   );
 }
+
