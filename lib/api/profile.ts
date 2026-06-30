@@ -17,6 +17,7 @@ export interface UserProfile {
   keycloakUserId?: string;
   dob?: string;
   gender?: string;
+  bio?: string;
 }
 
 export interface Address {
@@ -126,6 +127,7 @@ function mapCustomerRow(row: Record<string, unknown>): UserProfile {
           : undefined,
     dob: typeof meta.dob === "string" ? meta.dob : undefined,
     gender: typeof meta.gender === "string" ? meta.gender : undefined,
+    bio: typeof meta.bio === "string" ? meta.bio : undefined,
   };
 }
 
@@ -158,14 +160,24 @@ export const profileApi = {
     return apiClient.get<Record<string, unknown>>(`${BASE}/me`).then(mapCustomerRow);
   },
 
-  updateMe(data: Partial<UserProfile> & { dob?: string; gender?: string }) {
+  updateMe(data: Partial<UserProfile> & { dob?: string; gender?: string; bio?: string }) {
     const body: Record<string, unknown> = {};
     if (data.name !== undefined) body.fullName = data.name;
     if (data.email !== undefined) body.email = data.email;
     if (data.phone !== undefined) body.phone = data.phone;
     if (data.dob !== undefined) body.dob = data.dob;
     if (data.gender !== undefined) body.gender = data.gender;
-    return apiClient.patch<Record<string, unknown>>(`${BASE}/me`, body).then(mapCustomerRow);
+    const metadata: Record<string, unknown> = {};
+    if (data.avatar !== undefined) {
+      metadata.avatarUrl = data.avatar || null;
+      metadata.avatar = data.avatar || null;
+    }
+    if (data.bio !== undefined) metadata.bio = data.bio;
+    if (Object.keys(metadata).length) body.metadata = metadata;
+    return apiClient.patch<Record<string, unknown>>(`${BASE}/me`, body).then((row) => {
+      apiClient.clearGetCache();
+      return mapCustomerRow(row);
+    });
   },
 
   getCustomer(customerId: string | number) {
