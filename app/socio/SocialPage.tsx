@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect, useCallback } from "react";
+﻿import { useState, useRef, useEffect, useCallback, createContext, useContext } from "react";
 import {
   Heart, MessageCircle, Send, Bookmark, MoreHorizontal,
   Search, X, PlusCircle, Phone, Video, Info, Image as ImageIcon,
@@ -9,10 +9,11 @@ import {
   UserX, Check, Edit3, Home, Compass, Film, Settings,
   User, Menu, Grid, Play, Pause, Layers, Loader2, Trash2, Mic
 } from "lucide-react";
-import { socialApi, type ActivityNotification, type LinkedProduct, type Post, type SocioUserProfile, type Story, type UserSummary } from "@/lib/api/social";
+import { socialApi, type ActivityNotification, type Conversation, type DirectMessage, type LinkedProduct, type Post, type SocioUserProfile, type Story, type UserSummary } from "@/lib/api/social";
 import { profileApi } from "@/lib/api/profile";
 import { catalogApi, type Product } from "@/lib/api/catalog";
 import { resolveMediaUrl } from "@/lib/media";
+import { DEFAULT_NOTIFICATION_SETTINGS, useSocialSettings } from "@/lib/hooks/useSocialSettings";
 
 const TEAL = "linear-gradient(135deg, #009999, #007777)";
 const TEAL_SOLID = "#009999";
@@ -2046,84 +2047,161 @@ function ReelsSection({ onUserClick }: { onUserClick: (userId: string) => void }
   );
 }
 
-// â”€â”€ MESSAGES SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── MESSAGES SECTION ───────────────────────────────────────────────────────────
 function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
-  type MockConversation = {
-    id: string;
-    userId: string;
-    username: string;
-    avatar: string;
-    lastMessage: string;
-    timestamp: string;
-    unread: number;
-    request?: boolean;
-    online?: boolean;
-  };
-  type MockMessage = {
-    id: string;
-    conversationId: string;
-    mine?: boolean;
-    type: "text" | "image" | "emoji";
-    content: string;
-    timestamp: string;
-  };
-
-  const mockConversations: MockConversation[] = [
-    { id: "1", userId: "anand", username: "anand_bens_joy", avatar: "https://i.pravatar.cc/120?img=12", lastMessage: "That reel was too good 😂", timestamp: "2m", unread: 2, online: true },
-    { id: "2", userId: "arthini", username: "arthini", avatar: "https://i.pravatar.cc/120?img=32", lastMessage: "Sent a photo", timestamp: "14m", unread: 0, online: true },
-    { id: "3", userId: "kokilavani", username: "kokilavani", avatar: "https://i.pravatar.cc/120?img=47", lastMessage: "Can you share the details?", timestamp: "1h", unread: 1 },
-    { id: "4", userId: "surya", username: "surya_a_forr", avatar: "", lastMessage: "Sure, tomorrow works.", timestamp: "4h", unread: 0 },
-    { id: "5", userId: "karthick", username: "karthicksri_rs", avatar: "", lastMessage: "Liked your story", timestamp: "1d", unread: 0 },
-    { id: "6", userId: "raji", username: "raji_ramesh_3nb1", avatar: "", lastMessage: "wants to send you a message", timestamp: "2d", unread: 1, request: true },
-  ];
-
-  const mockMessages: MockMessage[] = [
-    { id: "m1", conversationId: "1", type: "text", content: "Hey! Did you see the new reel?", timestamp: "10:21 AM" },
-    { id: "m2", conversationId: "1", mine: true, type: "text", content: "Yes, it looked amazing.", timestamp: "10:22 AM" },
-    { id: "m3", conversationId: "1", type: "emoji", content: "😂😂", timestamp: "10:23 AM" },
-    { id: "m4", conversationId: "1", mine: true, type: "image", content: "https://picsum.photos/seed/p4u-chat-1/640/640", timestamp: "10:25 AM" },
-    { id: "m5", conversationId: "1", type: "text", content: "That one. The edit was clean!", timestamp: "10:26 AM" },
-    { id: "m6", conversationId: "2", type: "image", content: "https://picsum.photos/seed/p4u-chat-2/640/720", timestamp: "9:12 AM" },
-    { id: "m7", conversationId: "2", mine: true, type: "text", content: "This looks great!", timestamp: "9:15 AM" },
-    { id: "m8", conversationId: "3", type: "text", content: "Can you share the details?", timestamp: "8:04 AM" },
-    { id: "m9", conversationId: "3", mine: true, type: "emoji", content: "👍", timestamp: "8:05 AM" },
-  ];
-
   const [tab, setTab] = useState<"primary" | "requests">("primary");
   const [query, setQuery] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<MockMessage[]>(mockMessages);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<DirectMessage[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const [messagesError, setMessagesError] = useState<string | null>(null);
   const [viewer, setViewer] = useState<string | null>(null);
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [newChatSuggestions, setNewChatSuggestions] = useState<SuggestionItem[]>([]);
+  const [newChatLoading, setNewChatLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const activeConversation = mockConversations.find((conversation) => conversation.id === activeId);
-  const visibleConversations = mockConversations
-    .filter((conversation) => tab === "requests" ? conversation.request : !conversation.request)
-    .filter((conversation) => !query.trim() || conversation.username.toLowerCase().includes(query.toLowerCase()));
-  const activeMessages = messages.filter((message) => message.conversationId === activeId);
+
+  const activeConversation = conversations.find((conversation) => String(conversation.id) === activeId) ?? null;
+  const visibleConversations = conversations
+    .filter((conversation) => (tab === "requests" ? conversation.isRequest : !conversation.isRequest))
+    .filter((conversation) => {
+      if (!query.trim()) return true;
+      const q = query.toLowerCase();
+      return conversation.participantName.toLowerCase().includes(q) || conversation.participantId.toLowerCase().includes(q);
+    });
+
+  const loadConversations = useCallback(async () => {
+    setLoadingList(true);
+    setListError(null);
+    try {
+      const rows = await socialApi.getConversations({ q: query.trim() || undefined });
+      setConversations(rows);
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : "Could not load conversations.");
+      setConversations([]);
+    } finally {
+      setLoadingList(false);
+    }
+  }, [query]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { loadConversations(); }, query.trim() ? 300 : 0);
+    return () => window.clearTimeout(timer);
+  }, [loadConversations, query]);
+
+  const loadMessages = useCallback(async (conversationId: string) => {
+    setLoadingMessages(true);
+    setMessagesError(null);
+    try {
+      const rows = await socialApi.getMessages(conversationId, { limit: 100 });
+      setMessages(rows);
+    } catch (err) {
+      setMessagesError(err instanceof Error ? err.message : "Could not load messages.");
+      setMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeId, messages]);
 
-  const openConversation = (conversationId: string) => {
+  const openConversation = async (conversationId: string) => {
     setActiveId(conversationId);
     setShowChat(true);
+    setMessages([]);
+    await loadMessages(conversationId);
+    try {
+      await socialApi.markConversationRead(conversationId);
+      setConversations((rows) =>
+        rows.map((row) => (String(row.id) === conversationId ? { ...row, unreadCount: 0, isRequest: tab === "requests" ? false : row.isRequest } : row)),
+      );
+    } catch {
+      /* non-blocking */
+    }
   };
 
-  const sendMockMessage = () => {
+  const startConversation = async (participantId: string) => {
+    setNewChatLoading(true);
+    try {
+      const conv = await socialApi.openConversation(participantId);
+      setConversations((rows) => {
+        const exists = rows.some((row) => String(row.id) === String(conv.id));
+        return exists ? rows.map((row) => (String(row.id) === String(conv.id) ? conv : row)) : [conv, ...rows];
+      });
+      setShowNewChat(false);
+      await openConversation(String(conv.id));
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : "Could not start conversation.");
+    } finally {
+      setNewChatLoading(false);
+    }
+  };
+
+  const openNewChatModal = async () => {
+    setShowNewChat(true);
+    setNewChatLoading(true);
+    try {
+      const rows = await socialApi.getSuggestions({ limit: 12 });
+      setNewChatSuggestions(rows.map(mapApiSuggestion));
+    } catch {
+      setNewChatSuggestions([]);
+    } finally {
+      setNewChatLoading(false);
+    }
+  };
+
+  const sendMessage = async () => {
     const text = input.trim();
-    if (!text || !activeId) return;
-    setMessages((rows) => [...rows, {
-      id: `mock-${Date.now()}`,
+    if (!text || !activeId || sending) return;
+    const optimisticId = `pending-${Date.now()}`;
+    const optimistic: DirectMessage = {
+      id: optimisticId,
       conversationId: activeId,
-      mine: true,
-      type: "text",
+      senderId: "me",
       content: text,
-      timestamp: "Now",
-    }]);
+      createdAt: new Date().toISOString(),
+      isMine: true,
+      status: "sending",
+    };
+    setMessages((rows) => [...rows, optimistic]);
     setInput("");
+    setSending(true);
+    try {
+      const saved = await socialApi.sendMessage(activeId, { content: text });
+      setMessages((rows) => rows.map((row) => (row.id === optimisticId ? saved : row)));
+      setConversations((rows) =>
+        rows.map((row) =>
+          String(row.id) === activeId
+            ? { ...row, lastMessage: text, lastMessageAt: saved.createdAt }
+            : row,
+        ),
+      );
+    } catch (err) {
+      setMessages((rows) => rows.filter((row) => row.id !== optimisticId));
+      setInput(text);
+      setMessagesError(err instanceof Error ? err.message : "Could not send message.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const formatMessageTime = (iso: string) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  };
+
+  const avatarFor = (conversation: Conversation) => {
+    const raw = conversation.participantAvatar?.trim() ?? "";
+    return raw ? resolveMediaUrl(raw) || raw : "";
   };
 
   return (
@@ -2135,10 +2213,38 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
         </div>
       )}
 
+      {showNewChat && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={() => setShowNewChat(false)}>
+          <div className="max-h-[80vh] w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+              <p className="text-sm font-bold text-slate-950">New message</p>
+              <button onClick={() => setShowNewChat(false)} className="rounded-full p-1 hover:bg-gray-100"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto p-2">
+              {newChatLoading ? (
+                <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-teal-500" /></div>
+              ) : newChatSuggestions.length === 0 ? (
+                <p className="py-10 text-center text-sm text-gray-400">No suggestions available.</p>
+              ) : (
+                newChatSuggestions.map((s) => (
+                  <button key={s.userId} onClick={() => startConversation(s.userId)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-gray-50">
+                    <AvatarCircle src={s.avatar} name={s.name} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-gray-900">{s.name}</p>
+                      <p className="truncate text-xs text-gray-400">{s.sub}</p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <aside className={`w-full border-r border-gray-100 bg-white sm:w-80 lg:w-96 ${showChat ? "hidden sm:flex" : "flex"} flex-col`}>
         <div className="flex items-center justify-between px-5 py-4">
           <h1 className="text-xl font-bold text-slate-950">Messages</h1>
-          <button className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-950">
+          <button onClick={openNewChatModal} className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-950">
             <PlusCircle className="h-5 w-5" />
           </button>
         </div>
@@ -2159,22 +2265,35 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
           ))}
         </div>
         <div className="flex-1 overflow-y-auto py-2">
-          {visibleConversations.map((conversation) => (
-            <button key={conversation.id} onClick={() => openConversation(conversation.id)} className={`flex w-full items-center gap-3 px-5 py-3 text-left transition hover:bg-slate-50 ${activeId === conversation.id ? "bg-slate-50" : ""}`}>
-              <div className="relative">
-                <AvatarCircle src={conversation.avatar} name={conversation.username} className="h-14 w-14 text-base" />
-                {conversation.online && <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500" />}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-bold text-slate-950">{conversation.username}</p>
-                  <span className="ml-auto text-xs text-slate-400">{conversation.timestamp}</span>
+          {loadingList ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-teal-500" /></div>
+          ) : listError ? (
+            <div className="px-5 py-8 text-center">
+              <p className="text-sm text-red-500">{listError}</p>
+              <button onClick={loadConversations} className="mt-3 text-xs font-bold text-[#009999]">Try again</button>
+            </div>
+          ) : visibleConversations.length === 0 ? (
+            <p className="px-5 py-12 text-center text-sm text-slate-400">{tab === "requests" ? "No message requests." : "No conversations yet."}</p>
+          ) : (
+            visibleConversations.map((conversation) => (
+              <button key={conversation.id} onClick={() => openConversation(String(conversation.id))} className={`flex w-full items-center gap-3 px-5 py-3 text-left transition hover:bg-slate-50 ${activeId === String(conversation.id) ? "bg-slate-50" : ""}`}>
+                <div className="relative">
+                  <AvatarCircle src={avatarFor(conversation)} name={conversation.participantName} className="h-14 w-14 text-base" />
+                  {conversation.isOnline && <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500" />}
                 </div>
-                <p className={`truncate text-sm ${conversation.unread ? "font-semibold text-slate-800" : "text-slate-500"}`}>{conversation.lastMessage}</p>
-              </div>
-              {conversation.unread > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#009999] px-1.5 text-[11px] font-bold text-white">{conversation.unread}</span>}
-            </button>
-          ))}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-bold text-slate-950">{conversation.participantName}</p>
+                    <span className="ml-auto text-xs text-slate-400">{conversation.lastMessageAt ? formatRelativeTime(conversation.lastMessageAt) : ""}</span>
+                  </div>
+                  <p className={`truncate text-sm ${conversation.unreadCount ? "font-semibold text-slate-800" : "text-slate-500"}`}>
+                    {conversation.lastMessage || (conversation.isRequest ? "wants to send you a message" : "Say hello")}
+                  </p>
+                </div>
+                {conversation.unreadCount > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#009999] px-1.5 text-[11px] font-bold text-white">{conversation.unreadCount}</span>}
+              </button>
+            ))
+          )}
         </div>
       </aside>
 
@@ -2183,12 +2302,12 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
           <>
             <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
               <button onClick={() => setShowChat(false)} className="rounded-full p-1 sm:hidden"><ArrowLeft className="h-6 w-6 text-slate-950" /></button>
-              <button onClick={() => onUserClick(activeConversation.userId)}>
-                <AvatarCircle src={activeConversation.avatar} name={activeConversation.username} className="h-11 w-11" />
+              <button onClick={() => onUserClick(activeConversation.participantId)}>
+                <AvatarCircle src={avatarFor(activeConversation)} name={activeConversation.participantName} className="h-11 w-11" />
               </button>
               <div className="min-w-0 flex-1">
-                <button onClick={() => onUserClick(activeConversation.userId)} className="block truncate text-left text-base font-bold text-slate-950">{activeConversation.username}</button>
-                <p className="text-xs text-slate-500">{activeConversation.online ? "Active now" : "Active today"}</p>
+                <button onClick={() => onUserClick(activeConversation.participantId)} className="block truncate text-left text-base font-bold text-slate-950">{activeConversation.participantName}</button>
+                <p className="text-xs text-slate-500">{activeConversation.isOnline ? "Active now" : "Active today"}</p>
               </div>
               <button className="rounded-full p-2 hover:bg-slate-100"><Phone className="h-5 w-5 text-slate-950" /></button>
               <button className="rounded-full p-2 hover:bg-slate-100"><Video className="h-5 w-5 text-slate-950" /></button>
@@ -2196,43 +2315,56 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
 
             <div className="flex-1 overflow-y-auto px-4 py-5">
               <div className="mb-6 flex flex-col items-center text-center">
-                <AvatarCircle src={activeConversation.avatar} name={activeConversation.username} className="h-20 w-20 text-2xl" />
-                <p className="mt-3 text-lg font-bold text-slate-950">{activeConversation.username}</p>
+                <AvatarCircle src={avatarFor(activeConversation)} name={activeConversation.participantName} className="h-20 w-20 text-2xl" />
+                <p className="mt-3 text-lg font-bold text-slate-950">{activeConversation.participantName}</p>
                 <p className="text-sm text-slate-500">P4U Social</p>
               </div>
               <div className="mb-5 flex items-center justify-center gap-2 text-xs text-slate-400">
                 <Lock className="h-4 w-4" />
                 <span>Messages are private. Only people in this chat can see them.</span>
               </div>
-              <div className="space-y-4">
-                {activeMessages.map((message) => (
-                  <div key={message.id} className={`flex items-end gap-2 ${message.mine ? "justify-end" : "justify-start"}`}>
-                    {!message.mine && <AvatarCircle src={activeConversation.avatar} name={activeConversation.username} size="sm" className="shrink-0" />}
-                    <div className={`max-w-[72%] ${message.mine ? "items-end" : "items-start"} flex flex-col`}>
-                      {message.type === "image" ? (
-                        <button onClick={() => setViewer(message.content)} className="overflow-hidden rounded-3xl">
-                          <img src={message.content} alt="" className="max-h-72 max-w-xs object-cover" />
-                        </button>
-                      ) : (
-                        <div className={`rounded-3xl px-4 py-2.5 text-sm ${message.type === "emoji" ? "text-4xl" : message.mine ? "text-white" : "bg-slate-100 text-slate-950"}`} style={message.mine && message.type !== "emoji" ? { background: TEAL } : {}}>
-                          {message.content}
+              {loadingMessages ? (
+                <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-teal-500" /></div>
+              ) : messagesError ? (
+                <div className="py-6 text-center">
+                  <p className="text-sm text-red-500">{messagesError}</p>
+                  <button onClick={() => activeId && loadMessages(activeId)} className="mt-2 text-xs font-bold text-[#009999]">Retry</button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map((message) => {
+                    const isEmoji = message.content && /^[\p{Emoji}\s]+$/u.test(message.content) && message.content.length <= 8;
+                    const mediaUrl = message.mediaUrl ? resolveMediaUrl(message.mediaUrl) || message.mediaUrl : null;
+                    return (
+                      <div key={message.id} className={`flex items-end gap-2 ${message.isMine ? "justify-end" : "justify-start"}`}>
+                        {!message.isMine && <AvatarCircle src={avatarFor(activeConversation)} name={activeConversation.participantName} size="sm" className="shrink-0" />}
+                        <div className={`max-w-[72%] ${message.isMine ? "items-end" : "items-start"} flex flex-col`}>
+                          {mediaUrl ? (
+                            <button onClick={() => setViewer(mediaUrl)} className="overflow-hidden rounded-3xl">
+                              <img src={mediaUrl} alt="" className="max-h-72 max-w-xs object-cover" />
+                            </button>
+                          ) : (
+                            <div className={`rounded-3xl px-4 py-2.5 text-sm ${isEmoji ? "text-4xl" : message.isMine ? "text-white" : "bg-slate-100 text-slate-950"}`} style={message.isMine && !isEmoji ? { background: TEAL } : {}}>
+                              {message.content}
+                            </div>
+                          )}
+                          <span className="mt-1 text-[11px] text-slate-400">{formatMessageTime(message.createdAt)}</span>
                         </div>
-                      )}
-                      <span className="mt-1 text-[11px] text-slate-400">{message.timestamp}</span>
-                    </div>
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
             </div>
 
             <div className="border-t border-slate-100 px-4 py-3">
               <div className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2">
                 <button className="text-slate-500"><ImageIcon className="h-5 w-5" /></button>
                 <button onClick={() => setInput((value) => `${value}😊`)} className="text-slate-500"><Smile className="h-5 w-5" /></button>
-                <input value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") sendMockMessage(); }} placeholder="Message..." className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+                <input value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void sendMessage(); }} placeholder="Message..." className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
                 <button className="text-slate-500"><Mic className="h-5 w-5" /></button>
-                <button onClick={sendMockMessage} disabled={!input.trim()} className="rounded-full px-3 py-1 text-sm font-bold text-[#009999] disabled:text-slate-300">Send</button>
+                <button onClick={() => void sendMessage()} disabled={!input.trim() || sending} className="rounded-full px-3 py-1 text-sm font-bold text-[#009999] disabled:text-slate-300">{sending ? "..." : "Send"}</button>
               </div>
             </div>
           </>
@@ -2241,7 +2373,7 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
             <MessageCircle className="mb-4 h-16 w-16 text-slate-300" />
             <p className="text-xl font-bold text-slate-950">Your messages</p>
             <p className="mt-1 text-sm text-slate-500">Send private photos and messages to a friend or group.</p>
-            <button className="mt-5 rounded-xl bg-[#009999] px-5 py-2.5 text-sm font-bold text-white">Send message</button>
+            <button onClick={openNewChatModal} className="mt-5 rounded-xl bg-[#009999] px-5 py-2.5 text-sm font-bold text-white">Send message</button>
           </div>
         )}
       </main>
@@ -3253,9 +3385,19 @@ function EditProfilePanel() {
 }
 
 function PrivacyPanel() {
-  const [priv, setPriv] = useState(false);
-  const [actStatus, setActStatus] = useState(true);
-  const [storyReplies, setStoryReplies] = useState("Everyone");
+  const { settings, loading, patch } = useSettingsContext();
+  const priv = settings?.privateAccount ?? false;
+  const actStatus = settings?.showActivityStatus ?? true;
+  const storyReplies = settings?.storyReplies ?? "Everyone";
+
+  const save = (partial: Parameters<typeof patch>[0]) => {
+    void patch(partial).catch(() => {});
+  };
+
+  if (loading && !settings) {
+    return <div className="flex flex-1 items-center justify-center p-8"><Loader2 className="h-7 w-7 animate-spin text-teal-500" /></div>;
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
       <h2 className="text-base font-semibold text-gray-900 mb-6">Account Privacy</h2>
@@ -3263,18 +3405,18 @@ function PrivacyPanel() {
         <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-4">
           <Lock className="w-5 h-5 text-gray-500 mt-0.5 shrink-0" />
           <div className="flex-1"><p className="text-sm font-semibold text-gray-900">Private Account</p><p className="text-xs text-gray-500 mt-0.5">Only approved followers can see your photos.</p></div>
-          <Toggle checked={priv} onChange={setPriv} />
+          <Toggle checked={priv} onChange={(v) => save({ privateAccount: v })} />
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-4">
           <Activity className="w-5 h-5 text-gray-500 mt-0.5 shrink-0" />
           <div className="flex-1"><p className="text-sm font-semibold text-gray-900">Show Activity Status</p><p className="text-xs text-gray-500 mt-0.5">Allow others to see when you were last active.</p></div>
-          <Toggle checked={actStatus} onChange={setActStatus} />
+          <Toggle checked={actStatus} onChange={(v) => save({ showActivityStatus: v })} />
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
           <p className="text-sm font-semibold text-gray-900 mb-3">Story Replies</p>
           {["Everyone","People you follow","Off"].map(opt => (
             <label key={opt} className="flex items-center gap-3 py-2 cursor-pointer">
-              <div onClick={() => setStoryReplies(opt)} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition ${storyReplies === opt ? "border-teal-500" : "border-gray-300"}`}>
+              <div onClick={() => save({ storyReplies: opt })} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition ${storyReplies === opt ? "border-teal-500" : "border-gray-300"}`}>
                 {storyReplies === opt && <div className="w-2 h-2 rounded-full bg-teal-500" />}
               </div>
               <span className="text-sm text-gray-700">{opt}</span>
@@ -3287,8 +3429,16 @@ function PrivacyPanel() {
 }
 
 function NotificationSettingsPanel() {
-  const [settings, setSettings] = useState<Record<string, boolean>>({ likes: true, comments: true, follows: true, messages: false, reposts: true, mentions: true, liveVideos: false, emailNotifs: false });
-  const toggle = (k: string) => setSettings(p => ({ ...p, [k]: !p[k] }));
+  const { settings, loading, patch } = useSettingsContext();
+  const notifSettings = { ...DEFAULT_NOTIFICATION_SETTINGS, ...(settings?.notifications ?? {}) };
+  const toggle = (k: string) => {
+    void patch({ notifications: { [k]: !notifSettings[k] } }).catch(() => {});
+  };
+
+  if (loading && !settings) {
+    return <div className="flex flex-1 items-center justify-center p-8"><Loader2 className="h-7 w-7 animate-spin text-teal-500" /></div>;
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
       <h2 className="text-base font-semibold text-gray-900 mb-6">Notification Settings</h2>
@@ -3305,7 +3455,7 @@ function NotificationSettingsPanel() {
         ].map(({ key, label, desc }, i, arr) => (
           <div key={key} className={`flex items-center gap-4 px-4 py-3.5 ${i < arr.length - 1 ? "border-b border-gray-50" : ""}`}>
             <div className="flex-1"><p className="text-sm font-semibold text-gray-900">{label}</p><p className="text-xs text-gray-400">{desc}</p></div>
-            <Toggle checked={settings[key]} onChange={() => toggle(key)} />
+            <Toggle checked={Boolean(notifSettings[key])} onChange={() => toggle(key)} />
           </div>
         ))}
       </div>
@@ -3314,14 +3464,20 @@ function NotificationSettingsPanel() {
 }
 
 function LanguagePanel() {
-  const [lang, setLang] = useState("English");
+  const { settings, loading, patch } = useSettingsContext();
+  const lang = settings?.language ?? "English";
   const langs = ["English","Tamil","Hindi","Telugu","Malayalam","Kannada","Bengali","Marathi","Gujarati","Punjabi"];
+
+  if (loading && !settings) {
+    return <div className="flex flex-1 items-center justify-center p-8"><Loader2 className="h-7 w-7 animate-spin text-teal-500" /></div>;
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
       <h2 className="text-base font-semibold text-gray-900 mb-6">Select Language</h2>
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         {langs.map((l, i) => (
-          <button key={l} onClick={() => setLang(l)} className={`w-full flex items-center justify-between px-4 py-3.5 text-sm transition hover:bg-gray-50 ${i < langs.length - 1 ? "border-b border-gray-50" : ""} ${lang === l ? "text-teal-600 font-bold" : "text-gray-700"}`}>
+          <button key={l} onClick={() => { void patch({ language: l }).catch(() => {}); }} className={`w-full flex items-center justify-between px-4 py-3.5 text-sm transition hover:bg-gray-50 ${i < langs.length - 1 ? "border-b border-gray-50" : ""} ${lang === l ? "text-teal-600 font-bold" : "text-gray-700"}`}>
             {l}{lang === l && <Check className="w-4 h-4 text-teal-500" />}
           </button>
         ))}
@@ -3331,8 +3487,14 @@ function LanguagePanel() {
 }
 
 function TimeManagementPanel() {
-  const [limit, setLimit] = useState(60);
-  const [reminder, setReminder] = useState(true);
+  const { settings, loading, patch } = useSettingsContext();
+  const limit = settings?.dailyTimeLimitMinutes ?? 60;
+  const reminder = settings?.dailyReminder ?? true;
+
+  if (loading && !settings) {
+    return <div className="flex flex-1 items-center justify-center p-8"><Loader2 className="h-7 w-7 animate-spin text-teal-500" /></div>;
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
       <h2 className="text-base font-semibold text-gray-900 mb-6">Time Management</h2>
@@ -3341,13 +3503,13 @@ function TimeManagementPanel() {
           <p className="text-sm font-semibold text-gray-900 mb-1">Daily Time Limit</p>
           <p className="text-xs text-gray-400 mb-4">Set a daily limit for time spent on this app.</p>
           <div className="flex items-center gap-4">
-            <input type="range" min={15} max={240} step={15} value={limit} onChange={e => setLimit(+e.target.value)} className="flex-1 accent-teal-500" />
+            <input type="range" min={15} max={240} step={15} value={limit} onChange={e => { void patch({ dailyTimeLimitMinutes: +e.target.value }).catch(() => {}); }} className="flex-1 accent-teal-500" />
             <span className="text-sm font-bold text-teal-600 w-16 shrink-0">{limit >= 60 ? `${Math.floor(limit/60)}h ${limit%60 ? `${limit%60}m` : ""}` : `${limit}m`}</span>
           </div>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
           <div className="flex-1"><p className="text-sm font-semibold text-gray-900">Daily Reminder</p><p className="text-xs text-gray-400 mt-0.5">Get reminded when you approach your limit.</p></div>
-          <Toggle checked={reminder} onChange={setReminder} />
+          <Toggle checked={reminder} onChange={(v) => { void patch({ dailyReminder: v }).catch(() => {}); }} />
         </div>
       </div>
     </div>
@@ -3355,15 +3517,68 @@ function TimeManagementPanel() {
 }
 
 function RewardsPanel() {
+  const [balance, setBalance] = useState<number | null>(null);
+  const [history, setHistory] = useState<{ id: string; points: number; description: string | null; createdAt: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    profileApi.getRewardPoints()
+      .then((data) => {
+        if (cancelled) return;
+        setBalance(data.balance ?? 0);
+        setHistory((data.recentHistory ?? []).slice(0, 8).map((row) => ({
+          id: row.id,
+          points: row.points,
+          description: row.description,
+          createdAt: row.createdAt,
+        })));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Could not load reward points.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
       <h2 className="text-base font-semibold text-gray-900 mb-6">Reward Points</h2>
-      <div className="rounded-2xl text-white p-6 mb-5 text-center" style={{ background: TEAL }}>
-        <Star className="w-8 h-8 mx-auto mb-2 fill-white" />
-        <p className="text-3xl font-semibold">â€”</p>
-        <p className="text-sm text-white/80 mt-1">Total points when rewards API is connected</p>
-      </div>
-      <p className="text-sm text-gray-500 text-center">No reward activity loaded yet.</p>
+      {loading ? (
+        <div className="flex justify-center py-12"><Loader2 className="h-7 w-7 animate-spin text-teal-500" /></div>
+      ) : error ? (
+        <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center">
+          <p className="text-sm text-red-500">{error}</p>
+        </div>
+      ) : (
+        <>
+          <div className="rounded-2xl text-white p-6 mb-5 text-center" style={{ background: TEAL }}>
+            <Star className="w-8 h-8 mx-auto mb-2 fill-white" />
+            <p className="text-3xl font-semibold">{balance ?? 0}</p>
+            <p className="text-sm text-white/80 mt-1">Total reward points</p>
+          </div>
+          {history.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center">No reward activity yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {history.map((row) => (
+                <div key={row.id} className="flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3">
+                  <div className="min-w-0 flex-1 pr-3">
+                    <p className="truncate text-sm font-semibold text-gray-900">{row.description || "Reward activity"}</p>
+                    <p className="text-xs text-gray-400">{formatRelativeTime(row.createdAt)}</p>
+                  </div>
+                  <span className={`text-sm font-bold ${row.points >= 0 ? "text-teal-600" : "text-red-500"}`}>{row.points >= 0 ? "+" : ""}{row.points}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -3570,8 +3785,14 @@ function BlockedPanel() {
 }
 
 function CommentsPanel() {
-  const [allow, setAllow] = useState("Everyone");
-  const [filter, setFilter] = useState(true);
+  const { settings, loading, patch } = useSettingsContext();
+  const allow = settings?.commentsAllowFrom ?? "Everyone";
+  const filter = settings?.filterOffensiveComments ?? true;
+
+  if (loading && !settings) {
+    return <div className="flex flex-1 items-center justify-center p-8"><Loader2 className="h-7 w-7 animate-spin text-teal-500" /></div>;
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
       <h2 className="text-base font-semibold text-gray-900 mb-6">Comments</h2>
@@ -3580,7 +3801,7 @@ function CommentsPanel() {
           <p className="text-sm font-semibold text-gray-900 mb-3">Allow comments from</p>
           {["Everyone","People you follow","Your followers","People you follow and your followers"].map(opt => (
             <label key={opt} className="flex items-center gap-3 py-1.5 cursor-pointer">
-              <div onClick={() => setAllow(opt)} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition ${allow === opt ? "border-teal-500" : "border-gray-300"}`}>
+              <div onClick={() => { void patch({ commentsAllowFrom: opt }).catch(() => {}); }} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition ${allow === opt ? "border-teal-500" : "border-gray-300"}`}>
                 {allow === opt && <div className="w-2 h-2 rounded-full bg-teal-500" />}
               </div>
               <span className="text-sm text-gray-700">{opt}</span>
@@ -3589,7 +3810,7 @@ function CommentsPanel() {
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-4">
           <div className="flex-1"><p className="text-sm font-semibold text-gray-900">Filter offensive comments</p><p className="text-xs text-gray-400 mt-0.5">Automatically hide offensive comments.</p></div>
-          <Toggle checked={filter} onChange={setFilter} />
+          <Toggle checked={filter} onChange={(v) => { void patch({ filterOffensiveComments: v }).catch(() => {}); }} />
         </div>
       </div>
     </div>
@@ -3605,9 +3826,18 @@ function GenericPanel({ title, desc }: { title: string; desc: string }) {
   );
 }
 
+const SettingsContext = createContext<ReturnType<typeof useSocialSettings> | null>(null);
+
+function useSettingsContext() {
+  const ctx = useContext(SettingsContext);
+  if (!ctx) throw new Error("Settings panels must be used within SettingsSection");
+  return ctx;
+}
+
 function SettingsSection() {
   const [activeMenu, setActiveMenu] = useState("edit_profile");
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  const settingsState = useSocialSettings();
 
   const handleMenu = (key: string) => { setActiveMenu(key); setMobilePanelOpen(true); };
 
@@ -3638,6 +3868,7 @@ function SettingsSection() {
   };
 
   return (
+    <SettingsContext.Provider value={settingsState}>
     <div className="flex" style={{ height: "100%", minHeight: "400px" }}>
       {/* Sidebar */}
       <div className={`w-full sm:w-64 bg-white border-r border-gray-100 overflow-y-auto shrink-0 flex flex-col ${mobilePanelOpen ? "hidden sm:flex" : "flex"}`}>
@@ -3667,6 +3898,7 @@ function SettingsSection() {
         {renderPanel()}
       </div>
     </div>
+    </SettingsContext.Provider>
   );
 }
 

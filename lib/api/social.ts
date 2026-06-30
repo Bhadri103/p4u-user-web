@@ -89,6 +89,7 @@ export interface Conversation {
   unreadCount: number;
   isOnline?: boolean;
   isTyping?: boolean;
+  isRequest?: boolean;
 }
 
 export interface DirectMessage {
@@ -103,6 +104,18 @@ export interface DirectMessage {
   status?: "sending" | "sent" | "delivered" | "read";
   createdAt: string;
   isMine?: boolean;
+}
+
+export interface SocialSettings {
+  privateAccount?: boolean;
+  showActivityStatus?: boolean;
+  storyReplies?: string;
+  commentsAllowFrom?: string;
+  filterOffensiveComments?: boolean;
+  notifications?: Record<string, boolean>;
+  dailyTimeLimitMinutes?: number;
+  dailyReminder?: boolean;
+  language?: string;
 }
 
 export interface UserSummary {
@@ -202,6 +215,7 @@ function mapApiConversation(row: Record<string, unknown>): Conversation {
     unreadCount: Number(row.unreadCount) || 0,
     isOnline: Boolean(row.isOnline ?? participant.isOnline),
     isTyping: Boolean(row.isTyping),
+    isRequest: Boolean(row.isRequest),
   };
 }
 
@@ -771,5 +785,16 @@ export const socialApi = {
 
   deleteStory(storyId: string | number) {
     return apiClient.delete<void>(`${BASE}/stories/${storyId}`);
+  },
+
+  getMySettings() {
+    return apiClient.get<SocialSettings>(`${BASE}/users/me/settings`, undefined, { forceRefresh: true, cacheTtlMs: 0 });
+  },
+
+  updateMySettings(data: Partial<SocialSettings>) {
+    return apiClient.patch<SocialSettings>(`${BASE}/users/me/settings`, data).then((result) => {
+      apiClient.clearGetCache(`${BASE}/users/me/settings`);
+      return result;
+    });
   },
 };
