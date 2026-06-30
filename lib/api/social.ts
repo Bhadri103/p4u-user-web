@@ -110,12 +110,15 @@ export interface SocialSettings {
   privateAccount?: boolean;
   showActivityStatus?: boolean;
   storyReplies?: string;
+  messageAllowFrom?: string;
   commentsAllowFrom?: string;
   filterOffensiveComments?: boolean;
   notifications?: Record<string, boolean>;
   dailyTimeLimitMinutes?: number;
   dailyReminder?: boolean;
   language?: string;
+  closeFriends?: string[];
+  blockedUsers?: string[];
 }
 
 export interface UserSummary {
@@ -139,6 +142,22 @@ export interface Story {
   createdAt: string;
   expiresAt?: string;
   viewed?: boolean;
+}
+
+function unwrapApiList(raw: unknown): Record<string, unknown>[] {
+  if (Array.isArray(raw)) {
+    return raw.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object");
+  }
+  if (raw && typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    for (const key of ["data", "items", "conversations", "messages"]) {
+      const value = obj[key];
+      if (Array.isArray(value)) {
+        return value.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object");
+      }
+    }
+  }
+  return [];
 }
 
 function mapApiPost(row: Record<string, unknown>): Post {
@@ -608,14 +627,7 @@ export const socialApi = {
   getConversations(params?: { q?: string; limit?: number; offset?: number }) {
     return apiClient
       .get<unknown>(`${BASE}/messages/conversations`, params as Record<string, string | number | boolean> | undefined, { forceRefresh: true, cacheTtlMs: 0 })
-      .then((raw) => {
-        const rows = Array.isArray(raw)
-          ? raw
-          : raw && typeof raw === "object" && "data" in raw && Array.isArray((raw as PaginatedResponse<unknown>).data)
-            ? (raw as PaginatedResponse<unknown>).data
-            : [];
-        return rows.map((row) => mapApiConversation(row as Record<string, unknown>));
-      });
+      .then((raw) => unwrapApiList(raw).map((row) => mapApiConversation(row)));
   },
 
   openConversation(participantId: string | number) {
@@ -630,14 +642,7 @@ export const socialApi = {
   getMessages(conversationId: string | number, params?: { limit?: number; before?: string | number }) {
     return apiClient
       .get<unknown>(`${BASE}/messages/conversations/${conversationId}/messages`, params as Record<string, string | number | boolean> | undefined, { forceRefresh: true, cacheTtlMs: 0 })
-      .then((raw) => {
-        const rows = Array.isArray(raw)
-          ? raw
-          : raw && typeof raw === "object" && "data" in raw && Array.isArray((raw as PaginatedResponse<unknown>).data)
-            ? (raw as PaginatedResponse<unknown>).data
-            : [];
-        return rows.map((row) => mapApiDirectMessage(row as Record<string, unknown>));
-      });
+      .then((raw) => unwrapApiList(raw).map((row) => mapApiDirectMessage(row)));
   },
 
   sendMessage(conversationId: string | number, data: { content?: string; mediaUrl?: string; mediaType?: "image" | "video" }) {

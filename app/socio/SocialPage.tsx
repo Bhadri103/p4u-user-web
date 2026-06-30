@@ -10,6 +10,7 @@ import {
   User, Menu, Grid, Play, Pause, Layers, Loader2, Trash2, Mic
 } from "lucide-react";
 import { socialApi, type ActivityNotification, type Conversation, type DirectMessage, type LinkedProduct, type Post, type SocioUserProfile, type Story, type UserSummary } from "@/lib/api/social";
+import { apiClient } from "@/lib/api/client";
 import { profileApi } from "@/lib/api/profile";
 import { catalogApi, type Product } from "@/lib/api/catalog";
 import { resolveMediaUrl } from "@/lib/media";
@@ -2065,7 +2066,9 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
   const [showNewChat, setShowNewChat] = useState(false);
   const [newChatSuggestions, setNewChatSuggestions] = useState<SuggestionItem[]>([]);
   const [newChatLoading, setNewChatLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const activeConversation = conversations.find((conversation) => String(conversation.id) === activeId) ?? null;
   const visibleConversations = conversations
@@ -2073,27 +2076,40 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
     .filter((conversation) => {
       if (!query.trim()) return true;
       const q = query.toLowerCase();
-      return conversation.participantName.toLowerCase().includes(q) || conversation.participantId.toLowerCase().includes(q);
+      return (
+        conversation.participantName.toLowerCase().includes(q)
+        || conversation.participantId.toLowerCase().includes(q)
+        || (conversation.lastMessage ?? "").toLowerCase().includes(q)
+      );
     });
 
-  const loadConversations = useCallback(async () => {
-    setLoadingList(true);
+  const loadConversations = useCallback(async (silent = false) => {
+    if (!silent) setLoadingList(true);
     setListError(null);
     try {
-      const rows = await socialApi.getConversations({ q: query.trim() || undefined });
+      apiClient.clearGetCache("/api/v1/social/messages/conversations");
+      const rows = await socialApi.getConversations();
       setConversations(rows);
     } catch (err) {
       setListError(err instanceof Error ? err.message : "Could not load conversations.");
-      setConversations([]);
+      if (!silent) setConversations([]);
     } finally {
-      setLoadingList(false);
+      if (!silent) setLoadingList(false);
     }
-  }, [query]);
+  }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { loadConversations(); }, query.trim() ? 300 : 0);
-    return () => window.clearTimeout(timer);
-  }, [loadConversations, query]);
+    void loadConversations();
+    const poll = window.setInterval(() => { void loadConversations(true); }, 12000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadConversations(true);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [loadConversations]);
 
   const loadMessages = useCallback(async (conversationId: string) => {
     setLoadingMessages(true);
@@ -2134,10 +2150,12 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
       const conv = await socialApi.openConversation(participantId);
       setConversations((rows) => {
         const exists = rows.some((row) => String(row.id) === String(conv.id));
-        return exists ? rows.map((row) => (String(row.id) === String(conv.id) ? conv : row)) : [conv, ...rows];
+        const merged = exists ? rows.map((row) => (String(row.id) === String(conv.id) ? conv : row)) : [conv, ...rows];
+        return merged;
       });
       setShowNewChat(false);
       await openConversation(String(conv.id));
+      void loadConversations(true);
     } catch (err) {
       setListError(err instanceof Error ? err.message : "Could not start conversation.");
     } finally {
@@ -2161,12 +2179,20 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
   const sendMessage = async () => {
     const text = input.trim();
     if (!text || !activeId || sending) return;
+    await sendChatPayload({ content: text });
+  };
+
+  const sendChatPayload = async (payload: { content?: string; mediaUrl?: string; mediaType?: "image" | "video" }) => {
+    if (!activeId || sending) return;
+    const text = payload.content?.trim() ?? "";
     const optimisticId = `pending-${Date.now()}`;
     const optimistic: DirectMessage = {
       id: optimisticId,
       conversationId: activeId,
       senderId: "me",
-      content: text,
+      content: text || null,
+      mediaUrl: payload.mediaUrl ?? null,
+      mediaType: payload.mediaType ?? null,
       createdAt: new Date().toISOString(),
       isMine: true,
       status: "sending",
@@ -2175,21 +2201,41 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
     setInput("");
     setSending(true);
     try {
-      const saved = await socialApi.sendMessage(activeId, { content: text });
+      const saved = await socialApi.sendMessage(activeId, payload);
       setMessages((rows) => rows.map((row) => (row.id === optimisticId ? saved : row)));
-      setConversations((rows) =>
-        rows.map((row) =>
+      const preview = text || (payload.mediaType === "video" ? "Video" : "Photo");
+      setConversations((rows) => {
+        const updated = rows.map((row) =>
           String(row.id) === activeId
-            ? { ...row, lastMessage: text, lastMessageAt: saved.createdAt }
+            ? { ...row, lastMessage: preview, lastMessageAt: saved.createdAt, unreadCount: 0 }
             : row,
-        ),
-      );
+        );
+        return updated.some((row) => String(row.id) === activeId)
+          ? updated
+          : [{ id: activeId, participantId: "", participantName: "Chat", unreadCount: 0, lastMessage: preview, lastMessageAt: saved.createdAt }, ...updated];
+      });
+      void loadConversations(true);
     } catch (err) {
       setMessages((rows) => rows.filter((row) => row.id !== optimisticId));
-      setInput(text);
+      if (text) setInput(text);
       setMessagesError(err instanceof Error ? err.message : "Could not send message.");
     } finally {
       setSending(false);
+    }
+  };
+
+  const sendImageMessage = async (file: File) => {
+    if (!activeId || uploadingImage) return;
+    setUploadingImage(true);
+    setMessagesError(null);
+    try {
+      const uploaded = await socialApi.uploadMedia(file);
+      await sendChatPayload({ mediaUrl: uploaded.url, mediaType: uploaded.mediaType });
+    } catch (err) {
+      setMessagesError(err instanceof Error ? err.message : "Could not send image.");
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
     }
   };
 
@@ -2270,7 +2316,7 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
           ) : listError ? (
             <div className="px-5 py-8 text-center">
               <p className="text-sm text-red-500">{listError}</p>
-              <button onClick={loadConversations} className="mt-3 text-xs font-bold text-[#009999]">Try again</button>
+              <button onClick={() => { void loadConversations(); }} className="mt-3 text-xs font-bold text-[#009999]">Try again</button>
             </div>
           ) : visibleConversations.length === 0 ? (
             <p className="px-5 py-12 text-center text-sm text-slate-400">{tab === "requests" ? "No message requests." : "No conversations yet."}</p>
@@ -2359,8 +2405,20 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
             </div>
 
             <div className="border-t border-slate-100 px-4 py-3">
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*,video/*"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void sendImageMessage(file);
+                }}
+              />
               <div className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2">
-                <button className="text-slate-500"><ImageIcon className="h-5 w-5" /></button>
+                <button type="button" disabled={uploadingImage} onClick={() => imageInputRef.current?.click()} className="text-slate-500 disabled:opacity-50">
+                  {uploadingImage ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
+                </button>
                 <button onClick={() => setInput((value) => `${value}😊`)} className="text-slate-500"><Smile className="h-5 w-5" /></button>
                 <input value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void sendMessage(); }} placeholder="Message..." className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
                 <button className="text-slate-500"><Mic className="h-5 w-5" /></button>
@@ -3731,30 +3789,37 @@ function SavedPanel() {
 }
 
 function CloseFriendsPanel() {
+  const { settings, loading, patch } = useSettingsContext();
   const [cfSuggestions, setCfSuggestions] = useState<SuggestionItem[]>([]);
-  const [friends, setFriends] = useState<string[]>([]);
+  const friends = settings?.closeFriends ?? [];
 
   useEffect(() => {
-    socialApi.getSuggestions({ limit: 10 })
+    socialApi.getSuggestions({ limit: 15 })
       .then((rows) => setCfSuggestions(rows.map(mapApiSuggestion)))
       .catch(() => {});
   }, []);
+
+  const toggleFriend = (userId: string) => {
+    const next = friends.includes(userId) ? friends.filter((id) => id !== userId) : [...friends, userId];
+    void patch({ closeFriends: next }).catch(() => {});
+  };
+
+  if (loading && !settings) {
+    return <div className="flex flex-1 items-center justify-center p-8"><Loader2 className="h-7 w-7 animate-spin text-teal-500" /></div>;
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
       <h2 className="text-base font-semibold text-gray-900 mb-2">Close Friends</h2>
       <p className="text-xs text-gray-400 mb-5">People on your close friends list can see your close friends stories.</p>
       <div className="space-y-2">
-        {cfSuggestions.map(s => (
+        {cfSuggestions.map((s) => (
           <div key={s.id} className="flex items-center gap-3 bg-white rounded-xl p-3 border border-gray-100">
-            {s.avatar ? (
-            <img src={s.avatar} alt={s.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
-            ) : (
-            <div className="w-10 h-10 rounded-full bg-gray-200 shrink-0 flex items-center justify-center text-xs text-gray-500 font-bold">?</div>
-            )}
+            <AvatarCircle src={s.avatar} name={s.name} />
             <div className="flex-1"><p className="text-sm font-semibold text-gray-900">{s.name}</p><p className="text-xs text-gray-400">{s.sub}</p></div>
-            <button onClick={() => setFriends(p => p.includes(s.userId) ? p.filter(x=>x!==s.userId) : [...p,s.userId])}
+            <button onClick={() => toggleFriend(s.userId)}
               className={`text-xs font-bold px-3 py-1.5 rounded-xl transition ${friends.includes(s.userId) ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
-              {friends.includes(s.userId) ? "Added âœ“" : "Add"}
+              {friends.includes(s.userId) ? "Added" : "Add"}
             </button>
           </div>
         ))}
@@ -3764,22 +3829,99 @@ function CloseFriendsPanel() {
 }
 
 function BlockedPanel() {
-  const [blocked, setBlocked] = useState<{ id: number; name: string; avatar: string }[]>([]);
+  const { settings, loading, patch } = useSettingsContext();
+  const [candidates, setCandidates] = useState<SuggestionItem[]>([]);
+  const blocked = settings?.blockedUsers ?? [];
+
+  useEffect(() => {
+    socialApi.getSuggestions({ limit: 15 })
+      .then((rows) => setCandidates(rows.map(mapApiSuggestion)))
+      .catch(() => {});
+  }, []);
+
+  const blockUser = (userId: string) => {
+    if (blocked.includes(userId)) return;
+    void patch({ blockedUsers: [...blocked, userId] }).catch(() => {});
+  };
+
+  const unblockUser = (userId: string) => {
+    void patch({ blockedUsers: blocked.filter((id) => id !== userId) }).catch(() => {});
+  };
+
+  const blockedProfiles = blocked.map((userId) => {
+    const match = candidates.find((c) => c.userId === userId);
+    return { userId, name: match?.name ?? userId, avatar: match?.avatar ?? "" };
+  });
+
+  if (loading && !settings) {
+    return <div className="flex flex-1 items-center justify-center p-8"><Loader2 className="h-7 w-7 animate-spin text-teal-500" /></div>;
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
       <h2 className="text-base font-semibold text-gray-900 mb-2">Blocked</h2>
       <p className="text-xs text-gray-400 mb-5">They won&apos;t be able to find your profile or posts.</p>
-      {blocked.length === 0
-        ? <p className="text-sm text-gray-400 text-center py-8">No blocked accounts</p>
-        : <div className="space-y-2">
-            {blocked.map(b => (
-              <div key={b.id} className="flex items-center gap-3 bg-white rounded-xl p-3 border border-gray-100">
-                <img src={b.avatar} alt={b.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
+      {blockedProfiles.length === 0
+        ? <p className="text-sm text-gray-400 text-center py-6">No blocked accounts</p>
+        : <div className="space-y-2 mb-6">
+            {blockedProfiles.map((b) => (
+              <div key={b.userId} className="flex items-center gap-3 bg-white rounded-xl p-3 border border-gray-100">
+                <AvatarCircle src={b.avatar} name={b.name} />
                 <div className="flex-1"><p className="text-sm font-semibold text-gray-900">{b.name}</p></div>
-                <button onClick={() => setBlocked(p=>p.filter(x=>x.id!==b.id))} className="text-xs font-bold px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition">Unblock</button>
+                <button onClick={() => unblockUser(b.userId)} className="text-xs font-bold px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition">Unblock</button>
               </div>
             ))}
           </div>}
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Block someone</p>
+      <div className="space-y-2">
+        {candidates.filter((c) => !blocked.includes(c.userId)).map((s) => (
+          <div key={s.userId} className="flex items-center gap-3 bg-white rounded-xl p-3 border border-gray-100">
+            <AvatarCircle src={s.avatar} name={s.name} />
+            <div className="flex-1"><p className="text-sm font-semibold text-gray-900">{s.name}</p></div>
+            <button onClick={() => blockUser(s.userId)} className="text-xs font-bold px-3 py-1.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition">Block</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MessageRepliesPanel() {
+  const { settings, loading, patch } = useSettingsContext();
+  const storyReplies = settings?.storyReplies ?? "Everyone";
+  const messageAllow = settings?.messageAllowFrom ?? "Everyone";
+
+  if (loading && !settings) {
+    return <div className="flex flex-1 items-center justify-center p-8"><Loader2 className="h-7 w-7 animate-spin text-teal-500" /></div>;
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
+      <h2 className="text-base font-semibold text-gray-900 mb-6">Message and Story Replies</h2>
+      <div className="space-y-4">
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <p className="text-sm font-semibold text-gray-900 mb-3">Story replies</p>
+          {["Everyone", "People you follow", "Off"].map((opt) => (
+            <label key={opt} className="flex items-center gap-3 py-2 cursor-pointer">
+              <div onClick={() => { void patch({ storyReplies: opt }).catch(() => {}); }} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition ${storyReplies === opt ? "border-teal-500" : "border-gray-300"}`}>
+                {storyReplies === opt && <div className="w-2 h-2 rounded-full bg-teal-500" />}
+              </div>
+              <span className="text-sm text-gray-700">{opt}</span>
+            </label>
+          ))}
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <p className="text-sm font-semibold text-gray-900 mb-3">Allow messages from</p>
+          {["Everyone", "People you follow", "Your followers", "No one"].map((opt) => (
+            <label key={opt} className="flex items-center gap-3 py-2 cursor-pointer">
+              <div onClick={() => { void patch({ messageAllowFrom: opt }).catch(() => {}); }} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition ${messageAllow === opt ? "border-teal-500" : "border-gray-300"}`}>
+                {messageAllow === opt && <div className="w-2 h-2 rounded-full bg-teal-500" />}
+              </div>
+              <span className="text-sm text-gray-700">{opt}</span>
+            </label>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -3856,7 +3998,7 @@ function SettingsSection() {
       case "archive": return <GenericPanel title="Archive" desc="View your archived posts and stories. Archived posts are only visible to you." />;
       case "activity": return <GenericPanel title="Your Activity" desc="See a summary of your recent activity including posts, comments, likes and follows." />;
       case "create_page": return <GenericPanel title="Create Your Page" desc="Set up a page to represent your business, brand, or organisation." />;
-      case "message_replies": return <GenericPanel title="Message and Story Replies" desc="Control who can reply to your stories and send you messages." />;
+      case "message_replies": return <MessageRepliesPanel />;
       case "tags": return <GenericPanel title="Tags and Mentions" desc="Control who can tag or mention you in their posts and stories." />;
       case "sharing": return <GenericPanel title="Sharing" desc="Control who can share your posts and stories to their feeds." />;
       case "invite": return <GenericPanel title="Invite Friends" desc="Invite your contacts to join P4U and earn reward points." />;

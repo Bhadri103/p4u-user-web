@@ -46,6 +46,8 @@ export function useSocialSettings() {
         ...(current?.notifications ?? DEFAULT_NOTIFICATION_SETTINGS),
         ...(partial.notifications ?? {}),
       },
+      closeFriends: partial.closeFriends ?? current?.closeFriends,
+      blockedUsers: partial.blockedUsers ?? current?.blockedUsers,
     }));
     try {
       const next = await socialApi.updateMySettings(partial);
