@@ -6,7 +6,7 @@ import {
   ChevronRight, ChevronLeft, ChevronDown, Camera, Lock, Users, Eye,
   Bell, Archive, Activity, Globe, Clock, Star, FileText,
   MessageSquare, Tag, Share2, UserPlus, ThumbsUp,
-  UserX, Check, Edit3, Home, Compass, Film, Settings,
+  ThumbsDown, UserX, Check, Edit3, Home, Compass, Film, Settings,
   User, Menu, Grid, Play, Pause, Layers, Loader2, Trash2, Mic
 } from "lucide-react";
 import { socialApi, type ActivityNotification, type Conversation, type DirectMessage, type LinkedProduct, type Post, type SocioUserProfile, type Story, type UserSummary } from "@/lib/api/social";
@@ -43,7 +43,7 @@ interface NotificationItem { id: string | number; userId: string; group: string;
 interface SearchItem { id: number; userId?: string; name: string; sub: string; avatar: string; verified: boolean }
 interface SuggestionItem { id: string | number; userId: string; name: string; sub: string; avatar: string }
 interface UserProfileData { userId: string; name: string; username: string; bio: string; website: string; posts: number; followers: number; following: number; avatar: string; images: ProfileGridMedia[]; reels: ReelItem[]; verified: boolean; isSelf: boolean; isFollowing: boolean }
-interface ExplorePostItem { id: number | string; image: string; likes: number; comments: number; type: "image" | "video"; reel?: ReelItem }
+interface ExplorePostItem { id: number | string; image: string; likes: number; comments: number; type: "image" | "video"; reel?: ReelItem; category?: string | null }
 interface ReelItem { id: number | string; postId: string | number; userId: string; username: string; caption: string; video: string; likes: number; comments: number; shares: number; avatar: string; user: string; isLiked?: boolean; isSaved?: boolean; isFollowing?: boolean; isSelf?: boolean; createdAt?: string; views?: number; audio?: string }
 interface ProfileGridMedia { id: string | number; url: string; type: "image" | "video" }
 
@@ -320,6 +320,7 @@ function ProfileReelsViewer({ reels, initialIndex, onClose, onUserClick }: { ree
             globalMuted={globalMuted}
             onMuteToggle={() => setGlobalMuted((v) => !v)}
             onUserClick={onUserClick}
+            mode="fullscreen"
           />
         ))}
       </div>
@@ -787,6 +788,16 @@ function PostCard({ post: p, onUserClick, myUserId }: { post: PostItem; onUserCl
     setCommentCount(p.comments);
   }, [p.id, p.isLiked, p.isSaved, p.isFollowing, p.likes, p.shares, p.comments]);
 
+  useEffect(() => {
+    const onFollowChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string; isFollowing?: boolean }>).detail;
+      if (!detail?.userId || String(detail.userId) !== String(p.userId)) return;
+      setFollowing(Boolean(detail.isFollowing));
+    };
+    window.addEventListener("p4u:socio-follow-changed", onFollowChanged);
+    return () => window.removeEventListener("p4u:socio-follow-changed", onFollowChanged);
+  }, [p.userId]);
+
   const isSelfPost = Boolean(p.isSelf || (myUserId && p.userId && String(myUserId) === String(p.userId)));
   const canComment = p.commentPermission !== "none" && (p.commentPermission !== "followers" || following || isSelfPost);
   const showLikeTotal = !p.hideLikeCount || isSelfPost;
@@ -1175,6 +1186,27 @@ function UserProfilePage({ userId, onBack, onUserClick, onMessage }: { userId: s
     return () => { cancelled = true; };
   }, [userId]);
 
+  useEffect(() => {
+    const onFollowChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string; isFollowing?: boolean; delta?: number }>).detail;
+      if (!detail?.userId || String(detail.userId) !== String(userId)) return;
+      const next = Boolean(detail.isFollowing);
+      setFollowing(next);
+      setProfile((current) => {
+        if (!current) return current;
+        if (current.isFollowing === next) return current;
+        const delta = typeof detail.delta === "number" ? detail.delta : next ? 1 : -1;
+        return {
+          ...current,
+          followers: Math.max(0, current.followers + delta),
+          isFollowing: next,
+        };
+      });
+    };
+    window.addEventListener("p4u:socio-follow-changed", onFollowChanged);
+    return () => window.removeEventListener("p4u:socio-follow-changed", onFollowChanged);
+  }, [userId]);
+
   const toggleFollow = async () => {
     if (!profile || profile.isSelf || followBusy) return;
     const next = !following;
@@ -1404,6 +1436,21 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
     return () => { cancelled = true; };
   }, [loadFeed]);
 
+  useEffect(() => {
+    const onFollowChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string; isFollowing?: boolean }>).detail;
+      if (!detail?.userId) return;
+      setPosts((current) => current.map((post) =>
+        String(post.userId) === String(detail.userId)
+          ? { ...post, isFollowing: Boolean(detail.isFollowing) }
+          : post,
+      ));
+      setFollowedIds((current) => ({ ...current, [String(detail.userId)]: Boolean(detail.isFollowing) }));
+    };
+    window.addEventListener("p4u:socio-follow-changed", onFollowChanged);
+    return () => window.removeEventListener("p4u:socio-follow-changed", onFollowChanged);
+  }, []);
+
   const markStoryViewed = useCallback((storyId: string | number) => {
     setStories((current) => current.map((item) => {
       const segments = item.segments.map((segment) => segment.id === storyId ? { ...segment, viewed: true } : segment);
@@ -1524,6 +1571,7 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
 
 function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
   const [tab, setTab] = useState("Top");
+  const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [explorePosts, setExplorePosts] = useState<ExplorePostItem[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<ProfileGridMedia | null>(null);
@@ -1533,7 +1581,16 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
   const [tags, setTags] = useState<{ tag: string; postCount: number }[]>([]);
   const [places, setPlaces] = useState<{ place: string; postCount: number }[]>([]);
   const [loadingExplore, setLoadingExplore] = useState(true);
-  const exploreReels = explorePosts
+  const categoryTabs = ["All", ...Array.from(new Map(
+    explorePosts
+      .map((post) => (post.category ?? "").trim())
+      .filter(Boolean)
+      .map((category) => [category.toLowerCase(), category] as const),
+  ).values())];
+  const filteredExplorePosts = activeCategory === "All"
+    ? explorePosts
+    : explorePosts.filter((post) => (post.category ?? "").trim().toLowerCase() === activeCategory.toLowerCase());
+  const exploreReels = filteredExplorePosts
     .map((post) => post.reel)
     .filter((reel): reel is ReelItem => Boolean(reel));
 
@@ -1574,6 +1631,7 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
               comments: p.commentCount,
               type: reel ? "video" : "image",
               reel: reel ?? undefined,
+              category: p.category ?? null,
             };
           }));
         }
@@ -1621,9 +1679,34 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search people, tags, placesâ€¦" className="flex-1 text-sm bg-transparent outline-none text-gray-700 placeholder-gray-400" />
         {search && <button onClick={() => setSearch("")}><X className="w-4 h-4 text-gray-400" /></button>}
       </div>
+      <div className="mb-4 -mx-3 overflow-x-auto px-3 pb-1 sm:-mx-4 sm:px-4" style={{ scrollbarWidth: "none" }}>
+        <div className="flex min-w-max gap-2">
+          {categoryTabs.map((category) => {
+            const active = activeCategory === category;
+            return (
+              <button
+                key={category}
+                onClick={() => {
+                  setActiveCategory(category);
+                  setTab("Top");
+                }}
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition whitespace-nowrap ${active ? "border-teal-500 text-white shadow-sm" : "border-gray-200 bg-white text-gray-600 hover:border-teal-200 hover:text-teal-700"}`}
+                style={active ? { background: TEAL } : {}}
+              >
+                {category}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
-        {["Top","People","Tags","Places"].map(t => (
-          <button key={t} onClick={() => setTab(t)} className={`flex-1 text-xs font-semibold py-2 px-2 rounded-lg transition-all ${tab === t ? "bg-white text-teal-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>{t}</button>
+        {[
+          ["Top", "Posts"],
+          ["People", "People"],
+          ["Tags", "Tags"],
+          ["Places", "Places"],
+        ].map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)} className={`flex-1 text-xs font-semibold py-2 px-2 rounded-lg transition-all ${tab === key ? "bg-white text-teal-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>{label}</button>
         ))}
       </div>
       {tab === "People" ? (
@@ -1684,8 +1767,17 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
         <>
         {loadingExplore && explorePosts.length === 0 && <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-teal-500 animate-spin" /></div>}
         {!loadingExplore && explorePosts.length === 0 && <div className="text-center py-12 text-gray-400 text-sm">No posts to explore yet.</div>}
+        {!loadingExplore && explorePosts.length > 0 && filteredExplorePosts.length === 0 && (
+          <div className="rounded-2xl border border-gray-100 bg-white px-6 py-12 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-50 text-teal-600">
+              <Compass className="h-8 w-8" />
+            </div>
+            <p className="text-sm font-semibold text-gray-800">No posts available in this category.</p>
+            <p className="mt-1 text-xs text-gray-400">Try another category or switch back to All.</p>
+          </div>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {explorePosts.map(post => (
+          {filteredExplorePosts.map(post => (
             <ExploreMediaCell
               key={post.id}
               post={post}
@@ -1708,7 +1800,19 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
 
 // â”€â”€ REELS SECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: ReelItem; globalMuted: boolean; onMuteToggle: () => void; onUserClick: (userId: string) => void }) {
+function ReelCard({
+  reel,
+  globalMuted,
+  onMuteToggle,
+  onUserClick,
+  mode = "page",
+}: {
+  reel: ReelItem;
+  globalMuted: boolean;
+  onMuteToggle: () => void;
+  onUserClick: (userId: string) => void;
+  mode?: "page" | "fullscreen";
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -1725,6 +1829,8 @@ function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: Reel
   const [captionOpen, setCaptionOpen] = useState(false);
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const [commentSheetExpanded, setCommentSheetExpanded] = useState(false);
+  const [commentDragStart, setCommentDragStart] = useState<number | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -1759,6 +1865,16 @@ function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: Reel
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = globalMuted;
   }, [globalMuted]);
+
+  useEffect(() => {
+    const onFollowChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string; isFollowing?: boolean }>).detail;
+      if (!detail?.userId || String(detail.userId) !== String(reel.userId)) return;
+      setFollowing(Boolean(detail.isFollowing));
+    };
+    window.addEventListener("p4u:socio-follow-changed", onFollowChanged);
+    return () => window.removeEventListener("p4u:socio-follow-changed", onFollowChanged);
+  }, [reel.userId]);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -1855,10 +1971,91 @@ function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: Reel
 
   const longCaption = reel.caption.length > 95;
   const shownCaption = captionOpen || !longCaption ? reel.caption : `${reel.caption.slice(0, 95).trim()}...`;
+  const isFullscreen = mode === "fullscreen";
+  const closeComments = () => {
+    setShowComments(false);
+    setCommentSheetExpanded(false);
+    setCommentDragStart(null);
+  };
+  const handleCommentDragEnd = (clientY: number) => {
+    if (commentDragStart == null) return;
+    const delta = clientY - commentDragStart;
+    if (delta > 80) closeComments();
+    else if (delta < -60) setCommentSheetExpanded(true);
+    else if (delta > 24) setCommentSheetExpanded(false);
+    setCommentDragStart(null);
+  };
+  const renderCommentsPanel = (variant: "desktop" | "mobile") => (
+    <div
+      className={
+        variant === "desktop"
+          ? "hidden h-[min(78vh,720px)] w-[min(33vw,460px)] min-w-[420px] translate-x-0 flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl transition-transform duration-300 md:flex"
+          : `fixed inset-x-0 bottom-0 z-40 flex flex-col overflow-hidden rounded-t-3xl border border-slate-100 bg-white shadow-2xl transition-transform duration-300 md:hidden ${commentSheetExpanded ? "h-[88vh]" : "h-[75vh]"}`
+      }
+      onClick={(event) => event.stopPropagation()}
+    >
+      {variant === "mobile" && (
+        <div
+          className="flex cursor-grab justify-center px-4 pb-1 pt-3"
+          onPointerDown={(event) => setCommentDragStart(event.clientY)}
+          onPointerUp={(event) => handleCommentDragEnd(event.clientY)}
+          onPointerCancel={() => setCommentDragStart(null)}
+        >
+          <span className="h-1.5 w-12 rounded-full bg-slate-300" />
+        </div>
+      )}
+      <div className="flex shrink-0 items-center gap-3 border-b border-slate-100 px-5 py-4">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-bold text-slate-950">Comments</h3>
+          <p className="text-xs text-slate-500">{commentCount.toLocaleString()} comments</p>
+        </div>
+        <button className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600">Sort</button>
+        <button onClick={closeComments} className="rounded-full p-1.5 hover:bg-slate-100"><X className="h-5 w-5 text-slate-950" /></button>
+      </div>
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+        {comments.length === 0 ? (
+          <p className="py-10 text-center text-sm text-slate-400">No comments yet.</p>
+        ) : comments.map((comment) => (
+          <div key={comment.id} className="flex items-start gap-3">
+            <AvatarCircle src={comment.avatar} name={comment.user} size="sm" className="shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-bold text-slate-950">{comment.user}</p>
+                <span className="text-xs text-slate-400">now</span>
+                <button className="ml-auto rounded-full p-1 hover:bg-slate-100"><MoreHorizontal className="h-4 w-4 text-slate-500" /></button>
+              </div>
+              <p className="mt-1 text-sm leading-snug text-slate-700">{comment.text}</p>
+              <div className="mt-2 flex items-center gap-4 text-xs font-semibold text-slate-500">
+                <button className="inline-flex items-center gap-1 hover:text-slate-950"><ThumbsUp className="h-4 w-4" />0</button>
+                <button className="hover:text-slate-950"><ThumbsDown className="h-4 w-4" /></button>
+                <button className="hover:text-slate-950">Reply</button>
+                <button className="text-teal-600 hover:text-teal-700">0 replies</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="shrink-0 border-t border-slate-100 bg-white px-4 py-3">
+        <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2">
+          <button onClick={() => setCommentText((value) => `${value}😊`)} className="text-slate-500"><Smile className="h-5 w-5" /></button>
+          <input
+            value={commentText}
+            onChange={(event) => setCommentText(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter") void submitComment(); }}
+            placeholder="Add a comment..."
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+          />
+          <button onClick={submitComment} disabled={!commentText.trim() || busy === "comment"} className="rounded-full px-2 py-1 text-sm font-bold text-teal-600 disabled:text-slate-300">
+            <Send className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <section ref={containerRef} className="flex h-[100dvh] w-full snap-start snap-always items-center justify-center overflow-hidden bg-black p-0">
-      <div className="relative h-full w-full max-w-[760px] overflow-hidden bg-black shadow-2xl sm:w-[min(76vw,760px)]">
+    <section ref={containerRef} className={isFullscreen ? "flex h-[100dvh] w-full snap-start snap-always items-center justify-center overflow-hidden bg-black p-0" : `flex min-h-[calc(100vh-96px)] w-full snap-start snap-always items-center justify-center bg-white px-4 py-8 transition-[gap] duration-300 ${showComments ? "gap-4 lg:gap-6" : ""}`}>
+      <div className={isFullscreen ? "relative h-full w-full max-w-[760px] overflow-hidden bg-black shadow-2xl sm:w-[min(76vw,760px)]" : "relative aspect-[9/16] h-[min(78vh,720px)] min-h-[560px] w-[min(430px,calc(100vw-7rem))] max-w-[430px] overflow-hidden rounded-2xl bg-black shadow-xl"}>
         <video
           ref={videoRef}
           src={reel.video}
@@ -1879,7 +2076,7 @@ function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: Reel
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
         />
-        <button type="button" aria-label="Play or pause reel" onClick={togglePlay} className="absolute inset-0" />
+        <button type="button" aria-label="Mute or unmute reel" onClick={onMuteToggle} onDoubleClick={(event) => { event.preventDefault(); if (!liked) void toggleLike(); }} className="absolute inset-0" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-black/25" />
         {!playing && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -1889,7 +2086,7 @@ function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: Reel
           </div>
         )}
 
-      <div className="absolute right-3 bottom-24 z-10 flex flex-col items-center gap-5 text-white">
+      <div className={`${isFullscreen ? "absolute right-3 bottom-24 z-10 flex" : "hidden"} flex-col items-center gap-5 text-white`}>
         <button onClick={() => reel.userId && onUserClick(reel.userId)} className="overflow-hidden rounded-full border-2 border-white">
           <AvatarCircle src={reel.avatar} name={reel.username} size="md" />
         </button>
@@ -1915,6 +2112,7 @@ function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: Reel
 
       <div className="absolute bottom-8 left-4 right-20 z-10 text-white">
         <div className="mb-2 flex items-center gap-2">
+          {!isFullscreen && <AvatarCircle src={reel.avatar} name={reel.username} size="sm" className="border border-white/70" />}
           <button onClick={() => reel.userId && onUserClick(reel.userId)} className="text-sm font-bold hover:underline">{reel.username}</button>
           {!reel.isSelf && (
             <button onClick={toggleFollow} disabled={busy === "follow"} className="rounded-full border border-white/70 px-3 py-1 text-xs font-bold disabled:opacity-60">
@@ -1943,35 +2141,38 @@ function ReelCard({ reel, globalMuted, onMuteToggle, onUserClick }: { reel: Reel
         <div className="h-full bg-white" style={{ width: `${progress}%` }} />
       </div>
 
-      {showComments && (
-        <div className="absolute inset-x-0 bottom-0 z-20 rounded-t-3xl bg-white text-slate-950 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <h3 className="text-base font-bold">Comments</h3>
-            <button onClick={() => setShowComments(false)}><X className="h-5 w-5" /></button>
-          </div>
-          <div className="max-h-72 overflow-y-auto px-5 py-4 space-y-4">
-            {comments.length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-400">No comments yet.</p>
-            ) : comments.map((comment) => (
-              <div key={comment.id} className="flex items-start gap-3">
-                <AvatarCircle src={comment.avatar} name={comment.user} size="sm" />
-                <p className="text-sm"><span className="font-bold">{comment.user}</span> {comment.text}</p>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-3 border-t border-slate-100 px-5 py-3">
-            <input
-              value={commentText}
-              onChange={(event) => setCommentText(event.target.value)}
-              onKeyDown={(event) => { if (event.key === "Enter") void submitComment(); }}
-              placeholder="Add a comment..."
-              className="min-w-0 flex-1 rounded-full bg-slate-100 px-4 py-2 text-sm outline-none"
-            />
-            <button onClick={submitComment} disabled={!commentText.trim() || busy === "comment"} className="text-sm font-bold text-teal-600 disabled:opacity-40">Post</button>
-          </div>
+      </div>
+      {!isFullscreen && (
+        <div className="z-10 ml-2 flex shrink-0 flex-col items-center gap-5 pb-2 text-slate-950 sm:ml-3">
+          <button onClick={() => reel.userId && onUserClick(reel.userId)} className="overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
+            <AvatarCircle src={reel.avatar} name={reel.username} size="md" />
+          </button>
+          <button onClick={toggleLike} disabled={busy === "like"} className="flex flex-col items-center gap-1 disabled:opacity-60">
+            <Heart className={`h-8 w-8 ${liked ? "fill-red-500 text-red-500" : "text-slate-950"}`} />
+            <span className="text-xs font-bold text-slate-700">{likes.toLocaleString()}</span>
+          </button>
+          <button onClick={openComments} className="flex flex-col items-center gap-1">
+            <MessageCircle className="h-8 w-8 text-slate-950" />
+            <span className="text-xs font-bold text-slate-700">{commentCount.toLocaleString()}</span>
+          </button>
+          <button onClick={handleShare} className="flex flex-col items-center gap-1">
+            <Send className="h-8 w-8 text-slate-950" />
+            <span className="text-xs font-bold text-slate-700">{shares.toLocaleString()}</span>
+          </button>
+          <button onClick={toggleSave} disabled={busy === "save"} className="disabled:opacity-60">
+            <Bookmark className={`h-8 w-8 ${saved ? "fill-slate-950 text-slate-950" : "text-slate-950"}`} />
+          </button>
+          <button onClick={onMuteToggle} className="rounded-full bg-slate-100 p-2">
+            {globalMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </button>
         </div>
       )}
-      </div>
+      {showComments && !isFullscreen && renderCommentsPanel("desktop")}
+      {showComments && !isFullscreen && (
+        <div className="fixed inset-0 z-30 bg-black/20 md:hidden" onClick={closeComments} />
+      )}
+      {showComments && !isFullscreen && renderCommentsPanel("mobile")}
+      {showComments && isFullscreen && renderCommentsPanel("mobile")}
     </section>
   );
 }
@@ -2015,25 +2216,39 @@ function ReelsSection({ onUserClick }: { onUserClick: (userId: string) => void }
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    const onFollowChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string; isFollowing?: boolean }>).detail;
+      if (!detail?.userId) return;
+      setReels((current) => current.map((reel) =>
+        String(reel.userId) === String(detail.userId)
+          ? { ...reel, isFollowing: Boolean(detail.isFollowing) }
+          : reel,
+      ));
+    };
+    window.addEventListener("p4u:socio-follow-changed", onFollowChanged);
+    return () => window.removeEventListener("p4u:socio-follow-changed", onFollowChanged);
+  }, []);
+
   return (
-    <div className="relative h-[100dvh] overflow-hidden bg-black">
-      <div className="pointer-events-none absolute left-0 right-0 top-0 z-30 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 py-4 text-white">
+    <div className="relative bg-white">
+      <div className="flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4 text-slate-950">
         <h1 className="text-xl font-black">Reels</h1>
-        <Camera className="h-6 w-6" />
+        <Camera className="h-6 w-6 text-slate-700" />
       </div>
       {loadingReels && reels.length === 0 && (
-        <div className="flex h-full flex-col items-center justify-center text-white/60">
+        <div className="flex min-h-[calc(100vh-160px)] flex-col items-center justify-center text-slate-500">
           <Loader2 className="mb-3 h-8 w-8 animate-spin text-teal-400" />
           <p className="text-sm">Loading reels...</p>
         </div>
       )}
       {!loadingReels && reels.length === 0 && (
-        <div className="flex h-full flex-col items-center justify-center px-6 text-center text-white/60">
+        <div className="flex min-h-[calc(100vh-160px)] flex-col items-center justify-center px-6 text-center text-slate-500">
           <Film className="mb-3 h-12 w-12" />
           <p className="text-sm">No video posts yet. Share a video from Create to see it here.</p>
         </div>
       )}
-      <div className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth" style={{ scrollbarWidth: "none" }}>
+      <div className="snap-y snap-mandatory scroll-smooth">
         {reels.map((reel) => (
           <ReelCard
             key={reel.id}
@@ -2049,7 +2264,15 @@ function ReelsSection({ onUserClick }: { onUserClick: (userId: string) => void }
 }
 
 // ── MESSAGES SECTION ───────────────────────────────────────────────────────────
-function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
+function MessagesSection({
+  onUserClick,
+  pendingUserId,
+  onPendingHandled,
+}: {
+  onUserClick: (userId: string) => void;
+  pendingUserId?: string | null;
+  onPendingHandled?: () => void;
+}) {
   const [tab, setTab] = useState<"primary" | "requests">("primary");
   const [query, setQuery] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -2068,9 +2291,24 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
   const [newChatLoading, setNewChatLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const activeConversation = conversations.find((conversation) => String(conversation.id) === activeId) ?? null;
+  const sortConversations = useCallback((rows: Conversation[]) => {
+    return [...rows].sort((a, b) => {
+      const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return bTime - aTime;
+    });
+  }, []);
+  const sortMessages = useCallback((rows: DirectMessage[]) => {
+    return [...rows].sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return aTime - bTime;
+    });
+  }, []);
   const visibleConversations = conversations
     .filter((conversation) => (tab === "requests" ? conversation.isRequest : !conversation.isRequest))
     .filter((conversation) => {
@@ -2089,14 +2327,14 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
     try {
       apiClient.clearGetCache("/api/v1/social/messages/conversations");
       const rows = await socialApi.getConversations();
-      setConversations(rows);
+      setConversations(sortConversations(rows));
     } catch (err) {
       setListError(err instanceof Error ? err.message : "Could not load conversations.");
       if (!silent) setConversations([]);
     } finally {
       if (!silent) setLoadingList(false);
     }
-  }, []);
+  }, [sortConversations]);
 
   useEffect(() => {
     void loadConversations();
@@ -2116,20 +2354,51 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
     setMessagesError(null);
     try {
       const rows = await socialApi.getMessages(conversationId, { limit: 100 });
-      setMessages(rows);
+      setMessages(sortMessages(rows));
     } catch (err) {
       setMessagesError(err instanceof Error ? err.message : "Could not load messages.");
       setMessages([]);
     } finally {
       setLoadingMessages(false);
     }
-  }, []);
+  }, [sortMessages]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const scroller = messagesScrollRef.current;
+    if (!scroller) return;
+    window.requestAnimationFrame(() => {
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+    });
   }, [activeId, messages]);
 
-  const openConversation = async (conversationId: string) => {
+  useEffect(() => {
+    if (!activeId) return;
+    let cancelled = false;
+    const poll = window.setInterval(async () => {
+      try {
+        const rows = await socialApi.getMessages(activeId, { limit: 100 });
+        if (cancelled) return;
+        setMessages((current) => {
+          const pending = current.filter((message) => String(message.id).startsWith("pending-"));
+          return sortMessages([...rows, ...pending]);
+        });
+        await socialApi.markConversationRead(activeId);
+        if (!cancelled) {
+          setConversations((current) =>
+            current.map((row) => (String(row.id) === activeId ? { ...row, unreadCount: 0 } : row)),
+          );
+        }
+      } catch {
+        /* keep the current chat visible if background refresh fails */
+      }
+    }, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(poll);
+    };
+  }, [activeId, sortMessages]);
+
+  const openConversation = useCallback(async (conversationId: string) => {
     setActiveId(conversationId);
     setShowChat(true);
     setMessages([]);
@@ -2142,7 +2411,41 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
     } catch {
       /* non-blocking */
     }
-  };
+  }, [loadMessages, tab]);
+
+  useEffect(() => {
+    if (!pendingUserId) return;
+    let cancelled = false;
+    const openPendingConversation = async () => {
+      setListError(null);
+      setNewChatLoading(true);
+      try {
+        const conv = await socialApi.openConversation(pendingUserId);
+        if (cancelled) return;
+        setTab("primary");
+        setShowNewChat(false);
+        setConversations((rows) => {
+          const exists = rows.some((row) => String(row.id) === String(conv.id));
+          const merged = exists ? rows.map((row) => (String(row.id) === String(conv.id) ? conv : row)) : [conv, ...rows];
+          return sortConversations(merged);
+        });
+        await openConversation(String(conv.id));
+        if (!cancelled) {
+          onPendingHandled?.();
+          void loadConversations(true);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setListError(err instanceof Error ? err.message : "Could not open conversation.");
+          onPendingHandled?.();
+        }
+      } finally {
+        if (!cancelled) setNewChatLoading(false);
+      }
+    };
+    void openPendingConversation();
+    return () => { cancelled = true; };
+  }, [loadConversations, onPendingHandled, openConversation, pendingUserId, sortConversations]);
 
   const startConversation = async (participantId: string) => {
     setNewChatLoading(true);
@@ -2151,7 +2454,7 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
       setConversations((rows) => {
         const exists = rows.some((row) => String(row.id) === String(conv.id));
         const merged = exists ? rows.map((row) => (String(row.id) === String(conv.id) ? conv : row)) : [conv, ...rows];
-        return merged;
+        return sortConversations(merged);
       });
       setShowNewChat(false);
       await openConversation(String(conv.id));
@@ -2211,7 +2514,7 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
             : row,
         );
         return updated.some((row) => String(row.id) === activeId)
-          ? updated
+          ? sortConversations(updated)
           : [{ id: activeId, participantId: "", participantName: "Chat", unreadCount: 0, lastMessage: preview, lastMessageAt: saved.createdAt }, ...updated];
       });
       void loadConversations(true);
@@ -2251,7 +2554,7 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
   };
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-120px)] bg-[#fafafa]">
+    <div className="flex min-h-[calc(100vh-96px)] bg-[#fafafa]">
       {viewer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 px-4" onClick={() => setViewer(null)}>
           <img src={viewer} alt="" className="max-h-[86vh] max-w-3xl rounded-2xl object-contain" onClick={(event) => event.stopPropagation()} />
@@ -2287,7 +2590,7 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
         </div>
       )}
 
-      <aside className={`w-full border-r border-gray-100 bg-white sm:w-80 lg:w-96 ${showChat ? "hidden sm:flex" : "flex"} flex-col`}>
+      <aside className={`w-full border-r border-gray-100 bg-white sm:w-80 lg:w-96 ${showChat ? "hidden sm:flex" : "flex"} min-h-0 flex-col overflow-hidden`}>
         <div className="flex items-center justify-between px-5 py-4">
           <h1 className="text-xl font-bold text-slate-950">Messages</h1>
           <button onClick={openNewChatModal} className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-950">
@@ -2310,7 +2613,7 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
             </button>
           ))}
         </div>
-        <div className="flex-1 overflow-y-auto py-2">
+        <div className="min-h-0 flex-1 overflow-y-auto py-2">
           {loadingList ? (
             <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-teal-500" /></div>
           ) : listError ? (
@@ -2343,10 +2646,10 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
         </div>
       </aside>
 
-      <main className={`min-w-0 flex-1 bg-white ${!showChat ? "hidden sm:flex" : "flex"} flex-col`}>
+      <main className={`min-w-0 flex-1 bg-white ${!showChat ? "hidden sm:flex" : "flex"} min-h-0 flex-col`}>
         {activeConversation ? (
           <>
-            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
+            <div className="shrink-0 flex items-center gap-3 border-b border-slate-100 px-4 py-3">
               <button onClick={() => setShowChat(false)} className="rounded-full p-1 sm:hidden"><ArrowLeft className="h-6 w-6 text-slate-950" /></button>
               <button onClick={() => onUserClick(activeConversation.participantId)}>
                 <AvatarCircle src={avatarFor(activeConversation)} name={activeConversation.participantName} className="h-11 w-11" />
@@ -2359,7 +2662,7 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
               <button className="rounded-full p-2 hover:bg-slate-100"><Video className="h-5 w-5 text-slate-950" /></button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-5">
+            <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
               <div className="mb-6 flex flex-col items-center text-center">
                 <AvatarCircle src={avatarFor(activeConversation)} name={activeConversation.participantName} className="h-20 w-20 text-2xl" />
                 <p className="mt-3 text-lg font-bold text-slate-950">{activeConversation.participantName}</p>
@@ -2404,7 +2707,7 @@ function MessagesSection({ onUserClick }: { onUserClick: (userId: string) => voi
               )}
             </div>
 
-            <div className="border-t border-slate-100 px-4 py-3">
+            <div className="shrink-0 border-t border-slate-100 px-4 py-3">
               <input
                 ref={imageInputRef}
                 type="file"
@@ -3051,6 +3354,20 @@ function FollowListScreen({
     void loadRows();
   }, [loadRows]);
 
+  useEffect(() => {
+    const onFollowChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string; isFollowing?: boolean }>).detail;
+      if (!detail?.userId) return;
+      setRows((prev) => prev.map((row) =>
+        String(row.userId) === String(detail.userId)
+          ? { ...row, isFollowing: Boolean(detail.isFollowing) }
+          : row,
+      ));
+    };
+    window.addEventListener("p4u:socio-follow-changed", onFollowChanged);
+    return () => window.removeEventListener("p4u:socio-follow-changed", onFollowChanged);
+  }, []);
+
   const toggleFollow = async (user: FollowListUser) => {
     if (user.isSelf || busyId) return;
     const next = !user.isFollowing;
@@ -3164,6 +3481,20 @@ function MyProfileSection({ onUserClick }: { onUserClick: (userId: string) => vo
       .catch(() => { if (!cancelled) setError("Could not load your profile."); })
       .finally(() => { if (!cancelled) setLoadingProfile(false); });
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const onFollowChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string; isFollowing?: boolean; delta?: number }>).detail;
+      if (!detail?.userId) return;
+      setProfile((current) => {
+        if (!current || String(current.userId) === String(detail.userId)) return current;
+        const delta = typeof detail.delta === "number" ? detail.delta : detail.isFollowing ? 1 : -1;
+        return { ...current, followingCount: Math.max(0, current.followingCount + delta) };
+      });
+    };
+    window.addEventListener("p4u:socio-follow-changed", onFollowChanged);
+    return () => window.removeEventListener("p4u:socio-follow-changed", onFollowChanged);
   }, []);
 
   const displayImages = activeTab === "Saved" ? savedImages : gridImages;
@@ -4122,7 +4453,7 @@ export default function SocialApp() {
       case "home": return <HomeSection onUserClick={handleUserClick} />;
       case "explore": return <ExploreSection onUserClick={handleUserClick} />;
       case "reels": return <ReelsSection onUserClick={handleUserClick} />;
-      case "messages": return <MessagesSection onUserClick={handleUserClick} />;
+      case "messages": return <MessagesSection onUserClick={handleUserClick} pendingUserId={pendingMessageUserId} onPendingHandled={() => setPendingMessageUserId(null)} />;
       case "notifications": return <NotificationsSection onUserClick={handleUserClick} />;
       case "create": return <CreateSection onPosted={() => setSection("home")} />;
       case "profile": return <MyProfileSection onUserClick={handleUserClick} />;
@@ -4130,9 +4461,10 @@ export default function SocialApp() {
       default: return <HomeSection onUserClick={handleUserClick} />;
     }
   };
+  const isMessagesView = section === "messages" && !userProfile;
 
   return (
-     <div className="max-w-[1300px] mx-auto flex h-screen overflow-hidden font-sans">
+     <div className={`max-w-[1300px] mx-auto flex font-sans ${isMessagesView ? "" : "min-h-screen"}`}>
       {/* â”€â”€ Desktop Sidebar â”€â”€ */}
       <nav className="hidden md:flex flex-col w-16 lg:w-56 bg-white border-r border-gray-100 shrink-0 py-4 px-2 lg:px-3">
         {/* Logo */}
@@ -4161,7 +4493,7 @@ export default function SocialApp() {
       </nav>
 
       {/* â”€â”€ Main Content â”€â”€ */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile Top Bar */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 shrink-0 z-10">
           <div className="flex items-center gap-2">
@@ -4202,7 +4534,7 @@ export default function SocialApp() {
         )}
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1">
           {renderContent()}
         </main>
 

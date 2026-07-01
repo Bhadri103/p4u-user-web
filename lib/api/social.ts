@@ -188,7 +188,7 @@ function mapApiPost(row: Record<string, unknown>): Post {
     shareCount: Number(row.shareCount) || 0,
     isLiked: Boolean(row.isLiked),
     isSaved: Boolean(row.isSaved),
-    isFollowing: Boolean(row.isFollowing ?? row.following),
+    isFollowing: Boolean(row.isFollowing ?? row.isFollowingAuthor ?? row.following),
     isSelf: Boolean(row.isSelf ?? row.self),
     category: typeof metadata.category === "string" ? metadata.category : null,
     linkedProducts: linkedProductsRaw
@@ -226,31 +226,31 @@ function mapApiConversation(row: Record<string, unknown>): Conversation {
       : {};
   return {
     id: (row.id as string | number) ?? "",
-    participantId: String(row.participantId ?? participant.userId ?? participant.id ?? ""),
-    participantName: String(row.participantName ?? participant.userName ?? participant.name ?? "user"),
-    participantAvatar: (row.participantAvatar ?? participant.userAvatar ?? participant.avatar ?? null) as string | null,
-    lastMessage: (row.lastMessageText ?? lastMessage.content ?? lastMessage.contentText ?? lastMessage.mediaType ?? "") as string,
-    lastMessageAt: String(row.lastMessageAt ?? lastMessage.createdAt ?? row.updatedAt ?? ""),
-    unreadCount: Number(row.unreadCount) || 0,
-    isOnline: Boolean(row.isOnline ?? participant.isOnline),
-    isTyping: Boolean(row.isTyping),
-    isRequest: Boolean(row.isRequest),
+    participantId: String(row.participantId ?? row.participant_id ?? participant.userId ?? participant.user_id ?? participant.id ?? ""),
+    participantName: String(row.participantName ?? row.participant_name ?? participant.userName ?? participant.user_name ?? participant.username ?? participant.name ?? "user"),
+    participantAvatar: (row.participantAvatar ?? row.participant_avatar ?? participant.userAvatar ?? participant.user_avatar ?? participant.profilePicture ?? participant.profile_picture ?? participant.avatar ?? null) as string | null,
+    lastMessage: (row.lastMessageText ?? row.last_message_text ?? lastMessage.content ?? lastMessage.contentText ?? lastMessage.content_text ?? lastMessage.mediaType ?? lastMessage.media_type ?? "") as string,
+    lastMessageAt: String(row.lastMessageAt ?? row.last_message_at ?? lastMessage.createdAt ?? lastMessage.created_at ?? row.updatedAt ?? row.updated_at ?? ""),
+    unreadCount: Number(row.unreadCount ?? row.unread_count) || 0,
+    isOnline: Boolean(row.isOnline ?? row.is_online ?? participant.isOnline ?? participant.is_online),
+    isTyping: Boolean(row.isTyping ?? row.is_typing),
+    isRequest: Boolean(row.isRequest ?? row.is_request),
   };
 }
 
 function mapApiDirectMessage(row: Record<string, unknown>): DirectMessage {
   return {
     id: (row.id as string | number) ?? "",
-    conversationId: (row.conversationId as string | number) ?? "",
-    senderId: String(row.senderId ?? row.authorId ?? ""),
-    senderName: String(row.senderName ?? row.userName ?? ""),
-    senderAvatar: (row.senderAvatar ?? row.userAvatar ?? null) as string | null,
-    content: (row.content ?? row.contentText ?? row.text ?? null) as string | null,
-    mediaUrl: (row.mediaUrl ?? null) as string | null,
-    mediaType: (row.mediaType ?? null) as "image" | "video" | null,
+    conversationId: ((row.conversationId ?? row.conversation_id) as string | number | undefined) ?? "",
+    senderId: String(row.senderId ?? row.sender_id ?? row.authorId ?? row.author_id ?? row.userId ?? row.user_id ?? ""),
+    senderName: String(row.senderName ?? row.sender_name ?? row.userName ?? row.user_name ?? row.username ?? ""),
+    senderAvatar: (row.senderAvatar ?? row.sender_avatar ?? row.userAvatar ?? row.user_avatar ?? row.profilePicture ?? row.profile_picture ?? null) as string | null,
+    content: (row.content ?? row.contentText ?? row.content_text ?? row.text ?? row.body ?? null) as string | null,
+    mediaUrl: (row.mediaUrl ?? row.media_url ?? null) as string | null,
+    mediaType: (row.mediaType ?? row.media_type ?? null) as "image" | "video" | null,
     status: (row.status ?? "sent") as DirectMessage["status"],
-    createdAt: String(row.createdAt ?? new Date().toISOString()),
-    isMine: Boolean(row.isMine),
+    createdAt: String(row.createdAt ?? row.created_at ?? new Date().toISOString()),
+    isMine: Boolean(row.isMine ?? row.is_mine ?? row.mine),
   };
 }
 
@@ -670,8 +670,13 @@ export const socialApi = {
     return apiClient.post<void>(`${BASE}/users/${userId}/follow`).then((result) => {
       apiClient.clearGetCache(`${BASE}/users/`);
       apiClient.clearGetCache(`${BASE}/feed`);
+      apiClient.clearGetCache(`${BASE}/feed/public`);
+      apiClient.clearGetCache(`${BASE}/users/suggestions`);
       apiClient.clearGetCache(`${BASE}/notifications/me`);
       apiClient.clearGetCache("/api/v1/notifications/me");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("p4u:socio-follow-changed", { detail: { userId: String(userId), isFollowing: true, delta: 1 } }));
+      }
       return result;
     });
   },
@@ -680,8 +685,13 @@ export const socialApi = {
     return apiClient.delete<void>(`${BASE}/users/${userId}/follow`).then((result) => {
       apiClient.clearGetCache(`${BASE}/users/`);
       apiClient.clearGetCache(`${BASE}/feed`);
+      apiClient.clearGetCache(`${BASE}/feed/public`);
+      apiClient.clearGetCache(`${BASE}/users/suggestions`);
       apiClient.clearGetCache(`${BASE}/notifications/me`);
       apiClient.clearGetCache("/api/v1/notifications/me");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("p4u:socio-follow-changed", { detail: { userId: String(userId), isFollowing: false, delta: -1 } }));
+      }
       return result;
     });
   },
