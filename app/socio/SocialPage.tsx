@@ -3,11 +3,12 @@ import {
   Heart, MessageCircle, Send, Bookmark, MoreHorizontal,
   Search, X, PlusCircle, Phone, Video, Info, Image as ImageIcon,
   Smile, ArrowLeft, Volume2, VolumeX,
-  ChevronRight, ChevronLeft, ChevronDown, Camera, Lock, Users, Eye,
+  ChevronRight, ChevronLeft, ChevronDown, Camera, Lock, Users, Eye, Crop, Type, RotateCcw,
   Bell, Archive, Activity, Globe, Clock, Star, FileText,
   MessageSquare, Tag, Share2, UserPlus, ThumbsUp,
   ThumbsDown, UserX, Check, Edit3, Home, Compass, Film, Settings,
-  User, Menu, Grid, Play, Pause, Layers, Loader2, Trash2, Mic
+  User, Menu, Grid, Play, Pause, Layers, Loader2, Trash2, Mic,
+  KeyRound, Shield, HelpCircle, Moon, LogOut, Flag, Mail, Smartphone, MapPin
 } from "lucide-react";
 import { socialApi, type ActivityNotification, type Conversation, type DirectMessage, type LinkedProduct, type Post, type SocioUserProfile, type Story, type UserSummary } from "@/lib/api/social";
 import { apiClient } from "@/lib/api/client";
@@ -15,6 +16,7 @@ import { profileApi } from "@/lib/api/profile";
 import { catalogApi, type Product } from "@/lib/api/catalog";
 import { resolveMediaUrl } from "@/lib/media";
 import { DEFAULT_NOTIFICATION_SETTINGS, useSocialSettings } from "@/lib/hooks/useSocialSettings";
+import { clearUserAuthStorage } from "@/lib/authSession";
 
 const TEAL = "linear-gradient(135deg, #009999, #007777)";
 const TEAL_SOLID = "#009999";
@@ -222,27 +224,35 @@ function notificationGroup(iso: string): string {
   return "Earlier";
 }
 
+const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v)(\?|$)/i;
+
+function isVideoUrl(url?: string | null): boolean {
+  return Boolean(url && VIDEO_EXT_RE.test(url));
+}
+
 function isVideoPost(p: { postType?: string; imageUrl?: string; mediaUrls?: string[] }): boolean {
   if (p.postType === "video") return true;
   const urls = [...(p.mediaUrls ?? []), p.imageUrl].filter(Boolean) as string[];
-  return urls.some((u) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u));
+  return urls.some(isVideoUrl);
 }
 
 // â”€â”€ UTILS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function postToProfileGridMedia(p: { id: string | number; imageUrl?: string; mediaUrls?: string[]; postType?: string }): ProfileGridMedia | null {
-  const raw = p.imageUrl || p.mediaUrls?.[0] || "";
+  const urls = [...(p.mediaUrls ?? []), p.imageUrl].filter(Boolean) as string[];
+  const type = isVideoPost({ postType: p.postType, imageUrl: p.imageUrl, mediaUrls: p.mediaUrls }) ? "video" : "image";
+  const raw = (type === "video" ? urls.find(isVideoUrl) : null) || urls[0] || "";
   const url = raw.trim() ? resolveMediaUrl(raw.trim()) || raw : "";
   if (!url) return null;
   return {
     id: p.id,
     url,
-    type: isVideoPost({ postType: p.postType, imageUrl: p.imageUrl, mediaUrls: p.mediaUrls }) ? "video" : "image",
+    type,
   };
 }
 
 function postToReelItem(p: { id: string | number; userId?: string | number; userName?: string; userAvatar?: string; content?: string; imageUrl?: string; mediaUrls?: string[]; postType?: string; likeCount: number; commentCount: number; shareCount?: number; isLiked?: boolean; isSaved?: boolean; isFollowing?: boolean; isSelf?: boolean; createdAt?: string }, index = 0): ReelItem | null {
   if (!isVideoPost({ postType: p.postType, imageUrl: p.imageUrl, mediaUrls: p.mediaUrls })) return null;
-  const videoRaw = p.mediaUrls?.find((u) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u)) ?? p.mediaUrls?.[0] ?? p.imageUrl ?? "";
+  const videoRaw = p.mediaUrls?.find(isVideoUrl) ?? p.mediaUrls?.[0] ?? p.imageUrl ?? "";
   const video = videoRaw.trim() ? resolveMediaUrl(videoRaw.trim()) || videoRaw : "";
   if (!video) return null;
   const avatarRaw = p.userAvatar ?? "";
@@ -386,8 +396,12 @@ function ExploreMediaCell({ post, onClick }: { post: ExplorePostItem; onClick: (
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <button onClick={() => onChange(!checked)} className={`w-11 h-6 rounded-full transition-all relative shrink-0 ${checked ? "bg-teal-500" : "bg-gray-300"}`}>
-      <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${checked ? "translate-x-[22px]" : "translate-x-[2px]"}`} />
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`relative h-9 w-16 shrink-0 rounded-full transition-colors duration-200 ${checked ? "bg-[#0aa39d]" : "bg-[#dfeaf0]"}`}
+    >
+      <span className={`absolute top-0.5 h-8 w-8 rounded-full bg-white shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition-transform duration-200 ${checked ? "translate-x-[30px]" : "translate-x-[2px]"}`} />
     </button>
   );
 }
@@ -752,7 +766,7 @@ function FeedVideo({
     <video
       ref={videoRef}
       src={src}
-      className="block h-full w-full object-cover bg-black"
+      className="block h-auto max-h-[78vh] w-full object-contain bg-black"
       controls
       muted={muted}
       playsInline
@@ -801,7 +815,9 @@ function PostCard({ post: p, onUserClick, myUserId }: { post: PostItem; onUserCl
   const isSelfPost = Boolean(p.isSelf || (myUserId && p.userId && String(myUserId) === String(p.userId)));
   const canComment = p.commentPermission !== "none" && (p.commentPermission !== "followers" || following || isSelfPost);
   const showLikeTotal = !p.hideLikeCount || isSelfPost;
-  const videoUrl = isVideoPost({ postType: p.postType, imageUrl: p.image, mediaUrls: p.mediaUrls }) ? (p.mediaUrls?.[0] || p.image) : "";
+  const videoUrl = isVideoPost({ postType: p.postType, imageUrl: p.image, mediaUrls: p.mediaUrls })
+    ? (p.mediaUrls?.find(isVideoUrl) || p.mediaUrls?.[0] || p.image)
+    : "";
 
   const toggleLike = async () => {
     if (likeBusy) return;
@@ -943,13 +959,13 @@ function PostCard({ post: p, onUserClick, myUserId }: { post: PostItem; onUserCl
           )}
         </div>
       </div>
-      <div className="relative w-full aspect-[4/5] overflow-hidden bg-gray-100">
+      <div className="relative flex w-full items-center justify-center overflow-hidden bg-gray-100">
         {videoUrl ? (
         <FeedVideo src={videoUrl} postId={p.id} />
         ) : p.image ? (
-        <img src={p.image} alt="post" loading="lazy" decoding="async" className="block h-full w-full object-cover" />
+        <img src={p.image} alt="post" loading="lazy" decoding="async" className="block h-auto max-h-[78vh] w-full object-contain" />
         ) : (
-        <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">No media</div>
+        <div className="flex min-h-64 w-full items-center justify-center text-xs text-gray-400">No media</div>
         )}
       </div>
       <div className="px-5 py-3">
@@ -1041,6 +1057,7 @@ function CreateStoryModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const [preview, setPreview] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [filter, setFilter] = useState("Normal");
+  const [showImageEditor, setShowImageEditor] = useState(false);
   const [caption, setCaption] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1244,6 +1261,16 @@ function UserProfilePage({ userId, onBack, onUserClick, onMessage }: { userId: s
   }
 
   const TABS = ["Posts", "Reels", "Tagged"];
+  const openProfileMedia = (media: ProfileGridMedia) => {
+    if (media.type === "video") {
+      const index = profile.reels.findIndex((reel) => String(reel.postId) === String(media.id));
+      if (index >= 0) {
+        setSelectedReelIndex(index);
+        return;
+      }
+    }
+    setSelectedMedia(media);
+  };
 
   if (followList) {
     return (
@@ -1358,7 +1385,7 @@ function UserProfilePage({ userId, onBack, onUserClick, onMessage }: { userId: s
       ) : (
         <div className="grid grid-cols-3 gap-0.5">
           {profile.images.map((media) => (
-            <ProfileGridCell key={media.id} media={media} onClick={() => setSelectedMedia(media)} />
+            <ProfileGridCell key={media.id} media={media} onClick={() => openProfileMedia(media)} />
           ))}
         </div>
       )}
@@ -1470,7 +1497,7 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
   }, []);
 
   return (
-    <div className="w-full px-3 sm:px-4 py-4 flex gap-6 items-start bg-gray-50 min-h-screen">
+    <div className="w-full bg-[#F9FAFB] px-3 py-4 sm:px-4">
       {storyView.open && storyView.story && (
         <StoryViewer
           story={storyView.story}
@@ -1483,9 +1510,10 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
       )}
       {showCreateStory && <CreateStoryModal onClose={() => setShowCreateStory(false)} onCreated={loadFeed} />}
 
-      <div className="flex-1 min-w-0 w-full max-w-[600px] mx-auto xl:mx-0">
+      <div className="mx-auto flex max-w-[980px] items-start gap-6 xl:mx-0">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Stories */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-4 mb-5">
+        <div className="shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-4 mb-5">
           <p className="text-xs font-semibold tracking-widest uppercase text-gray-400 mb-3">Stories</p>
           <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
             {stories.map(s => (
@@ -1495,31 +1523,57 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
             ))}
           </div>
         </div>
-        {loadingFeed && posts.length === 0 && (
-          <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-teal-500 animate-spin" /></div>
-        )}
-        {!loadingFeed && posts.length === 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center mb-4">
-            <p className="text-sm text-gray-400">No posts yet. Create a post to start the global feed.</p>
+        <div className="shrink-0 mb-5">
+          <h2 className="mb-4 text-lg font-bold text-slate-950">People You May Know</h2>
+          <div className="flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            {suggestions.slice(0, 8).map((s) => (
+              <div key={s.id} className="w-40 shrink-0 rounded-2xl border border-gray-100 bg-white p-4 text-center shadow-sm">
+                <button onClick={() => onUserClick(s.userId)} className="mx-auto mb-3 block">
+                  <AvatarCircle src={s.avatar} name={s.name} className="h-20 w-20 border-teal-200 text-2xl" />
+                </button>
+                <button onClick={() => onUserClick(s.userId)} className="block w-full truncate text-sm font-bold text-slate-950">{s.name}</button>
+                <p className="mt-2 text-[11px] text-slate-500">1 mutual</p>
+                <button
+                  onClick={() => handleFollowSuggestion(s.userId)}
+                  disabled={followBusyId === s.userId}
+                  className={`mt-3 w-full rounded-full px-4 py-2 text-sm font-bold transition ${followedIds[s.userId] ? "bg-gray-100 text-gray-700" : "text-white"}`}
+                  style={followedIds[s.userId] ? {} : { background: TEAL }}
+                >
+                  {followedIds[s.userId] ? "Following" : "Follow"}
+                </button>
+              </div>
+            ))}
           </div>
-        )}
-        {posts.map(post => <PostCard key={post.id} post={post} onUserClick={onUserClick} myUserId={myUserId} />)}
+        </div>
+        <div className="pr-1">
+          {loadingFeed && posts.length === 0 && (
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-teal-500 animate-spin" /></div>
+          )}
+          {!loadingFeed && posts.length === 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center mb-4">
+              <p className="text-sm text-gray-400">No posts yet. Create a post to start the global feed.</p>
+            </div>
+          )}
+          {posts.map(post => <PostCard key={post.id} post={post} onUserClick={onUserClick} myUserId={myUserId} />)}
+        </div>
       </div>
 
       {/* Sidebar */}
-      <aside className="hidden xl:block w-64 shrink-0 space-y-4 self-start sticky top-4">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <p className="text-xs font-semibold tracking-widest uppercase text-gray-400 mb-3">Search</p>
-          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 mb-4">
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search" className="flex-1 text-xs bg-transparent outline-none text-gray-700" />
-            <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+      <aside className="hidden w-72 shrink-0 space-y-6 self-start xl:block">
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <p className="mb-4 text-lg font-bold text-slate-950">Search</p>
+          <div className="mb-5 flex items-center gap-3 rounded-2xl bg-gray-50 px-4 py-3">
+            <Search className="h-5 w-5 shrink-0 text-slate-500" />
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search" className="min-w-0 flex-1 bg-transparent text-sm outline-none text-gray-700 placeholder:text-slate-500" />
           </div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-gray-700">Recent</span>
-            <button onClick={() => setSearches([])} className="text-[11px] text-teal-500 hover:underline">Clear all</button>
+            <span className="text-sm font-bold text-slate-500">Recent</span>
+            {filtered.length > 0 && <button onClick={() => setSearches([])} className="text-[11px] text-teal-500 hover:underline">Clear all</button>}
           </div>
           <div className="space-y-2.5">
-            {filtered.map(r => (
+            {filtered.length === 0 ? (
+              <p className="py-5 text-center text-[11px] text-slate-400">No recent searches</p>
+            ) : filtered.map(r => (
               <div key={r.id} className="flex items-center gap-2.5">
                 <button onClick={() => onUserClick(r.userId ?? r.name)}>
                   <AvatarCircle src={r.avatar} name={r.name} size="md" className="shrink-0 hover:ring-2 ring-teal-400 transition" />
@@ -1536,10 +1590,10 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-gray-700">Suggestions for you</span>
-            <button className="text-[11px] text-teal-500 hover:underline">See All</button>
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-lg font-bold leading-tight text-slate-500">Suggestions for<br />you</span>
+            <button className="text-sm font-bold text-teal-600 hover:underline">See<br />All</button>
           </div>
           <div className="space-y-3">
             {suggestions.map(s => (
@@ -1563,6 +1617,7 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
           </div>
         </div>
       </aside>
+      </div>
     </div>
   );
 }
@@ -1590,6 +1645,7 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
   const filteredExplorePosts = activeCategory === "All"
     ? explorePosts
     : explorePosts.filter((post) => (post.category ?? "").trim().toLowerCase() === activeCategory.toLowerCase());
+  const visibleExplorePosts = filteredExplorePosts;
   const exploreReels = filteredExplorePosts
     .map((post) => post.reel)
     .filter((reel): reel is ReelItem => Boolean(reel));
@@ -1664,7 +1720,7 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
   }, []);
 
   return (
-    <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6">
+    <div className="mx-auto max-w-[680px] px-3 py-6 sm:px-4">
       {selectedMedia && <ProfileMediaModal media={selectedMedia} onClose={() => setSelectedMedia(null)} />}
       {selectedReelIndex != null && (
         <ProfileReelsViewer
@@ -1674,15 +1730,16 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
           onUserClick={onUserClick}
         />
       )}
-      <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl px-4 py-3 shadow-sm mb-5">
-        <Search className="w-4 h-4 text-gray-400 shrink-0" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search people, tags, placesâ€¦" className="flex-1 text-sm bg-transparent outline-none text-gray-700 placeholder-gray-400" />
+      <div className="mb-4 flex h-14 items-center gap-3 rounded-2xl bg-slate-100 px-5">
+        <Search className="h-6 w-6 shrink-0 text-slate-500" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search" className="min-w-0 flex-1 bg-transparent text-xl outline-none text-slate-700 placeholder:text-slate-500" />
         {search && <button onClick={() => setSearch("")}><X className="w-4 h-4 text-gray-400" /></button>}
       </div>
       <div className="mb-4 -mx-3 overflow-x-auto px-3 pb-1 sm:-mx-4 sm:px-4" style={{ scrollbarWidth: "none" }}>
-        <div className="flex min-w-max gap-2">
+        <div className="flex min-w-max gap-3">
           {categoryTabs.map((category) => {
             const active = activeCategory === category;
+            const label = category === "All" ? "For You" : category;
             return (
               <button
                 key={category}
@@ -1690,25 +1747,15 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
                   setActiveCategory(category);
                   setTab("Top");
                 }}
-                className={`rounded-full border px-4 py-2 text-sm font-semibold transition whitespace-nowrap ${active ? "border-teal-500 text-white shadow-sm" : "border-gray-200 bg-white text-gray-600 hover:border-teal-200 hover:text-teal-700"}`}
-                style={active ? { background: TEAL } : {}}
+                className={`rounded-full px-6 py-2.5 text-base font-bold transition whitespace-nowrap ${active ? "bg-slate-950 text-white shadow-sm" : "bg-slate-100 text-slate-950 hover:bg-slate-200"}`}
               >
-                {category}
+                {label}
               </button>
             );
           })}
         </div>
       </div>
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
-        {[
-          ["Top", "Posts"],
-          ["People", "People"],
-          ["Tags", "Tags"],
-          ["Places", "Places"],
-        ].map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} className={`flex-1 text-xs font-semibold py-2 px-2 rounded-lg transition-all ${tab === key ? "bg-white text-teal-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>{label}</button>
-        ))}
-      </div>
+      {false && <div />}
       {tab === "People" ? (
         people.length === 0 ? <div className="text-center py-12 text-gray-400 text-sm">No suggestions available.</div> :
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -1767,7 +1814,7 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
         <>
         {loadingExplore && explorePosts.length === 0 && <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-teal-500 animate-spin" /></div>}
         {!loadingExplore && explorePosts.length === 0 && <div className="text-center py-12 text-gray-400 text-sm">No posts to explore yet.</div>}
-        {!loadingExplore && explorePosts.length > 0 && filteredExplorePosts.length === 0 && (
+        {!loadingExplore && explorePosts.length > 0 && visibleExplorePosts.length === 0 && (
           <div className="rounded-2xl border border-gray-100 bg-white px-6 py-12 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-50 text-teal-600">
               <Compass className="h-8 w-8" />
@@ -1776,8 +1823,8 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
             <p className="mt-1 text-xs text-gray-400">Try another category or switch back to All.</p>
           </div>
         )}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {filteredExplorePosts.map(post => (
+        <div className="grid grid-cols-2 gap-0.5 sm:grid-cols-3">
+          {visibleExplorePosts.map(post => (
             <ExploreMediaCell
               key={post.id}
               post={post}
@@ -2923,6 +2970,7 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
   const [preview, setPreview] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [filter, setFilter] = useState("Normal");
+  const [showImageEditor, setShowImageEditor] = useState(false);
   const [caption, setCaption] = useState("");
   const [location, setLocation] = useState("");
   const [tags, setTags] = useState("");
@@ -2940,18 +2988,18 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
   const fileRef = useRef<HTMLInputElement>(null);
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) { setPreview(URL.createObjectURL(f)); setPendingFile(f); setStep("edit"); setError(null); }
+    if (f) { setPreview(URL.createObjectURL(f)); setPendingFile(f); setStep("details"); setError(null); }
   };
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const f = e.dataTransfer.files[0];
-    if (f) { setPreview(URL.createObjectURL(f)); setPendingFile(f); setStep("edit"); setError(null); }
+    if (f) { setPreview(URL.createObjectURL(f)); setPendingFile(f); setStep("details"); setError(null); }
   };
   const reset = () => {
     setStep("upload"); setPreview(null); setPendingFile(null); setFilter("Normal");
     setCaption(""); setLocation(""); setTags(""); setCategory(""); setAudience("public");
     setHideLikeCount(false); setCommentPermission("everyone"); setProductQuery("");
-    setProductResults([]); setSelectedProducts([]); setShared(false); setError(null);
+    setProductResults([]); setSelectedProducts([]); setShared(false); setError(null); setShowImageEditor(false);
   };
 
   useEffect(() => {
@@ -3040,12 +3088,72 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
     </div>
   );
 
+  if (step === "upload") return (
+    <div className="min-h-[calc(100vh-160px)] bg-slate-50">
+      <div className="flex items-center justify-center border-b border-slate-100 bg-white px-6 py-5">
+        <button onClick={reset} className="absolute left-6 rounded-full p-1 hover:bg-slate-100"><ArrowLeft className="h-7 w-7 text-slate-950" /></button>
+        <h1 className="text-2xl font-bold text-slate-950">New Post</h1>
+      </div>
+      <div onDrop={handleDrop} onDragOver={e => e.preventDefault()} className="flex min-h-[720px] flex-col items-center justify-center px-5 py-12">
+        <div className="mb-7 flex h-28 w-28 items-center justify-center rounded-full bg-orange-50">
+          <Camera className="h-12 w-12 text-slate-500" />
+        </div>
+        <h2 className="text-3xl font-bold text-slate-950">Create a new post</h2>
+        <p className="mt-4 text-xl text-slate-500">Share photos &amp; videos with your followers</p>
+        <p className="mt-10 text-base text-slate-500">Videos up to 45 sec / 100MB • Images up to 10MB</p>
+        <div className="mt-6 flex items-center gap-4">
+          <button onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-3 rounded-2xl px-6 py-4 text-lg font-bold text-white" style={{ background: TEAL_SOLID }}>
+            <ImageIcon className="h-6 w-6" /> Gallery
+          </button>
+          <button onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-lg font-bold text-slate-950">
+            <Video className="h-6 w-6" /> Video
+          </button>
+        </div>
+        <div className="mt-28 grid w-full grid-cols-1 gap-4 md:grid-cols-3">
+          {[
+            { label: "Photo", icon: ImageIcon, accept: "image/*" },
+            { label: "Video", icon: Video, accept: "video/*" },
+            { label: "Camera", icon: Camera, accept: "image/*,video/*" },
+          ].map(({ label, icon: Icon }) => (
+            <button key={label} onClick={() => fileRef.current?.click()} className="flex min-h-28 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white text-slate-950 hover:border-teal-300">
+              <Icon className="h-8 w-8 text-slate-500" />
+              <span className="text-lg font-medium">{label}</span>
+            </button>
+          ))}
+        </div>
+        <input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleFile} />
+      </div>
+    </div>
+  );
+
   return (
     <div className="max-w-2xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      {showImageEditor && preview && !pendingIsVideo && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black text-white">
+          <div className="flex h-20 shrink-0 items-center justify-center px-5">
+            <button onClick={() => setShowImageEditor(false)} className="absolute left-5 rounded-full p-1 hover:bg-white/10">
+              <X className="h-8 w-8" />
+            </button>
+            <h2 className="text-lg font-bold">Edit Image</h2>
+            <button onClick={() => setShowImageEditor(false)} className="absolute right-4 inline-flex items-center gap-2 rounded-full px-5 py-3 text-base font-bold text-white" style={{ background: TEAL_SOLID }}>
+              <Check className="h-5 w-5" /> Done
+            </button>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center px-6">
+            <img src={preview} alt="Edit preview" className="max-h-full max-w-[78vw] object-contain" style={{ filter: FILTER_CSS[filter] }} />
+          </div>
+          <div className="grid h-24 shrink-0 grid-cols-4 border-t border-white/10 text-white/80">
+            <button className="flex flex-col items-center justify-center gap-1 text-xs"><Crop className="h-7 w-7" />Crop</button>
+            <button className="flex flex-col items-center justify-center gap-1 text-xs"><Type className="h-7 w-7" />Text</button>
+            <button onClick={() => setFilter(filter === "Normal" ? "Juno" : "Normal")} className="flex flex-col items-center justify-center gap-1 text-xs"><Smile className="h-7 w-7" />Emoji</button>
+            <button onClick={() => setFilter("Normal")} className="flex flex-col items-center justify-center gap-1 text-xs"><RotateCcw className="h-7 w-7" />Reset</button>
+          </div>
+        </div>
+      )}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           {step !== "upload"
-            ? <button onClick={() => step === "details" ? setStep("edit") : reset()}><ChevronLeft className="w-5 h-5 text-gray-500" /></button>
+            ? <button onClick={reset}><ChevronLeft className="w-5 h-5 text-gray-500" /></button>
             : <div />}
           <h2 className="text-sm font-semibold text-gray-900">{step === "upload" ? "Create new post" : step === "edit" ? "Edit" : "New post"}</h2>
           {step === "edit"
@@ -3096,11 +3204,16 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
         )}
         {step === "details" && preview && (
           <div className="flex flex-col sm:flex-row">
-            <div className="sm:w-64 bg-black shrink-0">
+            <div className="relative sm:w-64 bg-black shrink-0">
               {pendingIsVideo ? (
                 <video src={preview} className="w-full aspect-square object-cover" controls muted playsInline preload="metadata" />
               ) : (
                 <img src={preview} alt="preview" className="w-full aspect-square object-cover" style={{ filter: FILTER_CSS[filter] }} />
+              )}
+              {!pendingIsVideo && (
+                <button onClick={() => setShowImageEditor(true)} className="absolute right-3 top-3 rounded-full bg-black/60 px-4 py-2 text-xs font-bold text-white backdrop-blur hover:bg-black/75">
+                  Edit
+                </button>
               )}
             </div>
             <div className="flex-1 p-5 space-y-4">
@@ -3330,6 +3443,7 @@ function FollowListScreen({
   const [q, setQ] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const isOwnerList = Boolean(myUserId && ownerId === myUserId);
 
   const loadRows = useCallback(async () => {
@@ -3389,6 +3503,11 @@ function FollowListScreen({
     const needle = q.trim().toLowerCase();
     return !needle || row.username.toLowerCase().includes(needle) || row.name.toLowerCase().includes(needle);
   });
+  const hasSearch = q.trim().length > 0;
+  const clearSearch = () => {
+    setQ("");
+    requestAnimationFrame(() => searchInputRef.current?.focus());
+  };
 
   return (
     <div className="min-h-full bg-white">
@@ -3408,12 +3527,27 @@ function FollowListScreen({
         ))}
       </div>
       <div className="px-6 py-5">
-        <div className="mb-5 flex items-center gap-3 rounded-2xl bg-slate-50 px-5 py-3">
+        <div className="mb-5 flex items-center gap-3 rounded-2xl bg-slate-50 px-5 py-3 focus-within:ring-2 focus-within:ring-teal-500">
           <Search className="h-5 w-5 text-slate-500" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="w-full bg-transparent text-base text-slate-700 outline-none placeholder:text-slate-500" />
+          <input
+            ref={searchInputRef}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search"
+            className="min-w-0 flex-1 bg-transparent text-base text-slate-700 outline-none placeholder:text-slate-500"
+          />
+          {hasSearch && (
+            <button type="button" onClick={clearSearch} className="shrink-0 rounded-full p-1 text-slate-500 hover:text-slate-900" aria-label="Clear search">
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
         {loading ? (
           <div className="flex justify-center py-14"><Loader2 className="h-7 w-7 animate-spin text-teal-500" /></div>
+        ) : hasSearch && filtered.length === 0 ? (
+          <div className="flex min-h-[280px] items-center justify-center text-sm text-slate-500">
+            No results found
+          </div>
         ) : (
           <div className="divide-y divide-slate-100">
             {filtered.map((user) => (
@@ -3499,6 +3633,16 @@ function MyProfileSection({ onUserClick }: { onUserClick: (userId: string) => vo
 
   const displayImages = activeTab === "Saved" ? savedImages : gridImages;
   const avatar = profile?.userAvatar ? resolveMediaUrl(profile.userAvatar) || profile.userAvatar : null;
+  const openProfileMedia = (media: ProfileGridMedia) => {
+    if (media.type === "video") {
+      const index = gridReels.findIndex((reel) => String(reel.postId) === String(media.id));
+      if (index >= 0) {
+        setSelectedReelIndex(index);
+        return;
+      }
+    }
+    setSelectedMedia(media);
+  };
 
   if (followList && profile) {
     return (
@@ -3614,7 +3758,7 @@ function MyProfileSection({ onUserClick }: { onUserClick: (userId: string) => vo
       ) : (
       <div className="grid grid-cols-3 gap-0.5">
         {displayImages.map((media) => (
-          <ProfileGridCell key={media.id} media={media} onClick={() => setSelectedMedia(media)} />
+          <ProfileGridCell key={media.id} media={media} onClick={() => openProfileMedia(media)} />
         ))}
       </div>
       )}
@@ -3773,11 +3917,82 @@ function EditProfilePanel() {
   );
 }
 
+function ChangePasswordPanel() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    profileApi.getMe()
+      .then((profile) => {
+        if (!cancelled) setEmail(profile.email ?? "");
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const canSubmit = password.length >= 6 && password === confirm;
+
+  return (
+    <div className="min-h-full bg-[#F9FAFB] px-4 py-6 sm:px-6">
+      <div className="w-full max-w-[636px] space-y-7">
+        <div className="rounded-2xl bg-slate-50 px-6 py-5">
+          <span className="text-base text-slate-500">Account: </span>
+          <span className="text-base font-bold text-slate-950">{email || "your account"}</span>
+        </div>
+        <p className="text-base leading-relaxed text-slate-500">Set a new password for your account. Must be at least 6 characters.</p>
+        <div className="space-y-6">
+          <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4">
+            <Lock className="h-6 w-6 shrink-0 text-slate-500" />
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="New password"
+              className="min-w-0 flex-1 bg-transparent text-base text-slate-700 outline-none placeholder:text-slate-500"
+            />
+            <button type="button" onClick={() => setShowPassword((value) => !value)} className="shrink-0 text-slate-500">
+              <Eye className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4">
+            <Lock className="h-6 w-6 shrink-0 text-slate-500" />
+            <input
+              type={showConfirm ? "text" : "password"}
+              value={confirm}
+              onChange={(event) => setConfirm(event.target.value)}
+              placeholder="Confirm new password"
+              className="min-w-0 flex-1 bg-transparent text-base text-slate-700 outline-none placeholder:text-slate-500"
+            />
+            <button type="button" onClick={() => setShowConfirm((value) => !value)} className="shrink-0 text-slate-500">
+              <Eye className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+        <button
+          type="button"
+          disabled={!canSubmit}
+          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#7fcfcb] px-6 py-4 text-base font-bold text-white disabled:opacity-80"
+        >
+          <Shield className="h-6 w-6" />
+          Update Password
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PrivacyPanel() {
   const { settings, loading, patch } = useSettingsContext();
   const priv = settings?.privateAccount ?? false;
   const actStatus = settings?.showActivityStatus ?? true;
-  const storyReplies = settings?.storyReplies ?? "Everyone";
+  const messageAllow = settings?.messageAllowFrom ?? "Everyone";
+  const commentAllow = settings?.commentsAllowFrom ?? "Everyone";
+  const restrictComments = settings?.filterOffensiveComments ?? false;
+  const [hideLikeCounts, setHideLikeCounts] = useState(false);
 
   const save = (partial: Parameters<typeof patch>[0]) => {
     void patch(partial).catch(() => {});
@@ -3788,30 +4003,65 @@ function PrivacyPanel() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
-      <h2 className="text-base font-semibold text-gray-900 mb-6">Account Privacy</h2>
-      <div className="space-y-3">
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-4">
-          <Lock className="w-5 h-5 text-gray-500 mt-0.5 shrink-0" />
-          <div className="flex-1"><p className="text-sm font-semibold text-gray-900">Private Account</p><p className="text-xs text-gray-500 mt-0.5">Only approved followers can see your photos.</p></div>
-          <Toggle checked={priv} onChange={(v) => save({ privateAccount: v })} />
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-4">
-          <Activity className="w-5 h-5 text-gray-500 mt-0.5 shrink-0" />
-          <div className="flex-1"><p className="text-sm font-semibold text-gray-900">Show Activity Status</p><p className="text-xs text-gray-500 mt-0.5">Allow others to see when you were last active.</p></div>
-          <Toggle checked={actStatus} onChange={(v) => save({ showActivityStatus: v })} />
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-4">
-          <p className="text-sm font-semibold text-gray-900 mb-3">Story Replies</p>
-          {["Everyone","People you follow","Off"].map(opt => (
-            <label key={opt} className="flex items-center gap-3 py-2 cursor-pointer">
-              <div onClick={() => save({ storyReplies: opt })} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition ${storyReplies === opt ? "border-teal-500" : "border-gray-300"}`}>
-                {storyReplies === opt && <div className="w-2 h-2 rounded-full bg-teal-500" />}
+    <div className="min-h-full bg-[#F9FAFB] px-4 py-6 sm:px-8">
+      <div className="w-full max-w-[830px] space-y-10">
+        <section>
+          <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-500">Account Privacy</h2>
+          <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-100">
+            <div className="flex items-center gap-6 border-b border-slate-100 px-7 py-6">
+              <div className="min-w-0 flex-1">
+                <p className="text-lg font-bold text-slate-950">Private Account</p>
+                <p className="mt-1 max-w-2xl text-base leading-snug text-slate-500">When enabled, only people you approve can see your posts, stories, and profile</p>
               </div>
-              <span className="text-sm text-gray-700">{opt}</span>
-            </label>
-          ))}
-        </div>
+              <Toggle checked={priv} onChange={(v) => save({ privateAccount: v })} />
+            </div>
+            <div className="flex items-center gap-6 px-7 py-6">
+              <div className="min-w-0 flex-1">
+                <p className="text-lg font-bold text-slate-950">Activity Status</p>
+                <p className="mt-1 text-base text-slate-500">Show when you're active on the app</p>
+              </div>
+              <Toggle checked={actStatus} onChange={(v) => save({ showActivityStatus: v })} />
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-500">Interactions</h2>
+          <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-100">
+            <div className="flex items-center gap-6 border-b border-slate-100 px-7 py-6">
+              <p className="min-w-0 flex-1 text-lg font-bold text-slate-950">Who can message you</p>
+              <button type="button" onClick={() => save({ messageAllowFrom: messageAllow === "Everyone" ? "People you follow" : "Everyone" })} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-5 py-2.5 text-base text-slate-700">
+                {messageAllow}<ChevronDown className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex items-center gap-6 px-7 py-6">
+              <p className="min-w-0 flex-1 text-lg font-bold text-slate-950">Who can comment</p>
+              <button type="button" onClick={() => save({ commentsAllowFrom: commentAllow === "Everyone" ? "People you follow" : "Everyone" })} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-5 py-2.5 text-base text-slate-700">
+                {commentAllow}<ChevronDown className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-500">Content</h2>
+          <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-100">
+            <div className="flex items-center gap-6 border-b border-slate-100 px-7 py-6">
+              <div className="min-w-0 flex-1">
+                <p className="text-lg font-bold text-slate-950">Hide Like Counts</p>
+                <p className="mt-1 text-base text-slate-500">Others won't be able to see likes on your posts</p>
+              </div>
+              <Toggle checked={hideLikeCounts} onChange={setHideLikeCounts} />
+            </div>
+            <div className="flex items-center gap-6 px-7 py-6">
+              <div className="min-w-0 flex-1">
+                <p className="text-lg font-bold text-slate-950">Restrict Comments</p>
+                <p className="mt-1 text-base text-slate-500">Filter offensive comments automatically</p>
+              </div>
+              <Toggle checked={restrictComments} onChange={(v) => save({ filterOffensiveComments: v })} />
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -3829,24 +4079,167 @@ function NotificationSettingsPanel() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
-      <h2 className="text-base font-semibold text-gray-900 mb-6">Notification Settings</h2>
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        {[
-          { key:"likes", label:"Likes", desc:"Notify when someone likes your post" },
-          { key:"comments", label:"Comments", desc:"Notify when someone comments" },
-          { key:"follows", label:"New Followers", desc:"Notify when someone follows you" },
-          { key:"messages", label:"Messages", desc:"Notify for new messages" },
-          { key:"reposts", label:"Reposts", desc:"Notify when your post is reposted" },
-          { key:"mentions", label:"Mentions", desc:"Notify when you're mentioned" },
-          { key:"liveVideos", label:"Live Videos", desc:"Notify when accounts go live" },
-          { key:"emailNotifs", label:"Email Notifications", desc:"Get updates via email" },
-        ].map(({ key, label, desc }, i, arr) => (
-          <div key={key} className={`flex items-center gap-4 px-4 py-3.5 ${i < arr.length - 1 ? "border-b border-gray-50" : ""}`}>
-            <div className="flex-1"><p className="text-sm font-semibold text-gray-900">{label}</p><p className="text-xs text-gray-400">{desc}</p></div>
-            <Toggle checked={Boolean(notifSettings[key])} onChange={() => toggle(key)} />
+    <div className="min-h-full bg-[#F9FAFB] px-4 py-6 sm:px-8">
+      <div className="w-full max-w-[668px] space-y-10">
+        <section>
+          <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-500">Channels</h2>
+          <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-100">
+            {[
+              { key:"pushNotifs", label:"Push Notifications", desc:"Receive notifications on your device", fallback: true },
+              { key:"emailNotifs", label:"Email Notifications", desc:"Get email updates for important activity" },
+            ].map(({ key, label, desc, fallback }, i) => (
+              <div key={key} className={`flex items-center gap-6 px-6 py-5 ${i === 0 ? "border-b border-slate-100" : ""}`}>
+                <div className="min-w-0 flex-1"><p className="text-lg font-bold text-slate-950">{label}</p><p className="mt-1 text-base text-slate-500">{desc}</p></div>
+                <Toggle checked={Boolean(notifSettings[key] ?? fallback)} onChange={() => toggle(key)} />
+              </div>
+            ))}
           </div>
-        ))}
+        </section>
+        <section>
+          <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-500">Activity Alerts</h2>
+          <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-100">
+            {[
+              { key:"likes", label:"Likes", desc:"When someone likes your post" },
+              { key:"comments", label:"Comments", desc:"When someone comments on your post" },
+              { key:"follows", label:"New Followers", desc:"When someone follows you" },
+              { key:"messages", label:"Messages", desc:"When you receive a direct message" },
+              { key:"mentions", label:"Mentions", desc:"When someone mentions you" },
+              { key:"liveVideos", label:"Live Videos", desc:"When someone you follow goes live" },
+              { key:"productUpdates", label:"Product Updates", desc:"Offers & deals from shops you follow", fallback: true },
+            ].map(({ key, label, desc, fallback }, i, arr) => (
+          <div key={key} className={`flex items-center gap-6 px-6 py-5 ${i < arr.length - 1 ? "border-b border-slate-100" : ""}`}>
+            <div className="min-w-0 flex-1"><p className="text-lg font-bold text-slate-950">{label}</p><p className="mt-1 text-base text-slate-500">{desc}</p></div>
+            <Toggle checked={Boolean(notifSettings[key] ?? fallback)} onChange={() => toggle(key)} />
+          </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function SecurityPanel({ onNavigate }: { onNavigate: (key: string) => void }) {
+  const [twoFactor, setTwoFactor] = useState(false);
+  const [loginAlerts, setLoginAlerts] = useState(true);
+
+  return (
+    <div className="min-h-full bg-[#F9FAFB] px-4 py-6 sm:px-8">
+      <div className="w-full max-w-[760px] space-y-10">
+        <section>
+          <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-500">Two-Factor Authentication</h2>
+          <div className="rounded-2xl bg-white px-7 py-6 ring-1 ring-slate-100">
+            <div className="flex items-center gap-6">
+              <div className="min-w-0 flex-1"><p className="text-lg font-bold text-slate-950">Enable 2FA</p><p className="mt-1 text-base text-slate-500">Add an extra layer of security to your account</p></div>
+              <Toggle checked={twoFactor} onChange={setTwoFactor} />
+            </div>
+          </div>
+        </section>
+        <section>
+          <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-500">Login Activity</h2>
+          <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-100">
+            <div className="flex items-center gap-6 border-b border-slate-100 px-7 py-6">
+              <div className="min-w-0 flex-1"><p className="text-lg font-bold text-slate-950">Login Alerts</p><p className="mt-1 text-base text-slate-500">Get notified of new logins to your account</p></div>
+              <Toggle checked={loginAlerts} onChange={setLoginAlerts} />
+            </div>
+            <div className="px-7 py-6">
+              <p className="mb-4 text-base font-bold text-slate-500">Current Session</p>
+              <div className="flex items-center gap-6 rounded-3xl bg-slate-50 px-6 py-5">
+                <Smartphone className="h-8 w-8 shrink-0 text-teal-600" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg font-bold text-slate-950">This Device</p>
+                  <p className="mt-1 text-base text-slate-500">Web Browser · Active now</p>
+                  <p className="mt-1 text-xs text-slate-500">Signed in 7/2/2026</p>
+                </div>
+                <span className="h-3 w-3 rounded-full bg-emerald-500" />
+              </div>
+            </div>
+          </div>
+        </section>
+        <section>
+          <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-500">Account Protection</h2>
+          <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-100">
+            {[
+              { key:"change_password", label:"Change Password", icon: Shield },
+              { key:"logout_other", label:"Log out of all other devices", icon: LogOut },
+              { key:"ownership", label:"Account Ownership & Control", icon: MapPin },
+            ].map(({ key, label, icon: Icon }, i, arr) => (
+              <button key={key} type="button" onClick={() => key === "change_password" && onNavigate("change_password")} className={`flex w-full items-center gap-5 px-7 py-5 text-left ${i < arr.length - 1 ? "border-b border-slate-100" : ""}`}>
+                <Icon className="h-7 w-7 shrink-0 text-slate-500" />
+                <span className="min-w-0 flex-1 text-lg font-bold text-slate-950">{label}</span>
+                <ChevronRight className="h-6 w-6 text-slate-500" />
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function HelpCenterPanel() {
+  return (
+    <div className="min-h-full bg-[#F9FAFB] px-4 py-6 sm:px-8">
+      <div className="mx-auto w-full max-w-[604px] space-y-8">
+        <div className="flex items-center gap-3 rounded-2xl bg-slate-100 px-5 py-4">
+          <Search className="h-6 w-6 text-slate-500" />
+          <input placeholder="Search help articles..." className="min-w-0 flex-1 bg-transparent text-base text-slate-700 outline-none placeholder:text-slate-500" />
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: "Report Issue", icon: Flag },
+            { label: "Live Chat", icon: MessageCircle },
+            { label: "Email Us", icon: Mail },
+          ].map(({ label, icon: Icon }) => (
+            <button key={label} className="flex h-24 flex-col items-center justify-center gap-2 rounded-2xl bg-white ring-1 ring-slate-100">
+              <Icon className="h-7 w-7 text-slate-500" />
+              <span className="text-xs font-bold text-slate-950">{label}</span>
+            </button>
+          ))}
+        </div>
+        <section>
+          <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-500">Frequently Asked Questions</h2>
+          <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-100">
+            {[
+              "How do I make my account private?",
+              "How do I report a post or user?",
+              "How do I change my username?",
+              "Why can't I send messages?",
+              "How do I delete my account?",
+              "How do I recover my password?",
+              "How do reels work?",
+              "How do I earn rewards?",
+            ].map((question, i, arr) => (
+              <button key={question} className={`flex w-full items-center gap-3 px-5 py-4 text-left ${i < arr.length - 1 ? "border-b border-slate-100" : ""}`}>
+                <span className="min-w-0 flex-1 text-base font-bold text-slate-950">{question}</span>
+                <ChevronRight className="h-5 w-5 text-slate-500" />
+              </button>
+            ))}
+          </div>
+        </section>
+        <div className="rounded-2xl bg-white p-6 ring-1 ring-slate-100">
+          <p className="mb-4 text-lg font-bold text-slate-950">Contact Support</p>
+          <p className="text-base text-slate-500">Email: <span className="text-teal-600">support@planext4u.com</span></p>
+          <p className="mt-2 text-base text-slate-500">Phone: <span className="text-teal-600">+91-9787176868</span></p>
+          <p className="mt-2 text-sm text-slate-500">Available Mon-Sat, 9 AM - 6 PM IST</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AboutPanel() {
+  return (
+    <div className="min-h-full bg-[#F9FAFB] px-4 py-10 sm:px-8">
+      <div className="w-full max-w-[636px] rounded-2xl bg-white p-6 ring-1 ring-slate-100">
+        <p className="mb-5 text-lg font-bold text-slate-950">About Planext4U</p>
+        <p className="mb-3 text-base text-slate-500"><span className="font-bold text-slate-950">App Version:</span> 1.0.0</p>
+        <p className="mb-3 text-base text-slate-500"><span className="font-bold text-slate-950">Company:</span> Planext4U Technologies Pvt Ltd</p>
+        <p className="mb-8 text-base text-slate-500"><span className="font-bold text-slate-950">Contact:</span> support@planext4u.com</p>
+        <div className="flex gap-6">
+          <button className="text-base font-bold text-teal-600">Terms of Service</button>
+          <button className="text-base font-bold text-teal-600">Privacy Policy</button>
+        </div>
       </div>
     </div>
   );
@@ -4299,6 +4692,115 @@ function GenericPanel({ title, desc }: { title: string; desc: string }) {
   );
 }
 
+function SettingsLanding({ onNavigate }: { onNavigate: (key: string) => void }) {
+  const { settings, loading, patch } = useSettingsContext();
+  const privateAccount = settings?.privateAccount ?? false;
+  const activityStatus = settings?.showActivityStatus ?? true;
+  const [darkMode, setDarkMode] = useState(false);
+
+  const saveSetting = (partial: Parameters<typeof patch>[0]) => {
+    void patch(partial).catch(() => {});
+  };
+  const logout = () => {
+    clearUserAuthStorage();
+    window.dispatchEvent(new CustomEvent("p4u-token-updated"));
+    window.dispatchEvent(new CustomEvent("p4u-open-auth"));
+  };
+
+  const navGroups = [
+    {
+      heading: "ACCOUNT",
+      items: [
+        { key: "edit_profile", label: "Edit Profile", icon: User },
+        { key: "change_password", label: "Change Password", icon: KeyRound },
+        { key: "privacy", label: "Privacy", icon: Eye },
+        { key: "security", label: "Security", icon: Shield },
+      ],
+    },
+    {
+      heading: "PREFERENCES",
+      items: [
+        { key: "notification_settings", label: "Notifications", icon: Bell },
+      ],
+    },
+    {
+      heading: "SUPPORT",
+      items: [
+        { key: "help_center", label: "Help Center", icon: HelpCircle },
+        { key: "about", label: "About", icon: Info },
+      ],
+    },
+  ];
+
+  return (
+    <div className="min-h-full bg-[#F9FAFB] px-4 py-5 sm:px-6 sm:py-6">
+      <div className="w-full max-w-[636px] space-y-5">
+        {navGroups.map((group) => (
+          <section key={group.heading}>
+            <h2 className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-slate-500">{group.heading}</h2>
+            <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+              {group.items.map(({ key, label, icon: Icon }, index) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onNavigate(key)}
+                  className={`flex w-full items-center gap-3 px-4 py-4 text-left transition hover:bg-slate-50 ${index < group.items.length - 1 ? "border-b border-slate-100" : ""}`}
+                >
+                  <Icon className="h-5 w-5 shrink-0 text-slate-500" />
+                  <span className="min-w-0 flex-1 text-sm font-semibold text-slate-950">{label}</span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                </button>
+              ))}
+              {group.heading === "PREFERENCES" && (
+                <div className="flex items-center gap-3 border-t border-slate-100 px-4 py-4">
+                  <Moon className="h-5 w-5 shrink-0 text-slate-500" />
+                  <span className="min-w-0 flex-1 text-sm font-semibold text-slate-950">Dark Mode</span>
+                  <Toggle checked={darkMode} onChange={setDarkMode} />
+                </div>
+              )}
+            </div>
+          </section>
+        ))}
+
+        <section>
+          <h2 className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-slate-500">PRIVACY CONTROLS</h2>
+          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-950">Private Account</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">Only followers can see your posts</p>
+              </div>
+              <Toggle checked={privateAccount} onChange={(v) => saveSetting({ privateAccount: v })} />
+            </div>
+            <div className="flex items-center gap-3 px-4 py-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-950">Activity Status</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">Show when you're online</p>
+              </div>
+              <Toggle checked={activityStatus} onChange={(v) => saveSetting({ showActivityStatus: v })} />
+            </div>
+          </div>
+        </section>
+
+        {loading && !settings && (
+          <div className="flex justify-center py-2">
+            <Loader2 className="h-5 w-5 animate-spin text-teal-500" />
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={logout}
+          className="flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-4 text-left text-sm font-semibold text-red-500 shadow-sm ring-1 ring-slate-100 transition hover:bg-red-50"
+        >
+          <LogOut className="h-5 w-5 shrink-0" />
+          Log Out
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const SettingsContext = createContext<ReturnType<typeof useSocialSettings> | null>(null);
 
 function useSettingsContext() {
@@ -4308,17 +4810,21 @@ function useSettingsContext() {
 }
 
 function SettingsSection() {
-  const [activeMenu, setActiveMenu] = useState("edit_profile");
-  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  const [activeMenu, setActiveMenu] = useState("settings_home");
   const settingsState = useSocialSettings();
 
-  const handleMenu = (key: string) => { setActiveMenu(key); setMobilePanelOpen(true); };
+  const handleMenu = (key: string) => { setActiveMenu(key); };
 
   const renderPanel = () => {
     switch (activeMenu) {
+      case "settings_home": return <SettingsLanding onNavigate={handleMenu} />;
       case "edit_profile": return <EditProfilePanel />;
       case "notification_settings": return <NotificationSettingsPanel />;
       case "privacy": return <PrivacyPanel />;
+      case "change_password": return <ChangePasswordPanel />;
+      case "security": return <SecurityPanel onNavigate={handleMenu} />;
+      case "help_center": return <HelpCenterPanel />;
+      case "about": return <AboutPanel />;
       case "language": return <LanguagePanel />;
       case "time": return <TimeManagementPanel />;
       case "rewards": return <RewardsPanel />;
@@ -4342,33 +4848,19 @@ function SettingsSection() {
 
   return (
     <SettingsContext.Provider value={settingsState}>
-    <div className="flex" style={{ height: "100%", minHeight: "400px" }}>
-      {/* Sidebar */}
-      <div className={`w-full sm:w-64 bg-white border-r border-gray-100 overflow-y-auto shrink-0 flex flex-col ${mobilePanelOpen ? "hidden sm:flex" : "flex"}`}>
-        {SETTINGS_NAV.map((section, si) => (
-          <div key={si} className="mb-1">
-            <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-400 px-4 py-2 mt-2">{section.heading}</p>
-            {section.items.map(({ key, label, icon: Icon }) => (
-              <button key={label} onClick={() => handleMenu(key)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition text-left ${activeMenu === key ? "text-teal-600 bg-teal-50 font-semibold" : "text-gray-700 hover:bg-gray-50"}`}>
-                <Icon className={`w-4 h-4 shrink-0 ${activeMenu === key ? "text-teal-500" : "text-gray-400"}`} />
-                <span className="flex-1 text-left">{label}</span>
-                <ChevronRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
-              </button>
-            ))}
+    <div className="min-h-[640px] bg-[#F9FAFB]">
+      <div className="flex min-h-[640px] flex-col">
+        {activeMenu !== "settings_home" && (
+          <div className="flex items-center gap-2 border-b border-slate-100 bg-white px-4 py-3 sm:px-6">
+            <button onClick={() => setActiveMenu("settings_home")} className="rounded-full p-1 hover:bg-slate-50">
+              <ArrowLeft className="h-5 w-5 text-slate-700" />
+            </button>
+            <span className="text-sm font-bold text-slate-950 capitalize">{activeMenu?.replace(/_/g," ")}</span>
           </div>
-        ))}
-        <div className="px-4 py-4 mt-2 border-t border-gray-100">
-          <button className="text-xs text-red-400 hover:text-red-600 underline underline-offset-2">Log out</button>
+        )}
+        <div className="min-h-0 flex-1">
+          {renderPanel()}
         </div>
-      </div>
-      {/* Panel */}
-      <div className={`flex-1 bg-white overflow-hidden flex flex-col min-w-0 ${!mobilePanelOpen ? "hidden sm:flex" : "flex"}`}>
-        <div className="sm:hidden flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-100 shrink-0">
-          <button onClick={() => setMobilePanelOpen(false)} className="p-1"><ArrowLeft className="w-5 h-5 text-gray-600" /></button>
-          <span className="text-sm font-bold text-gray-800 capitalize">{activeMenu?.replace(/_/g," ")}</span>
-        </div>
-        {renderPanel()}
       </div>
     </div>
     </SettingsContext.Provider>
@@ -4377,14 +4869,15 @@ function SettingsSection() {
 
 // â”€â”€ NAV CONFIG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const NAV_ITEMS = [
-  { key: "home", label: "Home", icon: Home },
+  { key: "home", label: "Socio Home", icon: Home },
   { key: "explore", label: "Explore", icon: Compass },
   { key: "reels", label: "Reels", icon: Film },
   { key: "messages", label: "Messages", icon: MessageCircle },
-  { key: "notifications", label: "Activity", icon: Bell },
+  { key: "friends", label: "Friends", icon: Users },
+  { key: "notifications", label: "Notification", icon: Bell },
   { key: "create", label: "Create", icon: PlusCircle },
-  { key: "profile", label: "Profile", icon: User },
   { key: "settings", label: "Settings", icon: Settings },
+  { key: "profile", label: "Profile", icon: User },
 ];
 
 // â”€â”€ MAIN APP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -4454,6 +4947,7 @@ export default function SocialApp() {
       case "explore": return <ExploreSection onUserClick={handleUserClick} />;
       case "reels": return <ReelsSection onUserClick={handleUserClick} />;
       case "messages": return <MessagesSection onUserClick={handleUserClick} pendingUserId={pendingMessageUserId} onPendingHandled={() => setPendingMessageUserId(null)} />;
+      case "friends": return <ExploreSection onUserClick={handleUserClick} />;
       case "notifications": return <NotificationsSection onUserClick={handleUserClick} />;
       case "create": return <CreateSection onPosted={() => setSection("home")} />;
       case "profile": return <MyProfileSection onUserClick={handleUserClick} />;
@@ -4464,33 +4958,39 @@ export default function SocialApp() {
   const isMessagesView = section === "messages" && !userProfile;
 
   return (
-     <div className={`max-w-[1300px] mx-auto flex font-sans ${isMessagesView ? "" : "min-h-screen"}`}>
+    <div className="w-full bg-[#F9FAFB]">
+     <div className={`max-w-[1300px] mx-auto flex bg-[#F9FAFB] font-sans ${isMessagesView ? "" : "min-h-screen"}`}>
       {/* â”€â”€ Desktop Sidebar â”€â”€ */}
-      <nav className="hidden md:flex flex-col w-16 lg:w-56 bg-white border-r border-gray-100 shrink-0 py-4 px-2 lg:px-3">
-        {/* Logo */}
-        <div className="px-2 mb-6 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: TEAL }}>
-            <span className="text-white font-black text-sm">P4</span>
+      <aside className="hidden w-64 shrink-0 flex-col gap-6 bg-[#F9FAFB] px-5 py-6 md:flex">
+        <nav className="rounded-2xl border border-slate-100 bg-white px-4 py-4 shadow-sm">
+          <div className="space-y-2">
+            {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
+              const active = section === key && !userProfile;
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleNavClick(key)}
+                  className={`flex w-full items-center gap-4 rounded-2xl px-5 py-3.5 text-left text-lg font-medium transition ${active ? "text-white shadow-sm" : "text-slate-900 hover:bg-slate-50"}`}
+                  style={active ? { background: TEAL_SOLID } : {}}
+                >
+                  {key === "profile" ? (
+                    <AvatarCircle src={accountProfile?.userAvatar} name={accountProfile?.userName ?? "Account"} size="sm" className="shrink-0 border-slate-200" />
+                  ) : (
+                    <Icon className={`h-6 w-6 shrink-0 ${active ? "text-white" : "text-slate-950"}`} strokeWidth={2.25} />
+                  )}
+                  <span className="truncate">{label}</span>
+                </button>
+              );
+            })}
           </div>
-          <span className="hidden lg:block text-sm font-black text-gray-900 tracking-tight">P4U Social</span>
+        </nav>
+        <div className="rounded-2xl bg-gradient-to-br from-[#08a7a3] to-[#18c7bd] px-6 py-7 text-white shadow-sm">
+          <h3 className="text-xl font-extrabold leading-tight">Welcome to<br />ClassiGrids</h3>
+          <p className="mt-3 text-[11px] font-semibold leading-relaxed text-white/90">
+            Buy And Sell Everything From Used Cars To Mobile Phones And Computers, Or Jobs And More.
+          </p>
         </div>
-        {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
-          <button key={key} onClick={() => handleNavClick(key)}
-            className={`flex items-center gap-3 px-2 py-2.5 rounded-xl text-left transition mb-0.5 group ${section === key && !userProfile ? "text-teal-600 bg-teal-50 font-semibold" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}>
-            <Icon className={`w-5 h-5 shrink-0 ${section === key && !userProfile ? "text-teal-500" : "text-gray-400 group-hover:text-gray-600"}`} />
-            <span className="hidden lg:block text-sm">{label}</span>
-          </button>
-        ))}
-        <div className="mt-auto pt-4 border-t border-gray-100">
-          <div className="flex items-center gap-3 px-2 py-2">
-            <AvatarCircle src={accountProfile?.userAvatar} name={accountProfile?.userName ?? "Account"} size="sm" className="shrink-0" />
-            <div className="hidden lg:block min-w-0">
-              <p className="text-xs font-bold text-gray-900 truncate">{accountProfile?.userName ?? "Account"}</p>
-              <p className="text-[10px] text-gray-400">View profile</p>
-            </div>
-          </div>
-        </div>
-      </nav>
+      </aside>
 
       {/* â”€â”€ Main Content â”€â”€ */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -4553,6 +5053,7 @@ export default function SocialApp() {
           ))}
         </nav>
       </div>
+    </div>
     </div>
   );
 }
