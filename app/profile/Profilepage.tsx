@@ -11,9 +11,9 @@ import { catalogApi } from "@/lib/api/catalog";
 import { pickProductImage, resolveMediaUrl } from "@/lib/media";
 import { resolveCustomerIdFromAccessToken } from "@/lib/resolveCustomerId";
 type ActivePage =
-  | "profile" | "saved-addresses" | "select-language" | "notification"
+  | "profile" | "edit-profile" | "saved-addresses" | "select-language" | "notification"
   | "your-orders" | "my-bookings" | "reviews-ratings" | "your-favourites" | "refer-earn"
-  | "reward-points" | "become-vendor" | "account-privacy" | "logout";
+  | "reward-points" | "become-vendor" | "account-privacy" | "kyc" | "change-password" | "support" | "logout";
 
 interface SidebarItem { id: ActivePage; label: string; icon: React.ReactNode; } 
 const Ic = ({ d, size = 16, sw = "1.8" }: { d: string; size?: number; sw?: string }) => (
@@ -49,6 +49,12 @@ const IcEdit = ({ s = 14 }) => <Ic size={s} d='<path d="M11 4H4a2 2 0 0 0-2 2v14
 const IcTrash = ({ s = 14 }) => <Ic size={s} d='<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>' />;
 const IcShare = ({ s = 14 }) => <Ic size={s} d='<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>' />;
 const IcCheckCircle = ({ s = 16 }) => <Ic size={s} d='<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>' />;
+const IcHeadphones = ({ s = 18 }) => <Ic size={s} d='<path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3v5z"/><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3v5z"/>' />;
+const IcWallet = ({ s = 16 }) => <Ic size={s} d='<path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M6 8H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16v-4"/><path d="M18 12h4v4h-4a2 2 0 0 1 0-4z"/>' />;
+const IcFileText = ({ s = 16 }) => <Ic size={s} d='<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>' />;
+const IcUpload = ({ s = 16 }) => <Ic size={s} d='<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>' />;
+const IcSettings = ({ s = 16 }) => <Ic size={s} d='<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.82V22a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 20.4a1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.82-.33H2a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 3.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 6.04 4.3l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6A1.65 1.65 0 0 0 10.33 2H10a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 3.6a1.65 1.65 0 0 0 1.82.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.33.38.62.7.8.31.18.67.25 1.02.2H22a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>' />;
+const IcSearch = ({ s = 16 }) => <Ic size={s} d='<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>' />;
 // notification icons
 const IcShoppingBag = ({ s = 18 }) => <Ic size={s} d='<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>' />;
 const IcTruck = ({ s = 18 }) => <Ic size={s} d='<rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>' />;
@@ -272,7 +278,7 @@ const Modal = ({ children, onClose }: { children: React.ReactNode; onClose: () =
   </div>
 );
 
-function PageProfile() {
+function PageEditProfile() {
   const [form, setForm] = useState({
     name: "",
     mobile: "",
@@ -386,6 +392,118 @@ function PageProfile() {
         </div>
       </div>
       <div className="flex justify-end"><PrimaryBtn onClick={handleSubmit} disabled={loadingProfile}>Update Profile</PrimaryBtn></div>
+    </div>
+  );
+}
+
+function AccountPageHeader({ title, onBack }: { title: string; onBack?: () => void }) {
+  return (
+    <div className="mb-8 flex items-center gap-8">
+      <button type="button" onClick={onBack ?? (() => window.location.assign("/profile"))} className="rounded-full p-2 text-slate-900 hover:bg-slate-100" aria-label="Go back">
+        <IcChevronL s={24} />
+      </button>
+      <h1 className="text-[24px] font-bold text-slate-950">{title}</h1>
+    </div>
+  );
+}
+
+function PageProfile({ setActive }: { setActive: (p: ActivePage) => void }) {
+  const router = useRouter();
+  const [profile, setProfile] = useState<{ name?: string; phone?: string; email?: string; avatar?: string | null; createdAt?: string | null } | null>(null);
+  const [points, setPoints] = useState(0);
+  const [orderCount, setOrderCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
+  const [addressCount, setAddressCount] = useState(0);
+  const [referralCount, setReferralCount] = useState(0);
+  const [referralCode, setReferralCode] = useState("");
+
+  useEffect(() => {
+    profileApi.getMe().then((p: any) => setProfile(p)).catch(() => {});
+    profileApi.getRewardPoints().then((r) => setPoints(r.balance ?? 0)).catch(() => {});
+    profileApi.getReferralCode().then((r) => r.code && setReferralCode(r.code)).catch(() => {});
+    profileApi.getWishlist().then((rows) => setWishlistCount(rows.length)).catch(() => {});
+    profileApi.getAddresses().then((rows) => setAddressCount(rows.length)).catch(() => {});
+    profileApi.getReferrals().then((res) => {
+      if (res.code) setReferralCode(res.code);
+      setReferralCount(Array.isArray(res.referrals) ? res.referrals.length : 0);
+    }).catch(() => {});
+    const token = localStorage.getItem("p4u_token");
+    const customerId = localStorage.getItem("p4u_customer_id") || resolveCustomerIdFromAccessToken(token) || "";
+    if (customerId) {
+      commerceApi.getOrders(customerId, { limit: 50 }).then((r: any) => setOrderCount(r.data?.length ?? 0)).catch(() => {});
+    }
+  }, []);
+
+  const name = profile?.name || "Profile";
+  const avatar = (profile as any)?.profilePic || (profile as any)?.avatarUrl || profile?.avatar || "";
+  const rows: Array<{ label: string; icon: React.ReactNode; value?: string | number; page?: ActivePage; href?: string; danger?: boolean }> = [
+    { label: "Edit Profile", icon: <IcEdit s={20} />, page: "edit-profile" },
+    { label: "My Orders", icon: <IcPackage s={20} />, value: orderCount, href: "/orders" },
+    { label: "Wishlist", icon: <IcHeart s={20} />, value: wishlistCount, href: "/wishlist" },
+    { label: "Wallet & Points", icon: <IcWallet s={20} />, value: `${points} pts`, page: "reward-points" },
+    { label: "KYC Verification", icon: <IcShield s={20} />, page: "kyc" },
+    { label: "Saved Addresses", icon: <IcMapPin s={20} />, value: addressCount, page: "saved-addresses" },
+    { label: "Referrals", icon: <IcGift s={20} />, value: referralCode || referralCount, page: "refer-earn" },
+    { label: "My Classifieds", icon: <IcNav s={20} />, href: "/classified" },
+    { label: "Support Tickets", icon: <IcFileText s={20} />, page: "support" },
+    { label: "Change Password", icon: <IcShield s={20} />, page: "change-password" },
+    { label: "Settings", icon: <IcSettings s={20} /> },
+    { label: "Logout", icon: <IcLogOut s={20} />, danger: true, page: "logout" },
+  ];
+
+  return (
+    <div className="mx-auto w-full max-w-[750px] py-7">
+      <div className="mb-6 flex items-center justify-between rounded-[16px] bg-white px-6 py-6 shadow-sm ring-1 ring-slate-200">
+        <div className="flex items-center gap-5">
+          {avatar ? (
+            <img src={avatar} alt={name} className="h-16 w-16 rounded-full object-cover" />
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-600">{name.charAt(0)}</div>
+          )}
+          <div>
+            <p className="text-[17px] font-bold text-slate-950">{name}</p>
+            {(profile?.phone || profile?.email) && (
+              <p className="mt-1 text-[13px] text-slate-500">{[profile?.phone, profile?.email].filter(Boolean).join(" • ")}</p>
+            )}
+            {profile?.createdAt && (
+              <p className="mt-1 text-[12px] text-slate-500">
+                Member since {new Date(profile.createdAt).toLocaleString("en-IN", { month: "short", year: "numeric" })}
+              </p>
+            )}
+          </div>
+        </div>
+        <button type="button" onClick={() => setActive("edit-profile")} className="rounded-[14px] border border-slate-200 px-5 py-2 text-[13px] font-semibold text-slate-950">Edit</button>
+      </div>
+
+      <div className="mb-6 grid grid-cols-3 gap-4">
+        {[{ label: "Points", value: points }, { label: "Orders", value: orderCount }, { label: "Referrals", value: referralCount }].map((stat) => (
+          <div key={stat.label} className="rounded-[16px] bg-white py-5 text-center shadow-sm ring-1 ring-slate-200">
+            <p className="text-[20px] font-bold text-slate-950 first:text-teal-600">{stat.value}</p>
+            <p className="text-[12px] text-slate-500">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="overflow-hidden rounded-[16px] bg-white shadow-sm ring-1 ring-slate-200">
+        {rows.map((row, index) => (
+          <button
+            key={row.label}
+            type="button"
+            onClick={() => {
+              if (row.href) router.push(row.href);
+              else if (row.page) setActive(row.page);
+            }}
+            className={`flex h-[50px] w-full items-center gap-4 px-5 text-left ${index < rows.length - 1 ? "border-b border-slate-100" : ""} ${row.danger ? "text-red-500" : "text-slate-950"}`}
+          >
+            <span className={row.danger ? "text-red-500" : "text-slate-500"}>{row.icon}</span>
+            <span className="min-w-0 flex-1 text-[14px] font-semibold">{row.label}</span>
+            {row.value !== undefined && (
+              <span className="rounded-full bg-teal-50 px-3 py-1 text-[12px] font-medium text-teal-600">{row.value}</span>
+            )}
+            {!row.danger && <IcChevronR s={18} />}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1427,6 +1545,78 @@ function PageReferEarn() {
  
 type RewardTab = "Earned" | "Redeemed";
 
+function PageReferralsReference({ onBack }: { onBack: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const [code, setCode] = useState("");
+  const [referrals, setReferrals] = useState<Array<{ id: number; name?: string; joinedAt: string }>>([]);
+  const [pointsEarned, setPointsEarned] = useState(0);
+
+  useEffect(() => {
+    profileApi.getReferralCode().then((res) => {
+      if (res.code) setCode(res.code);
+    }).catch(() => {});
+    profileApi.getReferrals().then((res) => {
+      if (res.code) setCode(res.code);
+      setReferrals(Array.isArray(res.referrals) ? res.referrals : []);
+    }).catch(() => {});
+    profileApi.getRewardPoints().then((res) => setPointsEarned(res.balance ?? 0)).catch(() => {});
+  }, []);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(code).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [code]);
+
+  return (
+    <div className="mx-auto w-full max-w-[750px] py-7">
+      <AccountPageHeader title="Referrals" onBack={onBack} />
+      <div className="mb-7 rounded-[18px] border border-orange-200 bg-gradient-to-r from-orange-100 via-orange-50 to-white px-8 py-8 text-center">
+        <div className="mx-auto mb-4 text-orange-500"><IcGift s={44} /></div>
+        <h2 className="text-[18px] font-bold text-slate-950">Refer & Earn 1 Point</h2>
+        <p className="mt-3 text-[13px] text-slate-500">Share your code with friends. Get 1 wallet point when they complete their first order!</p>
+        <p className="mt-2 text-[10px] text-slate-500">Points are credited only after your friend&apos;s first successful order · One reward per referred user</p>
+        <p className="mt-3 text-[11px] font-semibold text-teal-600">Refer 4+ friends who order this month - Platform Fee becomes FREE!</p>
+        <div className="mt-7 flex justify-center gap-3">
+          <div className="rounded-[16px] border border-slate-200 bg-white px-8 py-4 text-[18px] font-bold tracking-[0.2em] text-slate-950">{code || "—"}</div>
+          <button type="button" onClick={handleCopy} className="rounded-[14px] border border-slate-200 bg-white px-4 text-slate-700">
+            <IcCopy s={22} />
+          </button>
+        </div>
+        <button type="button" onClick={handleCopy} className="mt-5 inline-flex items-center gap-3 rounded-[14px] bg-orange-500 px-7 py-3 text-[14px] font-bold text-slate-950">
+          <IcUsers s={20} /> {copied ? "Copied!" : "Share with Friends"}
+        </button>
+      </div>
+      <div className="mb-7 grid grid-cols-3 gap-4">
+        {[[String(referrals.length), "Total Referrals"], [String(referrals.length), "First Order Done"], [`+${pointsEarned}`, "Points Earned"]].map(([value, label]) => (
+          <div key={label} className="rounded-[16px] bg-white py-5 text-center shadow-sm ring-1 ring-slate-200">
+            <p className="text-[18px] font-bold text-teal-600">{value}</p>
+            <p className="text-[10px] text-slate-500">{label}</p>
+          </div>
+        ))}
+      </div>
+      <h2 className="mb-4 text-[16px] font-bold text-slate-950">Referral History</h2>
+      <div className="space-y-3">
+        {referrals.length === 0 ? (
+          <div className="rounded-[16px] bg-white px-5 py-8 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">No referrals yet.</div>
+        ) : referrals.map((referral) => (
+          <div key={referral.id} className="flex items-center justify-between rounded-[16px] bg-white px-5 py-4 shadow-sm ring-1 ring-slate-200">
+            <div className="flex items-center gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-50 text-teal-500"><IcCheckCircle s={22} /></div>
+              <div>
+                <p className="text-[14px] font-bold text-slate-950">{referral.name || `Referral #${referral.id}`}</p>
+                <p className="text-[10px] text-teal-500">First order placed</p>
+                <p className="text-[10px] text-slate-500">{referral.joinedAt ? new Date(referral.joinedAt).toLocaleDateString("en-IN") : ""}</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-teal-50 px-4 py-1.5 text-[13px] font-bold text-teal-600">+1 pt</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PageRewardPoints() {
   const [tab, setTab] = useState<RewardTab>("Earned");
   const [totalPoints, setTotalPoints] = useState(0);
@@ -1676,6 +1866,164 @@ function PageAccountPrivacy() {
     </div>
   );
 }
+
+function PageKycVerification({ onBack }: { onBack: () => void }) {
+  const docs = ["Aadhaar Card", "PAN Card"];
+  return (
+    <div className="mx-auto w-full max-w-[905px] py-9">
+      <AccountPageHeader title="KYC Verification" onBack={onBack} />
+      <div className="mb-8 rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-[16px] font-bold text-slate-950">Profile Completeness</p>
+          <p className="text-[16px] font-bold text-teal-600">30%</p>
+        </div>
+        <div className="h-3 overflow-hidden rounded-full bg-teal-50">
+          <div className="h-full w-[30%] rounded-full bg-teal-500" />
+        </div>
+        <p className="mt-3 text-[14px] text-slate-500">Complete KYC to unlock full access</p>
+      </div>
+      <div className="mb-8 flex gap-5 rounded-[18px] border border-teal-200 bg-teal-50/70 p-7 text-slate-600">
+        <span className="text-teal-600"><IcShield s={28} /></span>
+        <div>
+          <p className="text-[17px] font-bold text-slate-950">Identity Verification</p>
+          <p className="mt-2 text-[14px] leading-snug">Submit either Aadhaar or PAN card. Upload clear JPG, PNG, or PDF files (max 2MB each). Admin will verify within 24-48 hours.</p>
+        </div>
+      </div>
+      <div className="space-y-5">
+        {docs.map((doc) => (
+          <div key={doc} className="rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-5">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-50 text-slate-500"><IcFileText s={28} /></div>
+                <p className="text-[16px] font-bold text-slate-950">{doc}</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <IcUpload s={22} />
+                <span className="rounded-full bg-slate-100 px-4 py-1 text-[11px] font-bold text-slate-500">Not Submitted</span>
+              </div>
+            </div>
+            <button type="button" className="h-[52px] w-full rounded-[16px] border border-slate-200 text-[15px] font-bold text-slate-950">
+              Submit Document
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PageChangePassword({ onBack }: { onBack: () => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  useEffect(() => {
+    profileApi.getMe().then((p) => setEmail(p.email ?? "")).catch(() => {});
+  }, []);
+  return (
+    <div className="mx-auto w-full max-w-[870px] py-8">
+      <AccountPageHeader title="Change Password" onBack={onBack} />
+      <div className="rounded-[18px] bg-slate-50 px-8 py-6">
+        <span className="text-[18px] text-slate-500">Account: </span>
+        <span className="text-[18px] font-bold text-slate-950">{email || "your account"}</span>
+      </div>
+      <p className="my-10 text-[18px] text-slate-500">Set a new password for your account. Must be at least 6 characters.</p>
+      <div className="space-y-7">
+        {[
+          ["New password", password, setPassword],
+          ["Confirm new password", confirm, setConfirm],
+        ].map(([placeholder, value, setter]) => (
+          <div key={String(placeholder)} className="flex h-[86px] items-center gap-5 rounded-[18px] border border-slate-200 bg-white px-6">
+            <IcShield s={28} />
+            <input
+              type="password"
+              value={String(value)}
+              onChange={(event) => (setter as React.Dispatch<React.SetStateAction<string>>)(event.target.value)}
+              placeholder={String(placeholder)}
+              className="min-w-0 flex-1 bg-transparent text-[18px] text-slate-700 outline-none placeholder:text-slate-500"
+            />
+            <IcUser s={26} />
+          </div>
+        ))}
+      </div>
+      <button type="button" className="mt-8 flex h-[72px] w-full items-center justify-center gap-4 rounded-[18px] bg-[#83cfcb] text-[22px] font-bold text-white">
+        <IcShield s={28} /> Update Password
+      </button>
+    </div>
+  );
+}
+
+function NewTicketModal({ onClose }: { onClose: () => void }) {
+  return (
+    <Modal onClose={onClose}>
+      <div className="p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-[16px] font-bold text-slate-950"><IcPlus s={16} /> New Support Ticket</h3>
+          <button type="button" onClick={onClose} className="text-slate-500"><IcX s={18} /></button>
+        </div>
+        <div className="space-y-4">
+          <Select label="Category *" options={[{ value: "", label: "Select category" }, { value: "order", label: "Order" }, { value: "payment", label: "Payment" }, { value: "account", label: "Account" }]} />
+          <Input label="Subject *" placeholder="Brief description of your issue" />
+          <Textarea label="Description" rows={4} placeholder="Provide details..." />
+          <Select label="Priority" defaultValue="medium" options={[{ value: "low", label: "Low" }, { value: "medium", label: "Medium" }, { value: "high", label: "High" }]} />
+        </div>
+        <div className="mt-5 flex justify-end gap-3">
+          <GhostBtn onClick={onClose}>Cancel</GhostBtn>
+          <button type="button" className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-bold text-white">Submit</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function PageHelpSupport({ onBack }: { onBack: () => void }) {
+  const [ticketOpen, setTicketOpen] = useState(false);
+  return (
+    <div className="mx-auto w-full max-w-[1050px] py-8">
+      {ticketOpen && <NewTicketModal onClose={() => setTicketOpen(false)} />}
+      <AccountPageHeader title="Help & Support" onBack={onBack} />
+      <div className="mb-8 flex items-center justify-between">
+        <div className="flex items-start gap-3">
+          <span className="mt-1 text-teal-600"><IcHeadphones s={28} /></span>
+          <div>
+            <p className="text-[14px] text-slate-500">Get help, raise issues, and track responses</p>
+          </div>
+        </div>
+        <button type="button" onClick={() => setTicketOpen(true)} className="inline-flex items-center gap-2 rounded-[18px] bg-teal-600 px-6 py-3 text-[16px] font-bold text-white">
+          <IcPlus s={22} /> New Ticket
+        </button>
+      </div>
+      <div className="mb-6 grid grid-cols-2 rounded-[18px] bg-slate-100 p-1.5">
+        <button className="rounded-[14px] bg-white py-3 text-[16px] font-medium text-slate-950 shadow-sm">Support Tickets (0)</button>
+        <button className="rounded-[14px] py-3 text-[16px] font-medium text-slate-500">Complaints (0)</button>
+      </div>
+      <div className="mb-6 grid grid-cols-4 gap-3">
+        {[["0", "Total", "text-teal-600"], ["0", "Open", "text-red-500"], ["0", "In Progress", "text-orange-500"], ["0", "Resolved", "text-emerald-500"]].map(([value, label, color]) => (
+          <div key={label} className="rounded-[18px] bg-white py-5 text-center shadow-sm ring-1 ring-slate-200">
+            <div className={`mx-auto mb-2 ${color}`}><IcCheckCircle s={24} /></div>
+            <p className="text-[22px] font-bold text-slate-950">{value}</p>
+            <p className="text-[10px] text-slate-500">{label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mb-6 grid gap-3 md:grid-cols-[1fr_180px]">
+        <div className="flex h-[50px] items-center gap-3 rounded-[16px] border border-slate-200 bg-white px-4">
+          <IcSearch s={22} />
+          <input placeholder="Search tickets..." className="min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-slate-500" />
+        </div>
+        <select className="h-[50px] rounded-[16px] border border-slate-200 bg-white px-4 text-[16px] text-slate-950">
+          <option>All Status</option>
+        </select>
+      </div>
+      <div className="flex min-h-[255px] flex-col items-center justify-center rounded-[18px] bg-white shadow-sm ring-1 ring-slate-200">
+        <IcHeadphones s={62} />
+        <p className="mt-4 text-[16px] text-slate-500">No tickets yet</p>
+        <button type="button" onClick={() => setTicketOpen(true)} className="mt-5 rounded-[18px] border border-slate-200 px-6 py-3 text-[16px] font-bold text-slate-950">
+          Raise a ticket
+        </button>
+      </div>
+    </div>
+  );
+}
  
 function PageLogout({ onCancel }: { onCancel: () => void }) {
   return (
@@ -1761,6 +2109,13 @@ const { isLoggedIn } = useAuth();
     const applyHash = () => {
       const h = window.location.hash.replace(/^#/, "").toLowerCase();
       if (h === "my-bookings" || h === "bookings") setActivePage("my-bookings");
+      else if (h === "orders" || h === "your-orders") setActivePage("your-orders");
+      else if (h === "wishlist" || h === "favourites" || h === "favorites") setActivePage("your-favourites");
+      else if (h === "refer-earn" || h === "referrals") setActivePage("refer-earn");
+      else if (h === "wallet" || h === "reward-points") setActivePage("reward-points");
+      else if (h === "kyc") setActivePage("kyc");
+      else if (h === "change-password") setActivePage("change-password");
+      else if (h === "support" || h === "help") setActivePage("support");
     };
     applyHash();
     window.addEventListener("hashchange", applyHash);
@@ -1769,7 +2124,8 @@ const { isLoggedIn } = useAuth();
 
   const renderPage = (): React.ReactNode => {
     switch (activePage) {
-      case "profile": return <PageProfile />;
+      case "profile": return <PageProfile setActive={setActivePage} />;
+      case "edit-profile": return <PageEditProfile />;
       case "saved-addresses": return <PageSavedAddresses />;
       case "select-language": return <PageSelectLanguage />;
       case "notification": return <PageNotification />;
@@ -1777,80 +2133,24 @@ const { isLoggedIn } = useAuth();
       case "my-bookings": return <PageMyBookings />;
       case "reviews-ratings": return <PageReviews />;
       case "your-favourites": return <PageFavourites />;
-      case "refer-earn": return <PageReferEarn />;
+      case "refer-earn": return <PageReferralsReference onBack={() => setActivePage("profile")} />;
       case "reward-points": return <PageRewardPoints />;
       case "become-vendor": return <PageBecomeVendor />;
       case "account-privacy": return <PageAccountPrivacy />;
+      case "kyc": return <PageKycVerification onBack={() => setActivePage("profile")} />;
+      case "change-password": return <PageChangePassword onBack={() => setActivePage("profile")} />;
+      case "support": return <PageHelpSupport onBack={() => setActivePage("profile")} />;
       case "logout": return <PageLogout onCancel={() => setActivePage("profile")} />;
-      default: return <PageProfile />;
+      default: return <PageProfile setActive={setActivePage} />;
     }
   };
 
   const activeLabel = SIDEBAR_ITEMS.find(s => s.id === activePage)?.label || "Profile";
   return (
     <AuthGuard>
-    <>
-      <style>{`
-        
-        .hide-desktop { display: flex !important; }
-        .show-desktop { display: none !important; }
-        @media (min-width: 768px) {
-          .hide-desktop { display: none !important; }
-          .show-desktop { display: flex !important; }
-        }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
-      `}</style>
-
-      <div className="min-h-screen bg-white flex flex-col">
-    <header className="w-full shadow-sm">
-  <div className="max-w-[1400px] mx-auto h-14 flex items-center justify-between px-4 sm:px-6"  style={{ background: PRIMARY_GRADIENT, position: 'sticky', top: 0, zIndex: 50 }}>
-            <button className="hide-desktop w-8 h-8 rounded-xl bg-white/10 border border-white/20 items-center justify-center text-white cursor-pointer"
-              onClick={() => setMobileOpen(true)}><IcMenu /></button>
-            {avatarUrl
-              ? <img src={avatarUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover ring-1 ring-white/40" />
-              : <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-sm font-semibold">P</div>}
-            <div>
-              <p className="text-white text-sm font-medium">Planext4u</p>
-              <p className="text-white/60 text-[10px]">One App Infinite Solutions</p>
-            </div>
-          </div> 
-        </header>
-
-        <div className="flex-1 bg-white">
-          <div className="max-w-[1400px] mx-auto flex min-h-[calc(100vh-56px)]">
-           <aside
-  className="show-desktop w-[220px] shrink-0 bg-white border-r border-slate-100 sticky top-[56px] h-[calc(100vh-56px)] overflow-y-auto"
->
-              <Sidebar active={activePage} setActive={setActivePage} />
-            </aside>
-
-            {mobileOpen && (
-              <div className="fixed inset-0 z-[200] md:hidden flex">
-                <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
-                <div className="relative w-56 bg-white h-full shadow-2xl overflow-y-auto">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                    <p className="text-xs font-medium text-slate-700">Menu</p>
-                    <button onClick={() => setMobileOpen(false)} className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 cursor-pointer"><IcX /></button>
-                  </div>
-                  <Sidebar active={activePage} setActive={setActivePage} onClose={() => setMobileOpen(false)} />
-                </div>
-              </div>
-            )}
-
-            <main className="flex-1 min-w-0 bg-white overflow-y-auto h-[calc(100vh-56px)]">
-              <div className="max-w-[1400px] mx-auto px-3 sm:px-4 md:px-6 py-5 flex gap-5 items-start">
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden w-full">
-                  <ProfileHeader avatarUrl={avatarUrl} onAvatarChange={setAvatarUrl} />
-                  {renderPage()}
-                </div>
-
-              </div>
-            </main>
-          </div>
-        </div>
+      <div className="min-h-screen bg-[#F9FAFB] px-4">
+        {renderPage()}
       </div>
-    </>
     </AuthGuard>
   );
 }

@@ -4,14 +4,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { Package, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar, Loader2, Search } from "lucide-react";
 import { commerceApi, Order } from "@/lib/api/commerce";
 import { catalogApi } from "@/lib/api/catalog";
 import AuthGuard from "@/providers/AuthGuard";
 import { useAuth } from "@/providers/AuthContext";
 import { resolveCustomerIdFromAccessToken } from "@/lib/resolveCustomerId";
 import { pickProductImage, resolveMediaUrl } from "@/lib/media";
-import { downloadOrderInvoice } from "@/lib/invoice";
 
 function looksLikeUuidText(v: unknown): boolean {
   const s = String(v || "").trim();
@@ -126,12 +125,41 @@ export default function OrdersPage() {
 
   return (
     <AuthGuard>
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[#F9FAFB]">
       <Header />
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-          <Package className="w-6 h-6" /> My Orders
-        </h1>
+      <main className="flex-1 mx-auto w-full max-w-[1030px] px-4 py-8">
+        <div className="mb-8 flex items-center gap-8">
+          <button type="button" onClick={() => window.location.assign("/profile")} className="rounded-full p-2 text-slate-900 hover:bg-slate-100" aria-label="Go back">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-[24px] font-bold text-slate-950">My Orders</h1>
+        </div>
+
+        <div className="mb-6 rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200/80">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+            <div className="flex h-[52px] items-center gap-3 rounded-[16px] border border-slate-200 px-4">
+              <Search className="h-5 w-5 text-slate-500" />
+              <input className="min-w-0 flex-1 bg-transparent text-[16px] text-slate-700 outline-none placeholder:text-slate-500" placeholder="Search by Order ID or Product" />
+            </div>
+            <div className="flex h-[52px] items-center gap-3 rounded-[16px] border border-slate-200 px-4 text-[16px] text-slate-950">
+              <Calendar className="h-5 w-5 text-slate-500" />
+              <span>dd-mm-yy</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-[15px] text-slate-500">to</span>
+              <div className="flex h-[52px] items-center rounded-[16px] border border-slate-200 px-4 text-[16px] text-slate-950">dd-mm-yy</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-5 grid rounded-[18px] bg-slate-100 p-1.5 md:grid-cols-2">
+          <button type="button" className="rounded-[14px] bg-white py-3 text-[16px] font-medium text-slate-950 shadow-sm">
+            Product Orders ({orders.length})
+          </button>
+          <button type="button" className="rounded-[14px] py-3 text-[16px] font-medium text-slate-500">
+            Service Bookings (0)
+          </button>
+        </div>
 
         {(loading || authLoading) && (
           <div className="flex justify-center py-20">
@@ -145,24 +173,23 @@ export default function OrdersPage() {
           <p className="text-center text-gray-400 py-20">No orders yet.</p>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-0 overflow-hidden rounded-[22px] bg-white shadow-sm ring-1 ring-slate-200/80">
           {orders.map((o) => (
             <div
               key={o.id}
-              className="p-4 rounded-xl border bg-white"
+              className="border-b border-slate-100 p-6 last:border-b-0"
             >
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-semibold">Order #{String(o.id).slice(0, 8)}</p>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-[17px] font-bold text-slate-950">P4U-{String(o.id).slice(0, 16)}</p>
+                  <p className="mt-1 text-[13px] text-slate-500">
                     {new Date(o.createdAt).toLocaleDateString()} &middot;{" "}
                     {o.items.length} item{o.items.length !== 1 ? "s" : ""}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold">&#8377;{o.totalAmount}</p>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full ${
+                    className={`rounded-full px-4 py-1 text-[13px] font-bold ${
                       o.status === "delivered"
                         ? "bg-green-100 text-green-700"
                         : o.status === "cancelled"
@@ -172,31 +199,14 @@ export default function OrdersPage() {
                   >
                     {o.status}
                   </span>
-                  <button
-                    onClick={() =>
-                      downloadOrderInvoice(
-                        { id: String(o.id), createdAt: o.createdAt, status: o.status, totalAmount: Number(o.totalAmount || 0) },
-                        (o.items || []).map((x: any) => ({
-                          name: String(x.productName || "Product"),
-                          qty: Number(x.quantity || 1),
-                          unitPrice: Number(x.unitPrice || x.price || 0),
-                          totalPrice: Number(x.unitPrice || x.price || 0) * Number(x.quantity || 1),
-                        })),
-                        `Order_Invoice_${String(o.id).slice(0, 8)}`,
-                      )
-                    }
-                    className="block ml-auto mt-2 text-xs text-teal-700 hover:underline"
-                  >
-                    Download Invoice
-                  </button>
                 </div>
               </div>
 
               <div className="mt-3 space-y-2">
                 {o.items.map((item: any) => (
-                  <div key={item.id} className="text-sm flex justify-between items-center text-gray-600 gap-3">
+                  <div key={item.id} className="flex items-center justify-between gap-3 py-4 text-sm text-gray-600">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-12 h-12 rounded-md border bg-gray-50 overflow-hidden shrink-0">
+                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-gray-50">
                         {item.productImage ? (
                           <img
                             src={resolveMediaUrl(item.productImage) || item.productImage}
@@ -206,37 +216,18 @@ export default function OrdersPage() {
                         ) : null}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-gray-800 font-medium">{item.productName || "Product"}</p>
-                        <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <Link href={`/orders/${encodeURIComponent(String(o.id))}`} className="text-xs text-teal-700 hover:underline">
-                            View Details
-                          </Link>
-                          <button
-                            onClick={() =>
-                              downloadOrderInvoice(
-                                { id: String(o.id), createdAt: o.createdAt, status: o.status },
-                                [
-                                  {
-                                    name: String(item.productName || "Product"),
-                                    qty: Number(item.quantity || 1),
-                                    unitPrice: Number(item.unitPrice || item.price || 0),
-                                    totalPrice: Number(item.unitPrice || item.price || 0) * Number(item.quantity || 1),
-                                  },
-                                ],
-                                `Item_Invoice_${String(o.id).slice(0, 8)}`,
-                              )
-                            }
-                            className="text-xs text-slate-600 hover:underline"
-                          >
-                            Invoice
-                          </button>
-                        </div>
+                        <p className="truncate text-[15px] font-semibold text-slate-950">{item.productName || "Product"}</p>
+                        <p className="mt-1 text-[13px] text-slate-500">Qty: {item.quantity} × &#8377;{Number(item.unitPrice || item.price || 0).toFixed(0)}</p>
                       </div>
                     </div>
-                    <span className="shrink-0">&#8377;{(Number(item.unitPrice || item.price || 0) * Number(item.quantity || 1)).toFixed(0)}</span>
                   </div>
                 ))}
+              </div>
+              <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+                <span className="text-[16px] font-bold text-slate-950">&#8377;{Number(o.totalAmount || 0).toFixed(0)}</span>
+                <Link href={`/orders/${encodeURIComponent(String(o.id))}`} className="text-[14px] font-medium text-teal-600 hover:underline">
+                  View Details →
+                </Link>
               </div>
 
               {o.status !== "delivered" && o.status !== "cancelled" && (

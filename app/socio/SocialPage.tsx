@@ -4733,28 +4733,28 @@ function SettingsLanding({ onNavigate }: { onNavigate: (key: string) => void }) 
   ];
 
   return (
-    <div className="min-h-full bg-[#F9FAFB] px-4 py-5 sm:px-6 sm:py-6">
-      <div className="w-full max-w-[636px] space-y-5">
+    <div className="min-h-full bg-[#F9FAFB] px-4 py-7 sm:px-6 sm:py-8">
+      <div className="w-full max-w-[636px] space-y-8">
         {navGroups.map((group) => (
           <section key={group.heading}>
-            <h2 className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-slate-500">{group.heading}</h2>
-            <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+            <h2 className="mb-3 px-1 text-[17px] font-semibold uppercase tracking-wide text-slate-500">{group.heading}</h2>
+            <div className="overflow-hidden rounded-[16px] bg-white ring-1 ring-slate-100">
               {group.items.map(({ key, label, icon: Icon }, index) => (
                 <button
                   key={key}
                   type="button"
                   onClick={() => onNavigate(key)}
-                  className={`flex w-full items-center gap-3 px-4 py-4 text-left transition hover:bg-slate-50 ${index < group.items.length - 1 ? "border-b border-slate-100" : ""}`}
+                  className={`flex h-[63px] w-full items-center gap-5 px-7 text-left transition hover:bg-slate-50 ${index < group.items.length - 1 ? "border-b border-slate-100" : ""}`}
                 >
-                  <Icon className="h-5 w-5 shrink-0 text-slate-500" />
-                  <span className="min-w-0 flex-1 text-sm font-semibold text-slate-950">{label}</span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                  <Icon className="h-6 w-6 shrink-0 text-slate-500" />
+                  <span className="min-w-0 flex-1 text-[20px] font-medium leading-none text-slate-950">{label}</span>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-slate-500" />
                 </button>
               ))}
               {group.heading === "PREFERENCES" && (
-                <div className="flex items-center gap-3 border-t border-slate-100 px-4 py-4">
-                  <Moon className="h-5 w-5 shrink-0 text-slate-500" />
-                  <span className="min-w-0 flex-1 text-sm font-semibold text-slate-950">Dark Mode</span>
+                <div className="flex h-[63px] items-center gap-5 border-t border-slate-100 px-7">
+                  <Moon className="h-6 w-6 shrink-0 text-slate-500" />
+                  <span className="min-w-0 flex-1 text-[20px] font-medium leading-none text-slate-950">Dark Mode</span>
                   <Toggle checked={darkMode} onChange={setDarkMode} />
                 </div>
               )}
@@ -4763,16 +4763,16 @@ function SettingsLanding({ onNavigate }: { onNavigate: (key: string) => void }) 
         ))}
 
         <section>
-          <h2 className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-slate-500">PRIVACY CONTROLS</h2>
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
-            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-4">
+          <h2 className="mb-3 px-1 text-[17px] font-semibold uppercase tracking-wide text-slate-500">PRIVACY CONTROLS</h2>
+          <div className="overflow-hidden rounded-[16px] bg-white ring-1 ring-slate-100">
+            <div className="flex min-h-[64px] items-center gap-5 border-b border-slate-100 px-7 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-slate-950">Private Account</p>
                 <p className="mt-0.5 text-[11px] text-slate-500">Only followers can see your posts</p>
               </div>
               <Toggle checked={privateAccount} onChange={(v) => saveSetting({ privateAccount: v })} />
             </div>
-            <div className="flex items-center gap-3 px-4 py-4">
+            <div className="flex min-h-[64px] items-center gap-5 px-7 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-slate-950">Activity Status</p>
                 <p className="mt-0.5 text-[11px] text-slate-500">Show when you're online</p>
@@ -4791,7 +4791,7 @@ function SettingsLanding({ onNavigate }: { onNavigate: (key: string) => void }) 
         <button
           type="button"
           onClick={logout}
-          className="flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-4 text-left text-sm font-semibold text-red-500 shadow-sm ring-1 ring-slate-100 transition hover:bg-red-50"
+          className="flex h-[54px] w-full items-center gap-4 rounded-[16px] bg-white px-6 text-left text-sm font-semibold text-red-500 ring-1 ring-slate-100 transition hover:bg-red-50"
         >
           <LogOut className="h-5 w-5 shrink-0" />
           Log Out
