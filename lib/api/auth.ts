@@ -58,6 +58,22 @@ export interface CustomerRegisterByPhoneRequest {
   referralCode?: string | null;
 }
 
+export interface RegisterVendorPayload {
+  vendorKind: "service" | "product";
+  vendorType: "SERVICE" | "PRODUCT";
+  ownerName: string;
+  businessName: string;
+  email?: string | null;
+  phone: string;
+  gst?: string | null;
+  pan?: string | null;
+  categoriesJson?: unknown;
+  servicesJson?: unknown;
+  addressJson?: Record<string, unknown> | null;
+  documentsJson?: Record<string, unknown> | null;
+  bankJson?: Record<string, unknown> | null;
+}
+
 export const authApi = {
   /**
    * Occupations for signup/profile — same payload semantics as admin
@@ -103,5 +119,14 @@ export const authApi = {
 
   logout(refreshToken: string) {
     return apiClient.post<{ message: string }>(`${BASE}/logout`, { refreshToken });
+  },
+
+  /** No-OTP vendor self-registration from user web "Become a Seller" flow. */
+  registerVendor(payload: RegisterVendorPayload) {
+    return apiClient.postInternal<{ status: string; message: string }>(
+      `${BASE}/public/vendor/register`,
+      payload,
+      { skipAuthHeader: true, skipAuthRefresh: true },
+    );
   },
 };

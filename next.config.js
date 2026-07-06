@@ -11,6 +11,9 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: { unoptimized: true },
+  async redirects() {
+    return [{ source: "/app/vendor-register", destination: "/vendor-register", permanent: false }];
+  },
   webpack(config) {
     config.module.rules.push({
       test: /\.(mp4|webm|ogg)$/,

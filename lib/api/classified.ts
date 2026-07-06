@@ -42,9 +42,14 @@ function authHeader(): Record<string, string> {
 }
 
 export const classifiedApi = {
-  list(params?: { q?: string; categoryId?: string; limit?: number; offset?: number }) {
+  list(params?: { q?: string; categoryId?: string; limit?: number; offset?: number; forceRefresh?: boolean }) {
+    const { forceRefresh, ...query } = params || {};
     return apiClient
-      .get<{ items: ClassifiedAd[]; total: number } | ClassifiedAd[]>(`${BASE}/classified`, params)
+      .get<{ items: ClassifiedAd[]; total: number } | ClassifiedAd[]>(
+        `${BASE}/classified`,
+        query,
+        { forceRefresh: forceRefresh ?? false, cacheTtlMs: forceRefresh ? 0 : 30_000 },
+      )
       .then(unwrapItems);
   },
 
@@ -52,9 +57,13 @@ export const classifiedApi = {
     return apiClient.get<ClassifiedAd>(`${BASE}/classified/${encodeURIComponent(id)}`);
   },
 
-  categories() {
+  categories(options?: { forceRefresh?: boolean }) {
     return apiClient
-      .get<{ items: ClassifiedCategory[]; total: number } | ClassifiedCategory[]>(`${BASE}/classified/categories`)
+      .get<{ items: ClassifiedCategory[]; total: number } | ClassifiedCategory[]>(
+        `${BASE}/classified/categories`,
+        undefined,
+        { forceRefresh: options?.forceRefresh ?? true, cacheTtlMs: options?.forceRefresh === false ? 30_000 : 0 },
+      )
       .then(unwrapItems);
   },
 
@@ -68,7 +77,7 @@ export const classifiedApi = {
     contactPhone?: string;
     imageUrls?: string[];
   }) {
-    return apiClient.post<ClassifiedAd>(`${BASE}/classified`, {
+    const row = await apiClient.post<ClassifiedAd>(`${BASE}/classified`, {
       name: payload.title,
       description: payload.description,
       price: payload.price,
@@ -78,6 +87,8 @@ export const classifiedApi = {
       contactPhone: payload.contactPhone,
       imageUrls: payload.imageUrls,
     });
+    apiClient.clearGetCache(`${BASE}/classified`);
+    return row;
   },
 
   async uploadImages(files: File[]): Promise<string[]> {

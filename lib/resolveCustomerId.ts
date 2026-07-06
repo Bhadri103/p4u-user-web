@@ -64,3 +64,19 @@ export function avatarLetterFromDisplayName(displayName: string): string {
   if (parts.length >= 2) return parts[0].charAt(0).toUpperCase();
   return t.charAt(0).toUpperCase();
 }
+
+/** Two-letter initials for profile avatars (e.g. Kumareson → KR, Karthick Sri RS → KR). */
+export function avatarInitialsFromDisplayName(displayName: string): string {
+  const t = displayName.trim();
+  if (!t) return "?";
+  const parts = t.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+  }
+  const word = parts[0];
+  const first = word.charAt(0);
+  const consonants = word.slice(1).match(/[bcdfghjklmnpqrstvwxyz]/gi);
+  if (consonants?.length) return (first + consonants[0]).toUpperCase();
+  if (word.length >= 2) return word.slice(0, 2).toUpperCase();
+  return first.toUpperCase();
+}

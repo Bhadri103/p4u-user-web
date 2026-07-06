@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Camera, Eye, Pencil } from "lucide-react";
 import AuthGuard from "@/providers/AuthGuard";
 import { classifiedApi, type ClassifiedCategory } from "@/lib/api/classified";
+import { loadClassifiedCategories } from "@/lib/classified/categories";
 import { profileApi } from "@/lib/api/profile";
 import { useAuth } from "@/providers/AuthContext";
 
@@ -17,6 +18,7 @@ function PostFormBody() {
   const { displayName, loggedPhone } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<ClassifiedCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [photos, setPhotos] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [title, setTitle] = useState("");
@@ -31,7 +33,11 @@ function PostFormBody() {
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    classifiedApi.categories().then((res) => setCategories(res.items)).catch(() => setCategories([]));
+    setCategoriesLoading(true);
+    loadClassifiedCategories({ forceRefresh: true })
+      .then(setCategories)
+      .catch(() => setCategories([]))
+      .finally(() => setCategoriesLoading(false));
     profileApi.getMe().then((me) => {
       if (me.phone) setContactPhone(me.phone);
     }).catch(() => undefined);
@@ -80,8 +86,8 @@ function PostFormBody() {
         contactPhone: contactPhone.trim(),
         imageUrls,
       });
-      setSuccess("Your ad was submitted. It will appear after admin approval (usually within 24 hours).");
-      setTimeout(() => router.push("/classified"), 1800);
+      setSuccess("Your ad is now live on Classifieds. Admin may review it within 24 hours.");
+      setTimeout(() => router.push(`/classified?category=${encodeURIComponent(categoryId)}`), 1200);
     } catch (err: unknown) {
       setError(err && typeof err === "object" && "message" in err ? String((err as { message: string }).message) : "Failed to post ad");
     } finally {
@@ -185,12 +191,16 @@ function PostFormBody() {
               onChange={(e) => setCategoryId(e.target.value)}
               className="h-12 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-[#17a2b8] focus:ring-2 focus:ring-[#17a2b8]/20"
               required
+              disabled={categoriesLoading}
             >
-              <option value="">Select category</option>
+              <option value="">{categoriesLoading ? "Loading categories..." : "Select category"}</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
+            {!categoriesLoading && categories.length === 0 ? (
+              <p className="mt-1 text-xs text-amber-700">No classified categories yet. Ask admin to add them under CF Categories.</p>
+            ) : null}
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">City</label>
@@ -224,7 +234,7 @@ function PostFormBody() {
         </div>
 
         <p className="text-xs text-gray-500">
-          Your ad will be reviewed by admin before publishing. This usually takes 24 hours.
+          Your ad appears on Classifieds right away. Admin may review it within 24 hours.
         </p>
 
         <button

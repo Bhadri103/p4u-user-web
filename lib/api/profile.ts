@@ -7,6 +7,12 @@ const BASE = "/api/v1/profile";
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
+export interface KycDocumentMeta {
+  url?: string;
+  status?: "not_submitted" | "submitted" | "verified" | "rejected";
+  submittedAt?: string;
+}
+
 export interface UserProfile {
   id: string;
   /** Normalized from API `fullName` */
@@ -19,6 +25,12 @@ export interface UserProfile {
   dob?: string;
   gender?: string;
   bio?: string;
+  occupationId?: string;
+  occupation?: string;
+  kycDocuments?: {
+    aadhaar?: KycDocumentMeta;
+    pan?: KycDocumentMeta;
+  };
 }
 
 export interface Address {
@@ -135,7 +147,41 @@ function mapCustomerRow(row: Record<string, unknown>): UserProfile {
     dob: typeof meta.dob === "string" ? meta.dob : undefined,
     gender: typeof meta.gender === "string" ? meta.gender : undefined,
     bio: typeof meta.bio === "string" ? meta.bio : undefined,
+    occupationId:
+      typeof row.occupationId === "string"
+        ? row.occupationId
+        : typeof row.occupation_id === "string"
+          ? row.occupation_id
+          : undefined,
+    occupation: typeof meta.occupation === "string" ? meta.occupation : undefined,
+    kycDocuments: parseKycDocuments(meta),
   };
+}
+
+function parseKycDocuments(meta: Record<string, unknown>) {
+  const raw = meta.kycDocuments;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const o = raw as Record<string, unknown>;
+  const doc = (key: string): KycDocumentMeta | undefined => {
+    const d = o[key];
+    if (!d || typeof d !== "object" || Array.isArray(d)) return undefined;
+    const row = d as Record<string, unknown>;
+    return {
+      url: typeof row.url === "string" ? resolveMediaUrl(row.url) ?? row.url : undefined,
+      status:
+        row.status === "submitted" ||
+        row.status === "verified" ||
+        row.status === "rejected" ||
+        row.status === "not_submitted"
+          ? row.status
+          : undefined,
+      submittedAt: typeof row.submittedAt === "string" ? row.submittedAt : undefined,
+    };
+  };
+  const aadhaar = doc("aadhaar");
+  const pan = doc("pan");
+  if (!aadhaar && !pan) return undefined;
+  return { aadhaar, pan };
 }
 
 function toAddress(row: BackendAddress): Address {
@@ -167,19 +213,30 @@ export const profileApi = {
     return apiClient.get<Record<string, unknown>>(`${BASE}/me`).then(mapCustomerRow);
   },
 
-  updateMe(data: Partial<UserProfile> & { dob?: string; gender?: string; bio?: string }) {
+  updateMe(
+    data: Partial<UserProfile> & {
+      dob?: string;
+      gender?: string;
+      bio?: string;
+      occupationId?: string | null;
+      kycDocuments?: UserProfile["kycDocuments"];
+    },
+  ) {
     const body: Record<string, unknown> = {};
     if (data.name !== undefined) body.fullName = data.name;
     if (data.email !== undefined) body.email = data.email;
     if (data.phone !== undefined) body.phone = data.phone;
     if (data.dob !== undefined) body.dob = data.dob;
     if (data.gender !== undefined) body.gender = data.gender;
+    if (data.occupationId !== undefined) body.occupationId = data.occupationId;
     const metadata: Record<string, unknown> = {};
     if (data.avatar !== undefined) {
       metadata.avatarUrl = data.avatar || null;
       metadata.avatar = data.avatar || null;
     }
     if (data.bio !== undefined) metadata.bio = data.bio;
+    if (data.occupation !== undefined) metadata.occupation = data.occupation;
+    if (data.kycDocuments !== undefined) metadata.kycDocuments = data.kycDocuments;
     if (Object.keys(metadata).length) body.metadata = metadata;
     return apiClient.patch<Record<string, unknown>>(`${BASE}/me`, body).then((row) => {
       apiClient.clearGetCache();

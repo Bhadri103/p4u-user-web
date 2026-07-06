@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Clock, MapPin, Plus, Search } from "lucide-react";
 import { classifiedApi, type ClassifiedAd, type ClassifiedCategory } from "@/lib/api/classified";
+import { loadClassifiedCategories } from "@/lib/classified/categories";
 import { formatClassifiedInr, formatClassifiedShortDate } from "@/lib/classified/format";
 import { resolveMediaUrl } from "@/lib/media";
 
@@ -70,6 +71,7 @@ function AdCard({ ad, onOpen }: { ad: ClassifiedAd; onOpen: (ad: ClassifiedAd) =
 
 export default function ClassifiedAdsView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [ads, setAds] = useState<ClassifiedAd[]>([]);
   const [categories, setCategories] = useState<ClassifiedCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +79,11 @@ export default function ClassifiedAdsView() {
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("");
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("category");
+    if (fromUrl) setActiveCategory(fromUrl);
+  }, [searchParams]);
 
   useEffect(() => {
     const t = setTimeout(() => setSearchQuery(searchInput.trim()), 300);
@@ -87,17 +94,18 @@ export default function ClassifiedAdsView() {
     setLoading(true);
     setError("");
     try {
-      const [listRes, catRes] = await Promise.all([
+      const [listRes, catRows] = await Promise.all([
         classifiedApi.list({
           q: searchQuery || undefined,
           categoryId: activeCategory || undefined,
           limit: 60,
           offset: 0,
+          forceRefresh: true,
         }),
-        classifiedApi.categories(),
+        loadClassifiedCategories({ forceRefresh: true }),
       ]);
       setAds(listRes.items);
-      setCategories(catRes.items);
+      setCategories(catRows);
     } catch (e: unknown) {
       setAds([]);
       setError(e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Failed to load classified ads");
@@ -150,7 +158,11 @@ export default function ClassifiedAdsView() {
             <button
               key={cat.id || "all"}
               type="button"
-              onClick={() => setActiveCategory(cat.id)}
+              onClick={() => {
+                setActiveCategory(cat.id);
+                const next = cat.id ? `/classified?category=${encodeURIComponent(cat.id)}` : "/classified";
+                router.replace(next);
+              }}
               className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                 active ? "text-white shadow-sm" : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
               }`}

@@ -4,12 +4,14 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/providers/AuthContext";
 import AuthGuard from "@/providers/AuthGuard";
 import { useRouter } from "next/navigation";
-import { profileApi, type Address as ProfileAddress } from "@/lib/api/profile";
+import { profileApi, type Address as ProfileAddress, type UserProfile } from "@/lib/api/profile";
 import { notificationsApi } from "@/lib/api/notifications";
 import { commerceApi } from "@/lib/api/commerce";
 import { catalogApi } from "@/lib/api/catalog";
 import { pickProductImage, resolveMediaUrl } from "@/lib/media";
-import { resolveCustomerIdFromAccessToken } from "@/lib/resolveCustomerId";
+import { resolveCustomerIdFromAccessToken, avatarInitialsFromDisplayName } from "@/lib/resolveCustomerId";
+import { socialApi } from "@/lib/api/social";
+import { authApi } from "@/lib/api/auth";
 type ActivePage =
   | "profile" | "edit-profile" | "saved-addresses" | "select-language" | "notification"
   | "your-orders" | "my-bookings" | "reviews-ratings" | "your-favourites" | "refer-earn"
@@ -278,236 +280,6 @@ const Modal = ({ children, onClose }: { children: React.ReactNode; onClose: () =
   </div>
 );
 
-function PageEditProfile() {
-  const [form, setForm] = useState({
-    name: "",
-    mobile: "",
-    email: "",
-    dob: "",
-    gender: "",
-    author: false,
-    okps: false,
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [saved, setSaved] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
-
-  useEffect(() => {
-    profileApi
-      .getMe()
-      .then((p) => {
-        setForm((f) => ({
-          ...f,
-          name: p.name ?? "",
-          mobile: p.phone ?? "",
-          email: p.email ?? "",
-          dob: p.dob ?? "",
-          gender: p.gender ?? "",
-        }));
-      })
-      .catch(() => {
-        /* offline or not logged in */
-      })
-      .finally(() => setLoadingProfile(false));
-  }, []);
-
-  const setField = (k: string, v: string | boolean) => {
-    setForm(f => ({ ...f, [k]: v }));
-    setErrors(e => { const n = { ...e }; delete n[k]; return n; });
-  };
-
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = "Full name is required";
-    if (!form.mobile.trim()) e.mobile = "Mobile number is required";
-    else if (!/^\d{10}$/.test(form.mobile.trim())) e.mobile = "Must be a valid 10-digit number";
-    if (!form.email.trim()) e.email = "Email address is required";
-    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Enter a valid email address";
-    if (!form.gender) e.gender = "Please select your gender";
-    setErrors(e); return Object.keys(e).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!validate()) return;
-    setSaveError(null);
-    try {
-      await profileApi.updateMe({
-        name: form.name.trim(),
-        email: form.email.trim(),
-        phone: form.mobile.trim(),
-        ...(form.dob ? { dob: form.dob } : {}),
-        ...(form.gender ? { gender: form.gender } : {}),
-      });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (err: unknown) {
-      const msg =
-        err && typeof err === "object" && "message" in err && typeof (err as Error).message === "string"
-          ? (err as Error).message
-          : "Could not update profile. Check you are logged in and try again.";
-      setSaveError(msg);
-    }
-  };
-
-  return (
-    <div className="p-5 sm:p-6">
-      <SectionTitle>Personal Information</SectionTitle>
-      {loadingProfile && (
-        <p className="text-sm text-slate-500 mb-4">Loading your profile…</p>
-      )}
-      {saved && (
-        <div className="mb-4 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center gap-2">
-          <span className="text-emerald-600"><IcCheckCircle /></span> Profile updated successfully!
-        </div>
-      )}
-      {saveError && (
-        <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm">
-          {saveError}
-        </div>
-      )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <Input label="Full Name *" placeholder="Enter your name" value={form.name}
-          onChange={e => setField("name", e.target.value)} error={errors.name} />
-        <Input label="Mobile Number *" placeholder="10-digit number" value={form.mobile}
-          onChange={e => setField("mobile", e.target.value.replace(/\D/g, "").slice(0, 10))} error={errors.mobile} />
-        <Input label="Email Address *" placeholder="your@email.com" type="email" value={form.email}
-          onChange={e => setField("email", e.target.value)} error={errors.email} />
-        <Input label="Date of Birth" type="date" value={form.dob}
-          onChange={e => setField("dob", e.target.value)} icon={<IcCalendar />} />
-        <Select label="Gender *" value={form.gender} onChange={e => setField("gender", e.target.value)}
-          error={errors.gender}
-          options={[{ value: "", label: "Select gender" }, { value: "Male", label: "Male" }, { value: "Female", label: "Female" }, { value: "Other", label: "Other" }]} />
-      </div>
-      <div className="mb-4">
-        <p className="text-xs text-slate-500 mb-2">Author Type</p>
-        <div className="flex gap-6">
-          {[["author", "Author"], ["okps", "Okps"]].map(([k, l]) => (
-            <label key={k} className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
-              <input type="checkbox" checked={form[k as "author" | "okps"]}
-                onChange={e => setField(k, e.target.checked)}
-                className="w-4 h-4 accent-emerald-700 cursor-pointer" /> {l}
-            </label>
-          ))}
-        </div>
-      </div>
-      <div className="flex justify-end"><PrimaryBtn onClick={handleSubmit} disabled={loadingProfile}>Update Profile</PrimaryBtn></div>
-    </div>
-  );
-}
-
-function AccountPageHeader({ title, onBack }: { title: string; onBack?: () => void }) {
-  return (
-    <div className="mb-8 flex items-center gap-8">
-      <button type="button" onClick={onBack ?? (() => window.location.assign("/profile"))} className="rounded-full p-2 text-slate-900 hover:bg-slate-100" aria-label="Go back">
-        <IcChevronL s={24} />
-      </button>
-      <h1 className="text-[24px] font-bold text-slate-950">{title}</h1>
-    </div>
-  );
-}
-
-function PageProfile({ setActive }: { setActive: (p: ActivePage) => void }) {
-  const router = useRouter();
-  const [profile, setProfile] = useState<{ name?: string; phone?: string; email?: string; avatar?: string | null; createdAt?: string | null } | null>(null);
-  const [points, setPoints] = useState(0);
-  const [orderCount, setOrderCount] = useState(0);
-  const [wishlistCount, setWishlistCount] = useState(0);
-  const [addressCount, setAddressCount] = useState(0);
-  const [referralCount, setReferralCount] = useState(0);
-  const [referralCode, setReferralCode] = useState("");
-
-  useEffect(() => {
-    profileApi.getMe().then((p: any) => setProfile(p)).catch(() => {});
-    profileApi.getRewardPoints().then((r) => setPoints(r.balance ?? 0)).catch(() => {});
-    profileApi.getReferralCode().then((r) => r.code && setReferralCode(r.code)).catch(() => {});
-    profileApi.getWishlist().then((rows) => setWishlistCount(rows.length)).catch(() => {});
-    profileApi.getAddresses().then((rows) => setAddressCount(rows.length)).catch(() => {});
-    profileApi.getReferrals().then((res) => {
-      if (res.code) setReferralCode(res.code);
-      setReferralCount(Array.isArray(res.referrals) ? res.referrals.length : 0);
-    }).catch(() => {});
-    const token = localStorage.getItem("p4u_token");
-    const customerId = localStorage.getItem("p4u_customer_id") || resolveCustomerIdFromAccessToken(token) || "";
-    if (customerId) {
-      commerceApi.getOrders(customerId, { limit: 50 }).then((r: any) => setOrderCount(r.data?.length ?? 0)).catch(() => {});
-    }
-  }, []);
-
-  const name = profile?.name || "Profile";
-  const avatar = (profile as any)?.profilePic || (profile as any)?.avatarUrl || profile?.avatar || "";
-  const rows: Array<{ label: string; icon: React.ReactNode; value?: string | number; page?: ActivePage; href?: string; danger?: boolean }> = [
-    { label: "Edit Profile", icon: <IcEdit s={20} />, page: "edit-profile" },
-    { label: "My Orders", icon: <IcPackage s={20} />, value: orderCount, href: "/orders" },
-    { label: "Wishlist", icon: <IcHeart s={20} />, value: wishlistCount, href: "/wishlist" },
-    { label: "Wallet & Points", icon: <IcWallet s={20} />, value: `${points} pts`, page: "reward-points" },
-    { label: "KYC Verification", icon: <IcShield s={20} />, page: "kyc" },
-    { label: "Saved Addresses", icon: <IcMapPin s={20} />, value: addressCount, page: "saved-addresses" },
-    { label: "Referrals", icon: <IcGift s={20} />, value: referralCode || referralCount, page: "refer-earn" },
-    { label: "My Classifieds", icon: <IcNav s={20} />, href: "/classified" },
-    { label: "Support Tickets", icon: <IcFileText s={20} />, page: "support" },
-    { label: "Change Password", icon: <IcShield s={20} />, page: "change-password" },
-    { label: "Settings", icon: <IcSettings s={20} /> },
-    { label: "Logout", icon: <IcLogOut s={20} />, danger: true, page: "logout" },
-  ];
-
-  return (
-    <div className="mx-auto w-full max-w-[750px] py-7">
-      <div className="mb-6 flex items-center justify-between rounded-[16px] bg-white px-6 py-6 shadow-sm ring-1 ring-slate-200">
-        <div className="flex items-center gap-5">
-          {avatar ? (
-            <img src={avatar} alt={name} className="h-16 w-16 rounded-full object-cover" />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-600">{name.charAt(0)}</div>
-          )}
-          <div>
-            <p className="text-[17px] font-bold text-slate-950">{name}</p>
-            {(profile?.phone || profile?.email) && (
-              <p className="mt-1 text-[13px] text-slate-500">{[profile?.phone, profile?.email].filter(Boolean).join(" • ")}</p>
-            )}
-            {profile?.createdAt && (
-              <p className="mt-1 text-[12px] text-slate-500">
-                Member since {new Date(profile.createdAt).toLocaleString("en-IN", { month: "short", year: "numeric" })}
-              </p>
-            )}
-          </div>
-        </div>
-        <button type="button" onClick={() => setActive("edit-profile")} className="rounded-[14px] border border-slate-200 px-5 py-2 text-[13px] font-semibold text-slate-950">Edit</button>
-      </div>
-
-      <div className="mb-6 grid grid-cols-3 gap-4">
-        {[{ label: "Points", value: points }, { label: "Orders", value: orderCount }, { label: "Referrals", value: referralCount }].map((stat) => (
-          <div key={stat.label} className="rounded-[16px] bg-white py-5 text-center shadow-sm ring-1 ring-slate-200">
-            <p className="text-[20px] font-bold text-slate-950 first:text-teal-600">{stat.value}</p>
-            <p className="text-[12px] text-slate-500">{stat.label}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="overflow-hidden rounded-[16px] bg-white shadow-sm ring-1 ring-slate-200">
-        {rows.map((row, index) => (
-          <button
-            key={row.label}
-            type="button"
-            onClick={() => {
-              if (row.href) router.push(row.href);
-              else if (row.page) setActive(row.page);
-            }}
-            className={`flex h-[50px] w-full items-center gap-4 px-5 text-left ${index < rows.length - 1 ? "border-b border-slate-100" : ""} ${row.danger ? "text-red-500" : "text-slate-950"}`}
-          >
-            <span className={row.danger ? "text-red-500" : "text-slate-500"}>{row.icon}</span>
-            <span className="min-w-0 flex-1 text-[14px] font-semibold">{row.label}</span>
-            {row.value !== undefined && (
-              <span className="rounded-full bg-teal-50 px-3 py-1 text-[12px] font-medium text-teal-600">{row.value}</span>
-            )}
-            {!row.danger && <IcChevronR s={18} />}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 type AddressFormState = {
   label: string;
   fullName: string;
@@ -651,6 +423,567 @@ function SavedAddressFormFields({
         />
         Set as default delivery address
       </label>
+    </div>
+  );
+}
+
+const PROFILE_DOB_MAX = "2018-12-31";
+
+function isoToDisplayDob(iso: string): string {
+  if (!iso) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return iso;
+}
+
+function displayDobToIso(display: string): string {
+  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(display.trim());
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(display.trim())) return display.trim();
+  return display.trim();
+}
+
+function computeProfileCompleteness(
+  profile: Partial<UserProfile>,
+  addressCount: number,
+): number {
+  const checks = [
+    Boolean(profile.name?.trim()),
+    Boolean(profile.email?.trim()),
+    Boolean(profile.phone?.trim()),
+    Boolean(profile.dob?.trim()),
+    Boolean(profile.gender?.trim()),
+    Boolean(profile.occupationId || profile.occupation),
+    Boolean(profile.avatar?.trim()),
+    Boolean(profile.bio?.trim()),
+    addressCount > 0,
+    Boolean(
+      profile.kycDocuments?.aadhaar?.status === "submitted" ||
+        profile.kycDocuments?.aadhaar?.status === "verified" ||
+        profile.kycDocuments?.pan?.status === "submitted" ||
+        profile.kycDocuments?.pan?.status === "verified",
+    ),
+  ];
+  const done = checks.filter(Boolean).length;
+  return Math.round((done / checks.length) * 100);
+}
+
+function ProfileAvatar({
+  name,
+  src,
+  size = "lg",
+  onPick,
+  uploading = false,
+}: {
+  name: string;
+  src?: string | null;
+  size?: "md" | "lg";
+  onPick?: () => void;
+  uploading?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  const dim = size === "lg" ? "h-28 w-28 text-4xl" : "h-16 w-16 text-xl";
+  const camDim = size === "lg" ? "h-9 w-9" : "h-7 w-7";
+  const initials = avatarInitialsFromDisplayName(name || "Profile");
+  const showImg = Boolean(src?.trim()) && !failed;
+
+  return (
+    <div className="relative inline-flex">
+      <button
+        type="button"
+        onClick={onPick}
+        disabled={uploading}
+        className={`relative ${dim} overflow-hidden rounded-full ring-4 ring-teal-100 disabled:opacity-60`}
+        aria-label="Change profile photo"
+      >
+        {showImg ? (
+          <img
+            src={src!}
+            alt={name}
+            className="h-full w-full object-cover"
+            onError={() => setFailed(true)}
+          />
+        ) : (
+          <span className={`flex h-full w-full items-center justify-center bg-teal-50 font-bold text-teal-700 ${size === "lg" ? "text-4xl" : "text-xl"}`}>
+            {initials}
+          </span>
+        )}
+      </button>
+      {onPick && (
+        <span className={`absolute bottom-0 right-0 flex ${camDim} items-center justify-center rounded-full bg-teal-600 text-white ring-4 ring-white`}>
+          {uploading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <IcCamera s={size === "lg" ? 16 : 12} />}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ProfileCompletenessCard({
+  percent,
+  onKycClick,
+}: {
+  percent: number;
+  onKycClick?: () => void;
+}) {
+  return (
+    <div className="mb-8 rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-[16px] font-bold text-slate-950">Profile Completeness</p>
+        <p className="text-[16px] font-bold text-teal-600">{percent}%</p>
+      </div>
+      <div className="h-3 overflow-hidden rounded-full bg-teal-50">
+        <div className="h-full rounded-full bg-teal-500 transition-all" style={{ width: `${Math.min(100, Math.max(0, percent))}%` }} />
+      </div>
+      <p className="mt-3 text-[14px] text-slate-500">Complete your profile &amp; KYC for better experience</p>
+      {onKycClick && (
+        <button type="button" onClick={onKycClick} className="mt-2 text-[14px] font-semibold text-teal-600 hover:text-teal-700">
+          Tap to complete KYC verification →
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SimpleRichTextEditor({
+  value,
+  onChange,
+  maxLength = 1000,
+}: {
+  value: string;
+  onChange: (html: string) => void;
+  maxLength?: number;
+}) {
+  const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const ref = useRef<HTMLDivElement>(null);
+  const plainLen = value.replace(/<[^>]+>/g, "").length;
+
+  const exec = (cmd: string) => {
+    document.execCommand(cmd, false);
+    if (ref.current) onChange(ref.current.innerHTML);
+  };
+
+  useEffect(() => {
+    if (mode === "edit" && ref.current && ref.current.innerHTML !== value) {
+      ref.current.innerHTML = value;
+    }
+  }, [mode, value]);
+
+  return (
+    <div className="overflow-hidden rounded-[16px] border border-slate-200 bg-white">
+      <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+        <div className="flex items-center gap-1">
+          {[
+            ["bold", "B"],
+            ["italic", "I"],
+            ["underline", "U"],
+            ["insertUnorderedList", "•"],
+            ["insertOrderedList", "1."],
+          ].map(([cmd, label]) => (
+            <button
+              key={cmd}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => exec(cmd)}
+              className="min-w-[32px] rounded-lg px-2 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 text-slate-500">
+          <button type="button" onClick={() => setMode("edit")} className={`rounded-lg p-1.5 ${mode === "edit" ? "bg-teal-50 text-teal-700" : ""}`} aria-label="Edit"><IcEdit s={16} /></button>
+          <button type="button" onClick={() => setMode("preview")} className={`rounded-lg p-1.5 ${mode === "preview" ? "bg-teal-50 text-teal-700" : ""}`} aria-label="Preview"><IcCheckCircle s={16} /></button>
+        </div>
+      </div>
+      {mode === "edit" ? (
+        <div
+          ref={ref}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={() => {
+            if (!ref.current) return;
+            const html = ref.current.innerHTML;
+            const len = html.replace(/<[^>]+>/g, "").length;
+            if (len <= maxLength) onChange(html);
+            else ref.current.innerHTML = value;
+          }}
+          className="min-h-[120px] px-4 py-3 text-sm text-slate-700 outline-none"
+          data-placeholder="Tell us about yourself (max 1000 chars)"
+        />
+      ) : (
+        <div className="min-h-[120px] px-4 py-3 text-sm text-slate-700 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: value || "<p class='text-slate-400'>Nothing to preview yet.</p>" }} />
+      )}
+      <div className="border-t border-slate-100 px-4 py-2 text-right text-xs text-slate-400">{plainLen}/{maxLength}</div>
+    </div>
+  );
+}
+
+function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc: () => void }) {
+  const avatarRef = useRef<HTMLInputElement>(null);
+  const [form, setForm] = useState({
+    name: "",
+    mobile: "",
+    email: "",
+    dob: "",
+    gender: "",
+    occupationId: "",
+    about: "",
+  });
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [kycDocuments, setKycDocuments] = useState<UserProfile["kycDocuments"]>({});
+  const [occupations, setOccupations] = useState<{ value: string; label: string }[]>([{ value: "", label: "Select occupation" }]);
+  const [addresses, setAddresses] = useState<ProfileAddress[]>([]);
+  const [showAddAddress, setShowAddAddress] = useState(false);
+  const [addrForm, setAddrForm] = useState<AddressFormState>({ ...EMPTY_ADDRESS_FORM });
+  const [addrErrors, setAddrErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const loadAll = useCallback(() => {
+    setLoadingProfile(true);
+    Promise.all([
+      profileApi.getMe(),
+      profileApi.getAddresses(),
+      authApi.listPublicOccupations(),
+    ])
+      .then(([p, addrs, occRes]) => {
+        setForm({
+          name: p.name ?? "",
+          mobile: p.phone ?? "",
+          email: p.email ?? "",
+          dob: p.dob ? isoToDisplayDob(p.dob) : "",
+          gender: p.gender ?? "",
+          occupationId: p.occupationId ?? "",
+          about: p.bio ?? "",
+        });
+        setAvatarUrl(p.avatar ?? null);
+        setKycDocuments(p.kycDocuments ?? {});
+        setAddresses(addrs);
+        const occItems = (occRes?.items ?? []).filter((o) => o.isActive !== false);
+        setOccupations([
+          { value: "", label: "Select occupation" },
+          ...occItems.map((o) => ({ value: o.id, label: o.name })),
+        ]);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingProfile(false));
+  }, []);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  const completeness = computeProfileCompleteness(
+    {
+      name: form.name,
+      email: form.email,
+      phone: form.mobile,
+      dob: form.dob,
+      gender: form.gender,
+      occupationId: form.occupationId,
+      avatar: avatarUrl ?? undefined,
+      bio: form.about,
+      kycDocuments,
+    },
+    addresses.length,
+  );
+
+  const setField = (k: string, v: string) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setErrors((e) => {
+      const n = { ...e };
+      delete n[k];
+      return n;
+    });
+  };
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!form.name.trim()) e.name = "Full name is required";
+    if (!form.mobile.trim()) e.mobile = "Mobile number is required";
+    else if (!/^\d{10}$/.test(form.mobile.trim())) e.mobile = "Must be a valid 10-digit number";
+    if (!form.email.trim()) e.email = "Email address is required";
+    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Enter a valid email address";
+    if (form.dob) {
+      const iso = displayDobToIso(form.dob);
+      if (iso > PROFILE_DOB_MAX) e.dob = "Date of birth must be on or before Dec 31, 2018";
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleAvatarPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setSaveError("Please choose a JPG or PNG image for your profile photo.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setSaveError("Profile photo must be 2MB or smaller.");
+      return;
+    }
+    setPendingAvatarFile(file);
+    setAvatarUrl(URL.createObjectURL(file));
+    setSaveError(null);
+  };
+
+  const saveNewAddress = async () => {
+    const f = { ...addrForm, phone: addrForm.phone.replace(/\D/g, "") };
+    const e = validateAddressForm(f);
+    setAddrErrors(e);
+    if (Object.keys(e).length) return;
+    try {
+      const created = await profileApi.createAddress(formToPayload(f));
+      setAddresses((a) => [created, ...a]);
+      setAddrForm({ ...EMPTY_ADDRESS_FORM });
+      setAddrErrors({});
+      setShowAddAddress(false);
+    } catch {
+      setSaveError("Could not save address. Please try again.");
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+    setSaveError(null);
+    setSaving(true);
+    try {
+      let nextAvatar = avatarUrl;
+      if (pendingAvatarFile) {
+        setUploadingAvatar(true);
+        const uploaded = await socialApi.uploadMedia(pendingAvatarFile);
+        nextAvatar = uploaded.url;
+        setPendingAvatarFile(null);
+        setUploadingAvatar(false);
+      }
+      const selectedOcc = occupations.find((o) => o.value === form.occupationId);
+      await profileApi.updateMe({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.mobile.trim(),
+        dob: form.dob ? displayDobToIso(form.dob) : undefined,
+        gender: form.gender || undefined,
+        occupationId: form.occupationId || undefined,
+        occupation: selectedOcc?.label && form.occupationId ? selectedOcc.label : undefined,
+        bio: form.about,
+        avatar: nextAvatar || undefined,
+      });
+      if (nextAvatar) setAvatarUrl(nextAvatar);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === "object" && "message" in err && typeof (err as Error).message === "string"
+          ? (err as Error).message
+          : "Could not update profile. Check you are logged in and try again.";
+      setSaveError(msg);
+    } finally {
+      setSaving(false);
+      setUploadingAvatar(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto w-full max-w-[905px] py-7">
+      <AccountPageHeader title="Edit Profile" onBack={onBack} />
+      <ProfileCompletenessCard percent={completeness} onKycClick={onOpenKyc} />
+
+      <div className="mb-8 flex justify-center">
+        <ProfileAvatar
+          name={form.name || "Profile"}
+          src={avatarUrl}
+          size="lg"
+          onPick={() => avatarRef.current?.click()}
+          uploading={uploadingAvatar}
+        />
+        <input ref={avatarRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarPick} />
+      </div>
+
+      {loadingProfile && <p className="mb-4 text-sm text-slate-500">Loading your profile…</p>}
+      {saved && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <span className="text-emerald-600"><IcCheckCircle /></span> Profile updated successfully!
+        </div>
+      )}
+      {saveError && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{saveError}</div>
+      )}
+
+      <div className="mb-6 rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <h2 className="mb-5 text-[16px] font-bold text-slate-950">Personal Information</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Input label="Full Name *" placeholder="Enter your name" value={form.name} onChange={(e) => setField("name", e.target.value)} error={errors.name} />
+          <Input label="Email *" placeholder="your@email.com" type="email" value={form.email} onChange={(e) => setField("email", e.target.value)} error={errors.email} />
+          <Input label="Mobile *" placeholder="10-digit number" value={form.mobile} onChange={(e) => setField("mobile", e.target.value.replace(/\D/g, "").slice(0, 10))} error={errors.mobile} />
+          <div>
+            <Input label="Date of Birth *" placeholder="DD-MM-YYYY" value={form.dob} onChange={(e) => setField("dob", e.target.value)} icon={<IcCalendar />} error={errors.dob} />
+            <p className="mt-1 text-[11px] text-slate-400">Date of birth must be on or before Dec 31, 2018</p>
+          </div>
+          <Select label="Gender" value={form.gender} onChange={(e) => setField("gender", e.target.value)} error={errors.gender}
+            options={[{ value: "", label: "Select gender" }, { value: "Male", label: "Male" }, { value: "Female", label: "Female" }, { value: "Other", label: "Other" }]} />
+          <Select label="Occupation" value={form.occupationId} onChange={(e) => setField("occupationId", e.target.value)}
+            options={occupations.length > 1 ? occupations : [{ value: "", label: "Select occupation" }, { value: "artist", label: "Artist" }, { value: "other", label: "Other" }]} />
+        </div>
+      </div>
+
+      <div className="mb-6 rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <h2 className="mb-4 text-[16px] font-bold text-slate-950">About</h2>
+        <SimpleRichTextEditor value={form.about} onChange={(html) => setField("about", html)} maxLength={1000} />
+      </div>
+
+      <div className="mb-8 rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-[16px] font-bold text-slate-950">Saved Addresses</h2>
+          <button type="button" onClick={() => { setShowAddAddress((v) => !v); setAddrErrors({}); }} className="inline-flex items-center gap-2 rounded-[14px] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-teal-600">
+            <IcPlus s={16} /> Add Address
+          </button>
+        </div>
+        {showAddAddress && (
+          <div className="mb-5 space-y-3 rounded-[14px] border border-teal-100 bg-teal-50/40 p-4">
+            <SavedAddressFormFields values={addrForm} errors={addrErrors} onChange={(patch) => { setAddrForm((f) => ({ ...f, ...patch })); setAddrErrors((prev) => { const n = { ...prev }; for (const k of Object.keys(patch)) delete n[k]; return n; }); }} idPrefix="edit-profile" />
+            <div className="flex gap-3">
+              <PrimaryBtn type="button" onClick={saveNewAddress}>Save Address</PrimaryBtn>
+              <GhostBtn type="button" onClick={() => { setShowAddAddress(false); setAddrForm({ ...EMPTY_ADDRESS_FORM }); }}>Cancel</GhostBtn>
+            </div>
+          </div>
+        )}
+        {addresses.length === 0 ? (
+          <p className="py-8 text-center text-sm text-slate-400">No saved addresses.</p>
+        ) : (
+          <div className="space-y-3">
+            {addresses.map((a) => (
+              <div key={String(a.id)} className="rounded-[14px] border border-slate-100 px-4 py-3">
+                <p className="text-sm font-semibold text-slate-900">{a.label || "Address"}{a.isDefault ? <span className="ml-2 text-xs text-teal-600">Default</span> : null}</p>
+                <p className="mt-1 text-sm text-slate-600">{[a.line1, a.line2, a.city, a.state, a.pincode].filter(Boolean).join(", ")}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={loadingProfile || saving || uploadingAvatar}
+        className="flex h-[56px] w-full items-center justify-center gap-3 rounded-[18px] bg-teal-600 text-[16px] font-bold text-white transition-all hover:bg-teal-700 disabled:opacity-60"
+      >
+        <IcCheckCircle s={22} /> {saving ? "Saving…" : "Save Changes"}
+      </button>
+    </div>
+  );
+}
+
+function AccountPageHeader({ title, onBack }: { title: string; onBack?: () => void }) {
+  return (
+    <div className="mb-8 flex items-center gap-8">
+      <button type="button" onClick={onBack ?? (() => window.location.assign("/profile"))} className="rounded-full p-2 text-slate-900 hover:bg-slate-100" aria-label="Go back">
+        <IcChevronL s={24} />
+      </button>
+      <h1 className="text-[24px] font-bold text-slate-950">{title}</h1>
+    </div>
+  );
+}
+
+function PageProfile({ setActive }: { setActive: (p: ActivePage) => void }) {
+  const router = useRouter();
+  const [profile, setProfile] = useState<{ name?: string; phone?: string; email?: string; avatar?: string | null; createdAt?: string | null } | null>(null);
+  const [points, setPoints] = useState(0);
+  const [orderCount, setOrderCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
+  const [addressCount, setAddressCount] = useState(0);
+  const [referralCount, setReferralCount] = useState(0);
+  const [referralCode, setReferralCode] = useState("");
+
+  useEffect(() => {
+    profileApi.getMe().then((p: any) => setProfile(p)).catch(() => {});
+    profileApi.getRewardPoints().then((r) => setPoints(r.balance ?? 0)).catch(() => {});
+    profileApi.getReferralCode().then((r) => r.code && setReferralCode(r.code)).catch(() => {});
+    profileApi.getWishlist().then((rows) => setWishlistCount(rows.length)).catch(() => {});
+    profileApi.getAddresses().then((rows) => setAddressCount(rows.length)).catch(() => {});
+    profileApi.getReferrals().then((res) => {
+      if (res.code) setReferralCode(res.code);
+      setReferralCount(Array.isArray(res.referrals) ? res.referrals.length : 0);
+    }).catch(() => {});
+    const token = localStorage.getItem("p4u_token");
+    const customerId = localStorage.getItem("p4u_customer_id") || resolveCustomerIdFromAccessToken(token) || "";
+    if (customerId) {
+      commerceApi.getOrders(customerId, { limit: 50 }).then((r: any) => setOrderCount(r.data?.length ?? 0)).catch(() => {});
+    }
+  }, []);
+
+  const name = profile?.name || "Profile";
+  const avatar = profile?.avatar || "";
+  const rows: Array<{ label: string; icon: React.ReactNode; value?: string | number; page?: ActivePage; href?: string; danger?: boolean }> = [
+    { label: "Edit Profile", icon: <IcEdit s={20} />, page: "edit-profile" },
+    { label: "My Orders", icon: <IcPackage s={20} />, value: orderCount, href: "/orders" },
+    { label: "Wishlist", icon: <IcHeart s={20} />, value: wishlistCount, href: "/wishlist" },
+    { label: "Wallet & Points", icon: <IcWallet s={20} />, value: `${points} pts`, page: "reward-points" },
+    { label: "KYC Verification", icon: <IcShield s={20} />, page: "kyc" },
+    { label: "Saved Addresses", icon: <IcMapPin s={20} />, value: addressCount, page: "saved-addresses" },
+    { label: "Referrals", icon: <IcGift s={20} />, value: referralCode || referralCount, page: "refer-earn" },
+    { label: "My Classifieds", icon: <IcNav s={20} />, href: "/classified" },
+    { label: "Support Tickets", icon: <IcFileText s={20} />, page: "support" },
+    { label: "Change Password", icon: <IcShield s={20} />, page: "change-password" },
+    { label: "Settings", icon: <IcSettings s={20} /> },
+    { label: "Logout", icon: <IcLogOut s={20} />, danger: true, page: "logout" },
+  ];
+
+  return (
+    <div className="mx-auto w-full max-w-[750px] py-7">
+      <div className="mb-6 flex items-center justify-between rounded-[16px] bg-white px-6 py-6 shadow-sm ring-1 ring-slate-200">
+        <div className="flex items-center gap-5">
+          <ProfileAvatar name={name} src={avatar} size="md" />
+          <div>
+            <p className="text-[17px] font-bold text-slate-950">{name}</p>
+            {(profile?.phone || profile?.email) && (
+              <p className="mt-1 text-[13px] text-slate-500">{[profile?.phone, profile?.email].filter(Boolean).join(" • ")}</p>
+            )}
+            {profile?.createdAt && (
+              <p className="mt-1 text-[12px] text-slate-500">
+                Member since {new Date(profile.createdAt).toLocaleString("en-IN", { month: "short", year: "numeric" })}
+              </p>
+            )}
+          </div>
+        </div>
+        <button type="button" onClick={() => setActive("edit-profile")} className="rounded-[14px] border border-slate-200 px-5 py-2 text-[13px] font-semibold text-slate-950">Edit</button>
+      </div>
+
+      <div className="mb-6 grid grid-cols-3 gap-4">
+        {[{ label: "Points", value: points }, { label: "Orders", value: orderCount }, { label: "Referrals", value: referralCount }].map((stat) => (
+          <div key={stat.label} className="rounded-[16px] bg-white py-5 text-center shadow-sm ring-1 ring-slate-200">
+            <p className="text-[20px] font-bold text-slate-950 first:text-teal-600">{stat.value}</p>
+            <p className="text-[12px] text-slate-500">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="overflow-hidden rounded-[16px] bg-white shadow-sm ring-1 ring-slate-200">
+        {rows.map((row, index) => (
+          <button
+            key={row.label}
+            type="button"
+            onClick={() => {
+              if (row.href) router.push(row.href);
+              else if (row.page) setActive(row.page);
+            }}
+            className={`flex h-[50px] w-full items-center gap-4 px-5 text-left ${index < rows.length - 1 ? "border-b border-slate-100" : ""} ${row.danger ? "text-red-500" : "text-slate-950"}`}
+          >
+            <span className={row.danger ? "text-red-500" : "text-slate-500"}>{row.icon}</span>
+            <span className="min-w-0 flex-1 text-[14px] font-semibold">{row.label}</span>
+            {row.value !== undefined && (
+              <span className="rounded-full bg-teal-50 px-3 py-1 text-[12px] font-medium text-teal-600">{row.value}</span>
+            )}
+            {!row.danger && <IcChevronR s={18} />}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1868,20 +2201,81 @@ function PageAccountPrivacy() {
 }
 
 function PageKycVerification({ onBack }: { onBack: () => void }) {
-  const docs = ["Aadhaar Card", "PAN Card"];
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [addressCount, setAddressCount] = useState(0);
+  const [docs, setDocs] = useState<UserProfile["kycDocuments"]>({});
+  const [busyDoc, setBusyDoc] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const docDefs = [
+    { key: "aadhaar" as const, label: "Aadhaar Card" },
+    { key: "pan" as const, label: "PAN Card" },
+  ];
+
+  useEffect(() => {
+    Promise.all([profileApi.getMe(), profileApi.getAddresses()])
+      .then(([p, addrs]) => {
+        setProfile(p);
+        setDocs(p.kycDocuments ?? {});
+        setAddressCount(addrs.length);
+      })
+      .catch(() => {});
+  }, []);
+
+  const completeness = computeProfileCompleteness(profile ?? {}, addressCount);
+
+  const statusLabel = (key: "aadhaar" | "pan") => {
+    const s = docs?.[key]?.status;
+    if (s === "verified") return { text: "Verified", className: "bg-emerald-50 text-emerald-700" };
+    if (s === "submitted") return { text: "Submitted", className: "bg-amber-50 text-amber-700" };
+    if (s === "rejected") return { text: "Rejected", className: "bg-red-50 text-red-600" };
+    return { text: "Not Submitted", className: "bg-slate-100 text-slate-500" };
+  };
+
+  const submitDocument = async (key: "aadhaar" | "pan", file: File) => {
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Each file must be 2MB or smaller.");
+      return;
+    }
+    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+    if (!allowed.includes(file.type)) {
+      setError("Upload JPG, PNG, or PDF only.");
+      return;
+    }
+    setBusyDoc(key);
+    setError(null);
+    setMessage(null);
+    try {
+      let url = "";
+      if (file.type.startsWith("image/")) {
+        const uploaded = await socialApi.uploadMedia(file);
+        url = uploaded.url;
+      } else {
+        setError("PDF upload is not available yet. Please upload a JPG or PNG photo of your document.");
+        return;
+      }
+      const nextDocs = {
+        ...docs,
+        [key]: { url, status: "submitted" as const, submittedAt: new Date().toISOString() },
+      };
+      await profileApi.updateMe({ kycDocuments: nextDocs });
+      setDocs(nextDocs);
+      setMessage(`${key === "aadhaar" ? "Aadhaar" : "PAN"} document submitted for review.`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+    } finally {
+      setBusyDoc(null);
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-[905px] py-9">
       <AccountPageHeader title="KYC Verification" onBack={onBack} />
-      <div className="mb-8 rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-[16px] font-bold text-slate-950">Profile Completeness</p>
-          <p className="text-[16px] font-bold text-teal-600">30%</p>
-        </div>
-        <div className="h-3 overflow-hidden rounded-full bg-teal-50">
-          <div className="h-full w-[30%] rounded-full bg-teal-500" />
-        </div>
-        <p className="mt-3 text-[14px] text-slate-500">Complete KYC to unlock full access</p>
-      </div>
+      <ProfileCompletenessCard percent={completeness} />
+      {message && <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>}
+      {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>}
       <div className="mb-8 flex gap-5 rounded-[18px] border border-teal-200 bg-teal-50/70 p-7 text-slate-600">
         <span className="text-teal-600"><IcShield s={28} /></span>
         <div>
@@ -1890,23 +2284,49 @@ function PageKycVerification({ onBack }: { onBack: () => void }) {
         </div>
       </div>
       <div className="space-y-5">
-        {docs.map((doc) => (
-          <div key={doc} className="rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-5">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-50 text-slate-500"><IcFileText s={28} /></div>
-                <p className="text-[16px] font-bold text-slate-950">{doc}</p>
+        {docDefs.map((doc) => {
+          const badge = statusLabel(doc.key);
+          return (
+            <div key={doc.key} className="rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-5">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-50 text-slate-500"><IcFileText s={28} /></div>
+                  <div>
+                    <p className="text-[16px] font-bold text-slate-950">{doc.label}</p>
+                    {docs?.[doc.key]?.url && (
+                      <a href={docs[doc.key]!.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-teal-600 hover:underline">View uploaded file</a>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button type="button" onClick={() => fileRefs.current[doc.key]?.click()} className="text-slate-400 hover:text-teal-600" aria-label={`Upload ${doc.label}`}>
+                    <IcUpload s={22} />
+                  </button>
+                  <span className={`rounded-full px-4 py-1 text-[11px] font-bold ${badge.className}`}>{badge.text}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-4">
-                <IcUpload s={22} />
-                <span className="rounded-full bg-slate-100 px-4 py-1 text-[11px] font-bold text-slate-500">Not Submitted</span>
-              </div>
+              <input
+                ref={(el) => { fileRefs.current[doc.key] = el; }}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void submitDocument(doc.key, file);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileRefs.current[doc.key]?.click()}
+                disabled={busyDoc === doc.key}
+                className="h-[52px] w-full rounded-[16px] border border-slate-200 text-[15px] font-bold text-slate-950 disabled:opacity-60"
+              >
+                {busyDoc === doc.key ? "Uploading…" : "Submit Document"}
+              </button>
             </div>
-            <button type="button" className="h-[52px] w-full rounded-[16px] border border-slate-200 text-[15px] font-bold text-slate-950">
-              Submit Document
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -2125,7 +2545,7 @@ const { isLoggedIn } = useAuth();
   const renderPage = (): React.ReactNode => {
     switch (activePage) {
       case "profile": return <PageProfile setActive={setActivePage} />;
-      case "edit-profile": return <PageEditProfile />;
+      case "edit-profile": return <PageEditProfile onBack={() => setActivePage("profile")} onOpenKyc={() => setActivePage("kyc")} />;
       case "saved-addresses": return <PageSavedAddresses />;
       case "select-language": return <PageSelectLanguage />;
       case "notification": return <PageNotification />;

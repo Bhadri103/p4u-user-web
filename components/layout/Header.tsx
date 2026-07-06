@@ -11,17 +11,16 @@ import {
   MapPin, Search, ShoppingCart, User, ChevronDown, Menu, X,
   Navigation, Clock, Package, Heart, Gift,
   Store, LogOut, Wallet, Shield, ChevronRight,
+  ShoppingBag, Megaphone, Wrench, Building2, Newspaper,
 } from "lucide-react";
 import Image from "next/image";
 import logo from "../../images/logo.png";
-import Ind from "../../images/language/Ind.png";
-import classified from "../../images/home-header-icons/classified.png";
-import services from "../../images/home-header-icons/services.png";
-import shop from "../../images/home-header-icons/shop.png";
-import social from "../../images/home-header-icons/social.png";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { avatarLetterFromDisplayName } from "@/lib/resolveCustomerId";
+
+const HEADER_TEAL = "#0a9a9a";
+const SELLER_ORANGE = "#f5a623";
 
 interface HeaderProps {
   onCartOpen?: () => void;
@@ -43,10 +42,11 @@ export default function Header({ onCartOpen }: HeaderProps) {
   const { totalItems, addToCart } = useCart();
 
   const navItems = [
-    { image: shop,       label: "Shop",          href: "/shop"           },
-    { image: services,   label: "Services",       href: "/service"        },
-    { image: social,     label: "Socio",          href: "/socio"          },
-    { image: classified, label: "Classified Ads", href: "/classified" },
+    { icon: ShoppingBag, label: "Shop", href: "/shop" },
+    { icon: Megaphone, label: "Socio", href: "/socio" },
+    { icon: Wrench, label: "Services", href: "/service" },
+    { icon: Building2, label: "Find Home", href: "/find-home", soon: true },
+    { icon: Newspaper, label: "Classified Ads", href: "/classified" },
   ];
 
   const pathname = usePathname();
@@ -136,6 +136,11 @@ export default function Header({ onCartOpen }: HeaderProps) {
     }
   }
 
+  function goVendorRegister() {
+    setIsMobileMenuOpen(false);
+    router.push("/vendor-register");
+  }
+
   function handleLoginClick() {
     if (isLoggedIn) {
       setIsLoginDropdownOpen(prev => !prev);
@@ -179,12 +184,13 @@ export default function Header({ onCartOpen }: HeaderProps) {
     );
   }
 
-  function LoginAvatar() {
+  function LoginAvatar({ compact = false }: { compact?: boolean }) {
     const letter = avatarLetterFromDisplayName(displayName);
+    const dim = compact ? "w-7 h-7 text-xs" : "w-8 h-8 text-xs";
     return (
       <div
-        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-      style={{ background: "#009999" }}
+        className={`${dim} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ring-2 ring-white/30`}
+        style={{ background: "rgba(255,255,255,0.2)" }}
         aria-hidden
       >
         {letter}
@@ -277,40 +283,62 @@ export default function Header({ onCartOpen }: HeaderProps) {
         </div>
       )}
 
-      <header className="w-full bg-white border-b border-gray-200 sticky top-0 z-[1000] shadow-sm pointer-events-auto">
- 
-        <div className="hidden min-[1200px]:block">
-          <div className="max-w-[1400px] mx-auto px-4 xl:px-6 py-3">
-            <div className="flex items-center gap-1.5 xl:gap-3">
+      <header className="w-full sticky top-0 z-[1000] shadow-sm pointer-events-auto">
+
+        {/* ── Row 1: Teal top bar (desktop) ── */}
+        <div className="hidden min-[1200px]:block" style={{ backgroundColor: HEADER_TEAL }}>
+          <div className="max-w-[1400px] mx-auto px-4 xl:px-6 py-2.5">
+            <div className="flex items-center gap-3 xl:gap-4">
 
               <Link href="/" className="flex-shrink-0">
-                <div className="w-16 h-16 xl:w-20 xl:h-20 flex items-center justify-center relative overflow-hidden">
-                  <Image src={logo} alt="P4U" fill className="object-contain p-2" priority />
+                <div className="w-12 h-12 xl:w-14 xl:h-14 flex items-center justify-center relative overflow-hidden rounded-lg bg-[#0c1f1c]">
+                  <Image src={logo} alt="P4U" fill className="object-contain p-1.5" priority />
                 </div>
               </Link>
 
-              <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-xl px-2.5 xl:px-4 py-2.5 w-36 xl:w-52 cursor-pointer hover:border-gray-400 transition-colors flex-shrink-0" onClick={() => setIsLocationModalOpen(true)}>
-                <MapPin className="text-gray-500 w-4 xl:w-5 h-4 xl:h-5 flex-shrink-0" strokeWidth={2} />
-                <span className="text-gray-600 text-xs xl:text-sm truncate">JJ Nagar, Coimbator...</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsLocationModalOpen(true)}
+                className="flex items-center gap-2 rounded-full border border-[#7dd3a8] bg-[#7dd3a8]/20 px-3 xl:px-4 py-2 w-40 xl:w-52 flex-shrink-0 hover:bg-[#7dd3a8]/30 transition-colors"
+              >
+                <MapPin className="w-4 h-4 text-[#fde047] flex-shrink-0" strokeWidth={2.2} fill="#fde047" />
+                <span className="text-white text-xs xl:text-sm truncate font-medium">Asramam, Tamil ...</span>
+              </button>
 
               <div className="flex-1 min-w-0 relative" ref={searchRef}>
-                <div className="flex items-center gap-2 xl:gap-3 bg-white border border-gray-300 rounded-xl px-3 xl:px-4 py-2.5 hover:border-gray-400 transition-colors" style={isSearchOpen ? { borderColor: "#9ca3af", borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : {}}>
-                  <Search className="text-gray-500 w-4 xl:w-5 h-4 xl:h-5 flex-shrink-0" strokeWidth={2} />
-                  <input type="text" placeholder="Search for products..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onFocus={() => setIsSearchOpen(true)} className="bg-transparent outline-none text-gray-700 flex-1 text-xs xl:text-sm placeholder:text-gray-500 w-full min-w-0" />
-                  {searchQuery && <button onClick={() => setSearchQuery("")}><X className="w-4 h-4 text-gray-400 hover:text-gray-600" /></button>}
+                <div
+                  className="flex items-center gap-2 rounded-full px-4 py-2.5 transition-colors"
+                  style={{
+                    backgroundColor: "rgba(255,255,255,0.18)",
+                    ...(isSearchOpen ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : {}),
+                  }}
+                >
+                  <Search className="text-white/80 w-5 h-5 flex-shrink-0" strokeWidth={2} />
+                  <input
+                    type="text"
+                    placeholder='Search for "Electronics"'
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setIsSearchOpen(true)}
+                    className="bg-transparent outline-none text-white flex-1 text-sm placeholder:text-white/70 w-full min-w-0"
+                  />
+                  {searchQuery && (
+                    <button type="button" onClick={() => setSearchQuery("")}>
+                      <X className="w-4 h-4 text-white/70 hover:text-white" />
+                    </button>
+                  )}
                 </div>
                 {isSearchOpen && (
-                  <div className="absolute left-0 right-0 bg-white border border-gray-300 border-t-0 rounded-b-xl shadow-lg z-50">
+                  <div className="absolute left-0 right-0 bg-white border border-gray-200 border-t-0 rounded-b-2xl shadow-lg z-50">
                     <div className="px-4 pt-3 pb-2 flex items-center justify-between">
                       <span className="text-sm font-semibold text-gray-700">Recent Search</span>
-                      <button className="text-xs font-medium text-gray-500 hover:text-gray-700" onClick={() => setIsSearchOpen(false)}>Clear all</button>
+                      <button type="button" className="text-xs font-medium text-gray-500 hover:text-gray-700" onClick={() => setIsSearchOpen(false)}>Clear all</button>
                     </div>
                     <ul className="pb-2">
                       {recentSearches.map((item, i) => (
                         <li key={i} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 cursor-pointer group">
                           <div className="flex items-center gap-3"><Clock className="w-4 h-4 text-gray-400" /><span className="text-sm text-gray-600">{item}</span></div>
-                          <button className="text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3.5 h-3.5" /></button>
+                          <button type="button" className="text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3.5 h-3.5" /></button>
                         </li>
                       ))}
                     </ul>
@@ -318,203 +346,230 @@ export default function Header({ onCartOpen }: HeaderProps) {
                 )}
               </div>
 
-              <button className="bg-white border border-gray-300 text-black px-3 xl:px-6 py-2.5 rounded-xl hover:bg-gray-50 transition-colors whitespace-nowrap text-xs xl:text-sm flex-shrink-0">
+              <button
+                type="button"
+                onClick={goVendorRegister}
+                className="rounded-full px-5 xl:px-6 py-2.5 text-sm font-bold text-black whitespace-nowrap flex-shrink-0 hover:brightness-105 transition-all"
+                style={{ backgroundColor: SELLER_ORANGE }}
+              >
                 Become a Seller
               </button>
 
-              <div className="flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-4 py-2 border border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors flex-shrink-0">
-                <div className="w-5 xl:w-6 h-3 xl:h-4 relative"><Image src={Ind} alt="India Flag" fill className="object-contain rounded-sm" /></div>
-                <span className="text-xs xl:text-sm text-black">ENG</span>
-                <ChevronDown className="w-3 xl:w-4 h-3 xl:h-4 text-black" strokeWidth={2} />
-              </div>
- 
               <div
                 id="login-btn"
-                className="relative flex-shrink-0 flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-4 py-2.5 border border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors select-none"
+                className="relative flex-shrink-0 flex items-center gap-2 cursor-pointer select-none text-white"
                 onClick={handleLoginClick}
               >
                 {isLoading ? (
-                  <User className="w-4 xl:w-5 h-4 xl:h-5 text-black animate-pulse" strokeWidth={2} />
+                  <User className="w-5 h-5 animate-pulse" strokeWidth={2} />
                 ) : isLoggedIn ? (
                   <>
-                    <LoginAvatar />
-                    <span className="text-xs xl:text-sm text-black hidden xl:inline max-w-[160px] truncate" title={displayName}>
+                    <User className="w-5 h-5" strokeWidth={2} />
+                    <span className="text-sm font-medium max-w-[140px] truncate" title={displayName}>
                       {displayName}
                     </span>
-                    <ChevronDown className="w-3 xl:w-4 h-3 xl:h-4 text-black transition-transform" strokeWidth={2} style={{ transform: isLoginDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
+                    <ChevronDown
+                      className="w-4 h-4 transition-transform"
+                      strokeWidth={2.5}
+                      style={{ transform: isLoginDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                    />
                   </>
                 ) : (
                   <>
-                    <User className="w-4 xl:w-5 h-4 xl:h-5 text-black" strokeWidth={2} />
-                    <span className="text-xs xl:text-sm text-black">Login</span>
+                    <User className="w-5 h-5" strokeWidth={2} />
+                    <span className="text-sm font-medium">Login</span>
+                    <ChevronDown className="w-4 h-4" strokeWidth={2.5} />
                   </>
                 )}
               </div>
- 
-              <div onClick={e => { e.preventDefault(); e.stopPropagation(); handleCartClick(); }} className="flex items-center gap-1.5 xl:gap-2 px-2.5 xl:px-4 py-2.5 border border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors relative flex-shrink-0">
-                <div className="relative">
-                  <ShoppingCart className="w-4 xl:w-5 h-4 xl:h-5 text-black" strokeWidth={2} />
-                  <CartBadge size="lg" />
-                </div>
-                <span className="text-xs xl:text-sm text-black">Cart</span>
-              </div>
+
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCartClick(); }}
+                className="relative flex-shrink-0 p-1 text-white hover:opacity-90 transition-opacity"
+                aria-label="Cart"
+              >
+                <ShoppingCart className="w-6 h-6" strokeWidth={2} />
+                <CartBadge size="lg" />
+              </button>
             </div>
           </div>
         </div>
  
-        <div className="hidden md:block min-[1200px]:hidden">
+        {/* ── Row 1: Teal top bar (tablet) ── */}
+        <div className="hidden md:block min-[1200px]:hidden" style={{ backgroundColor: HEADER_TEAL }}>
           <div className="px-3 sm:px-4 py-2.5">
             <div className="flex items-center justify-between gap-2">
               <Link href="/" className="flex-shrink-0">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center relative overflow-hidden">
-                  <Image src={logo} alt="P4U" fill className="object-contain p-2" priority />
+                <div className="w-11 h-11 flex items-center justify-center relative overflow-hidden rounded-lg bg-[#0c1f1c]">
+                  <Image src={logo} alt="P4U" fill className="object-contain p-1.5" priority />
                 </div>
               </Link>
               <div className="flex-[8] mx-1 relative" ref={searchRef}>
-                <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-xl px-3 py-2 hover:border-gray-400 transition-colors">
-                  <Search className="text-gray-500 w-4 h-4 flex-shrink-0" strokeWidth={2} />
-                  <input type="text" placeholder="Search products, sellers..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onFocus={() => setIsSearchOpen(true)} className="bg-transparent outline-none text-gray-700 flex-1 text-sm placeholder:text-gray-500 w-full" />
+                <div className="flex items-center gap-2 rounded-full px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.18)" }}>
+                  <Search className="text-white/80 w-4 h-4 flex-shrink-0" strokeWidth={2} />
+                  <input
+                    type="text"
+                    placeholder='Search for "Electronics"'
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setIsSearchOpen(true)}
+                    className="bg-transparent outline-none text-white flex-1 text-sm placeholder:text-white/70 w-full"
+                  />
                 </div>
                 {isSearchOpen && (
-                  <div className="absolute left-0 right-0 bg-white border border-gray-300 border-t-0 rounded-b-xl shadow-lg z-50">
+                  <div className="absolute left-0 right-0 bg-white border border-gray-200 border-t-0 rounded-b-2xl shadow-lg z-50">
                     <div className="px-4 pt-3 pb-2 flex items-center justify-between">
                       <span className="text-sm font-semibold text-gray-700">Recent Search</span>
-                      <button className="text-xs text-blue-500 hover:text-blue-700 font-medium">Clear all</button>
+                      <button type="button" className="text-xs text-gray-500 font-medium">Clear all</button>
                     </div>
                     <ul className="pb-2">
                       {recentSearches.map((item, i) => (
                         <li key={i} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 cursor-pointer group">
                           <div className="flex items-center gap-3"><Clock className="w-4 h-4 text-gray-400" /><span className="text-sm text-gray-600">{item}</span></div>
-                          <button className="text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3.5 h-3.5" /></button>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <div id="login-btn" className="flex items-center px-2.5 py-2.5 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors" onClick={handleLoginClick}>
-                  {isLoggedIn ? <LoginAvatar /> : <User className="w-5 h-5 text-black" strokeWidth={2} />}
+              <div className="flex items-center gap-1 flex-shrink-0 text-white">
+                <div id="login-btn" className="flex items-center p-2 cursor-pointer" onClick={handleLoginClick}>
+                  {isLoggedIn ? <LoginAvatar compact /> : <User className="w-5 h-5" strokeWidth={2} />}
                 </div>
-                <div onClick={e => { e.preventDefault(); e.stopPropagation(); handleCartClick(); }} className="flex items-center px-2.5 py-2.5 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors relative">
-                  <div className="relative"><ShoppingCart className="w-5 h-5 text-black" strokeWidth={2} /><CartBadge size="lg" /></div>
-                </div>
-                <button className="p-2.5 hover:bg-gray-50 rounded-lg transition-colors" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-                  {isMobileMenuOpen ? <X className="w-5 h-5 text-black" strokeWidth={2} /> : <Menu className="w-5 h-5 text-black" strokeWidth={2} />}
+                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCartClick(); }} className="relative p-2">
+                  <ShoppingCart className="w-5 h-5" strokeWidth={2} />
+                  <CartBadge size="lg" />
+                </button>
+                <button type="button" className="p-2" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+                  {isMobileMenuOpen ? <X className="w-5 h-5" strokeWidth={2} /> : <Menu className="w-5 h-5" strokeWidth={2} />}
                 </button>
               </div>
             </div>
           </div>
           {isMobileMenuOpen && (
-            <div className="absolute left-0 right-0 bg-white border-t border-b border-gray-200 shadow-lg z-40">
+            <div className="bg-white border-t border-white/20 shadow-lg">
               <nav className="flex flex-col px-4 py-3 space-y-2">
-                <button className="text-left text-sm w-full py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-300 flex items-center justify-between">Become a Seller</button>
-                <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                  <div className="w-6 h-4 relative"><Image src={Ind} alt="India Flag" fill className="object-contain rounded-sm" /></div>
-                  <span className="text-sm text-black">ENG</span>
-                  <ChevronDown className="w-4 h-4 text-black" strokeWidth={2} />
-                </div>
-                <button className="text-left text-sm w-full py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-300 flex items-center justify-between" onClick={() => setIsLocationModalOpen(true)}>
-                  <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-gray-600" strokeWidth={2} /><span>JJ Nagar, Coimbatore...</span></div>
-                  <ChevronRight className="w-4 h-4 text-black" strokeWidth={2} />
+                <button
+                  type="button"
+                  onClick={goVendorRegister}
+                  className="text-left text-sm w-full py-3 px-4 rounded-full font-bold text-black flex items-center justify-center"
+                  style={{ backgroundColor: SELLER_ORANGE }}
+                >
+                  Become a Seller
+                </button>
+                <button type="button" className="text-left text-sm w-full py-3 px-4 rounded-xl border border-gray-200 flex items-center justify-between" onClick={() => setIsLocationModalOpen(true)}>
+                  <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-[#0a9a9a]" strokeWidth={2} /><span>Asramam, Tamil ...</span></div>
+                  <ChevronRight className="w-4 h-4" strokeWidth={2} />
                 </button>
               </nav>
             </div>
           )}
         </div>
- 
-        <div className="block md:hidden">
-          <div className="px-3 sm:px-4 py-2.5">
+
+        {/* ── Row 1: Teal top bar (mobile) ── */}
+        <div className="block md:hidden" style={{ backgroundColor: HEADER_TEAL }}>
+          <div className="px-3 py-2.5">
             <div className="flex items-center justify-between gap-2">
               <Link href="/" className="flex-shrink-0">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center relative overflow-hidden">
-                  <Image src={logo} alt="P4U" fill className="object-contain p-2" priority />
+                <div className="w-10 h-10 flex items-center justify-center relative overflow-hidden rounded-lg bg-[#0c1f1c]">
+                  <Image src={logo} alt="P4U" fill className="object-contain p-1" priority />
                 </div>
               </Link>
-              <div className="flex items-center px-2.5 py-2.5 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors" onClick={() => setIsLocationModalOpen(true)}>
-                <MapPin className="w-5 h-5 text-gray-600" strokeWidth={2} />
+              <button type="button" className="p-2 text-white" onClick={() => setIsLocationModalOpen(true)}>
+                <MapPin className="w-5 h-5" strokeWidth={2} />
+              </button>
+              <div className="flex-[8] relative" ref={searchRef}>
+                <div className="flex items-center gap-2 rounded-full px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.18)" }}>
+                  <Search className="text-white/80 w-4 h-4 flex-shrink-0" strokeWidth={2} />
+                  <input
+                    type="text"
+                    placeholder='Search...'
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setIsSearchOpen(true)}
+                    className="bg-transparent outline-none text-white flex-1 text-sm placeholder:text-white/70 w-full"
+                  />
+                </div>
               </div>
-              <div className="flex-[8] mx-1 relative" ref={searchRef}>
-                <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-xl px-3 py-2 hover:border-gray-400 transition-colors">
-                  <Search className="text-gray-500 w-4 h-4 flex-shrink-0" strokeWidth={2} />
-                  <input type="text" placeholder="Search products..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onFocus={() => setIsSearchOpen(true)} className="bg-transparent outline-none text-gray-700 flex-1 text-sm placeholder:text-gray-500 w-full" />
+              <div className="flex items-center gap-0.5 flex-shrink-0 text-white">
+                <div id="login-btn" className="p-2 cursor-pointer" onClick={handleLoginClick}>
+                  {isLoggedIn ? <LoginAvatar compact /> : <User className="w-5 h-5" strokeWidth={2} />}
                 </div>
-                {isSearchOpen && (
-                  <div className="absolute left-0 right-0 bg-white border border-gray-300 border-t-0 rounded-b-xl shadow-lg z-50">
-                    <div className="px-4 pt-3 pb-2 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-700">Recent Search</span>
-                      <button className="text-xs text-blue-500 font-medium">Clear all</button>
-                    </div>
-                    <ul className="pb-2">
-                      {recentSearches.map((item, i) => (
-                        <li key={i} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer">
-                          <Clock className="w-4 h-4 text-gray-400" /><span className="text-sm text-gray-600">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <div id="login-btn" className="flex items-center px-2.5 py-2.5 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors" onClick={handleLoginClick}>
-                  {isLoggedIn ? <LoginAvatar /> : <User className="w-5 h-5 text-black" strokeWidth={2} />}
-                </div>
-                <div onClick={e => { e.preventDefault(); e.stopPropagation(); handleCartClick(); }} className="flex items-center px-2.5 py-2.5 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors relative">
-                  <div className="relative"><ShoppingCart className="w-5 h-5 text-black" strokeWidth={2} /><CartBadge size="lg" /></div>
-                </div>
-                <button className="p-2.5 hover:bg-gray-50 rounded-lg transition-colors" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-                  {isMobileMenuOpen ? <X className="w-5 h-5 text-black" strokeWidth={2} /> : <Menu className="w-5 h-5 text-black" strokeWidth={2} />}
+                <button type="button" onClick={(e) => { e.preventDefault(); handleCartClick(); }} className="relative p-2">
+                  <ShoppingCart className="w-5 h-5" strokeWidth={2} />
+                  <CartBadge size="lg" />
+                </button>
+                <button type="button" className="p-2" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+                  {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                 </button>
               </div>
             </div>
           </div>
           {isMobileMenuOpen && (
-            <div className="absolute left-0 right-0 bg-white border-t border-b border-gray-200 shadow-lg z-40">
+            <div className="bg-white border-t border-white/20 shadow-lg">
               <nav className="flex flex-col px-4 py-3 space-y-2">
-                <button className="text-left text-sm w-full py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-300 flex items-center justify-between">Become a Seller</button>
-                <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                  <div className="w-6 h-4 relative"><Image src={Ind} alt="India Flag" fill className="object-contain rounded-sm" /></div>
-                  <span className="text-sm text-black">ENG</span>
-                  <ChevronDown className="w-4 h-4 text-black" strokeWidth={2} />
-                </div>
                 <button
-                  className="text-left text-sm w-full py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-300 flex items-center justify-between"
+                  type="button"
+                  onClick={goVendorRegister}
+                  className="w-full py-3 px-4 rounded-full font-bold text-black text-sm"
+                  style={{ backgroundColor: SELLER_ORANGE }}
+                >
+                  Become a Seller
+                </button>
+                <button
+                  type="button"
+                  className="text-left text-sm w-full py-3 px-4 rounded-xl border border-gray-200 flex items-center justify-between"
                   onClick={() => { setIsMobileMenuOpen(false); if (isLoggedIn) { setIsLoginDropdownOpen(true); } else { setIsAuthOpen(true); } }}
                 >
                   <div className="flex items-center gap-2">
                     {isLoggedIn ? (
-                      <><LoginAvatar /><span className="truncate max-w-[160px] text-left" title={displayName}>{displayName}</span></>
+                      <><LoginAvatar compact /><span className="truncate max-w-[160px]">{displayName}</span></>
                     ) : (
-                      <><User className="w-4 h-4 text-black" strokeWidth={2} /><span>Login / Sign Up</span></>
+                      <><User className="w-4 h-4" strokeWidth={2} /><span>Login / Sign Up</span></>
                     )}
                   </div>
-                  <ChevronRight className="w-4 h-4 text-black" strokeWidth={2} />
+                  <ChevronRight className="w-4 h-4" strokeWidth={2} />
                 </button>
               </nav>
             </div>
           )}
         </div>
  
-<nav className="w-full relative z-[1001] pointer-events-auto" style={{ background: "#E8F6F6" }}>
+        {/* ── Row 2: Category navigation (white) ── */}
+        <nav className="w-full bg-white border-b border-gray-100 relative z-[1001] pointer-events-auto">
           <div className="max-w-[1400px] mx-auto px-4 xl:px-6">
             <div className="hidden min-[1200px]:block py-3">
-              <div className="flex justify-between gap-4">
-                {navItems.map(({ image, label, href }) => {
+              <div className="flex items-center justify-between gap-3">
+                {navItems.map(({ icon: Icon, label, href, soon }) => {
                   const active = isActive(href);
-                  return (
-                    <Link key={label} href={href}
-                      className="flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-full whitespace-nowrap transition-all duration-200"
-                    style={{
-backgroundColor: active ? "#009999" : "#ffffff",
-  border: "none",
-  color: "#009999"
-}}
+                  if (soon) {
+                    return (
+                      <div
+                        key={label}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap border border-[#0a9a9a] bg-white text-[#0a9a9a] cursor-default"
                       >
-                      {image && <div className="w-5 h-5 relative flex-shrink-0"><Image src={image} alt={label} fill className="object-contain" /></div>}
-              <span className="font-medium text-base" style={{ color: active ? "#ffffff" : "#009999" }}>
-  {label}
-</span>
-                      {active && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-white inline-block" />}
+                        <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
+                        <span className="font-medium text-base">{label}</span>
+                        <span className="ml-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-white" style={{ backgroundColor: SELLER_ORANGE }}>
+                          Soon
+                        </span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <Link
+                      key={label}
+                      href={href}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap transition-all duration-200 font-medium text-base"
+                      style={
+                        active
+                          ? { backgroundColor: HEADER_TEAL, color: "#ffffff", border: `1.5px solid ${HEADER_TEAL}` }
+                          : { backgroundColor: "#ffffff", color: HEADER_TEAL, border: `1.5px solid ${HEADER_TEAL}` }
+                      }
+                    >
+                      <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
+                      <span>{label}</span>
                     </Link>
                   );
                 })}
@@ -522,22 +577,34 @@ backgroundColor: active ? "#009999" : "#ffffff",
             </div>
             <div className="min-[1200px]:hidden py-2.5 overflow-x-auto" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
               <style>{`div::-webkit-scrollbar { display: none; }`}</style>
-              <div className="flex gap-3 px-2">
-                {navItems.map(({ image, label, href }) => {
+              <div className="flex gap-2.5 px-1">
+                {navItems.map(({ icon: Icon, label, href, soon }) => {
                   const active = isActive(href);
+                  if (soon) {
+                    return (
+                      <div
+                        key={label}
+                        className="flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap flex-shrink-0 border border-[#0a9a9a] bg-white text-[#0a9a9a]"
+                      >
+                        <Icon className="w-4 h-4" strokeWidth={2} />
+                        <span className="font-medium text-sm">{label}</span>
+                        <span className="rounded px-1 py-0.5 text-[9px] font-bold uppercase text-white" style={{ backgroundColor: SELLER_ORANGE }}>Soon</span>
+                      </div>
+                    );
+                  }
                   return (
-                    <Link key={label} href={href}
-                      className="flex items-center justify-center gap-2 px-5 py-2 rounded-full whitespace-nowrap flex-shrink-0 transition-all duration-200"
-                      style={{ border: active ? "1.5px solid #ffffff" : "1.5px solid rgba(255,255,255,0.45)", backgroundColor: active ? "rgba(255,255,255,0.15)" : "transparent" }}
-                     onMouseEnter={(e) => {
-  if (!active) e.currentTarget.style.backgroundColor = "#E8F6F6";
-}}
-onMouseLeave={(e) => {
-  if (!active) e.currentTarget.style.backgroundColor = "#ffffff";
-}}    >
-                      {image && <div className="w-4 h-4 relative flex-shrink-0"><Image src={image} alt={label} fill className="object-contain" /></div>}
-                      <span className="font-medium text-sm text-white">{label}</span>
-                      {active && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-white inline-block" />}
+                    <Link
+                      key={label}
+                      href={href}
+                      className="flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap flex-shrink-0 font-medium text-sm transition-all"
+                      style={
+                        active
+                          ? { backgroundColor: HEADER_TEAL, color: "#fff", border: `1.5px solid ${HEADER_TEAL}` }
+                          : { backgroundColor: "#fff", color: HEADER_TEAL, border: `1.5px solid ${HEADER_TEAL}` }
+                      }
+                    >
+                      <Icon className="w-4 h-4" strokeWidth={2} />
+                      <span>{label}</span>
                     </Link>
                   );
                 })}
