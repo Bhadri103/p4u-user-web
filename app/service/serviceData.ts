@@ -58,10 +58,16 @@ export interface Seller {
   provider: string;
   description: string;
   rating: number;
+  reviews?: number;
   price: number;
+  originalPrice?: number;
+  offerPercent?: number;
   duration: string;
   distance: string;
+  city?: string;
   category: string;
+  available?: boolean;
+  isNew?: boolean;
   badge: Badge | null;
   hasOffer: boolean;
   vendorId: string;

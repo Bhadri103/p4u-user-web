@@ -1,193 +1,83 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import {
-  Star, Clock, ChevronLeft, ChevronRight, Search, X,
-  ShoppingBag, Filter, Tag,
-  ArrowUp,
-  ArrowDown,
-  Package,
+  Star, ChevronRight, X, SlidersHorizontal,
+  LayoutGrid, List as ListIcon, ShoppingCart, Zap, Heart,
+  Package, Images, Loader2, Tag,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {
-  TEAL_GRADIENT,
-  ITEMS_PER_PAGE,
-} from "./constants";
 import { catalogApi, type Category } from "@/lib/api/catalog";
-import { Loader2 } from "lucide-react";
 import { resolveCatalogUnitPrice } from "@/lib/catalog/resolvePrice";
 import { pickCategoryImage, resolveMediaUrl } from "@/lib/media";
+import { useCart } from "@/providers/CartContext";
+import { profileApi } from "@/lib/api/profile";
 
-const SHOP_CARD_PLACEHOLDER =
-  "https://placehold.co/600x400/f3f4f6/64748b?text=Shop";
- 
+const SHOP_CARD_PLACEHOLDER = "https://placehold.co/600x400/f3f4f6/64748b?text=P4U";
+const TEAL = "#009999";
+const BUY_GRADIENT = "linear-gradient(90deg,#0AA79E 0%,#12b3a6 45%,#F5A623 100%)";
 
 type ShopItem = {
-  id: string | number
-  title: string
-  image: string
-  distance: string
-  rating: number
-  price: number
-  duration: string
-  provider: string
-  number: string
-  pts: number
-  vendorId: string
-  category: string
-  badge?: {
-    label: string
-    bg: string
-  } | null
-}
-
-function CardImage({ item }: { item: ShopItem }) {
-  const src =
-    typeof item.image === "string" && item.image.trim() !== ""
-      ? item.image
-      : SHOP_CARD_PLACEHOLDER;
-  return (
-    <div className="relative h-[150px] overflow-hidden bg-gray-100 group">
-      <Image
-        src={src}
-        alt={item.title}
-        fill
-        className="object-cover transition-transform duration-500 group-hover:scale-105"
-        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-      />
-
-      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-
-      {item.badge && (
-        <div
-          className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full text-white text-[10px] font-bold shadow-lg"
-          style={{ background: item.badge.bg }}
-        >
-          {item.badge.label}
-        </div>
-      )}
-    </div>
-  );
-}
- 
-
-function ProductBrowseCard({ item, onVendorSelect }: { item: ShopItem; onVendorSelect?: (vendorId: string) => void }) {
-  const router = useRouter();
-  const vid = String(item.vendorId || "").trim();
-  const canOpen = Boolean(vid && item.id);
-  const pid = String(item.id ?? "").trim();
-  return (
-    <div
-      className={`bg-white rounded-2xl overflow-hidden shadow-md transition-all duration-300 flex flex-col border border-gray-100 ${
-        canOpen ? "hover:shadow-xl hover:-translate-y-0.5 cursor-pointer" : "opacity-90 cursor-not-allowed"
-      }`}
-      onClick={() => {
-        if (!canOpen) return;
-        if (onVendorSelect) onVendorSelect(vid);
-        else {
-          router.push(`/shop/${vid}/${item.id}`);
-        }
-      }}
-      onMouseEnter={() => {
-        if (!canOpen) return;
-        if (onVendorSelect) {
-          router.prefetch(`/shop/${vid}`);
-          void Promise.all([
-            catalogApi.prefetchVendor(vid),
-            catalogApi.prefetchVendorProducts(vid, { limit: 50, offset: 0 }),
-          ]);
-          return;
-        }
-        if (pid) {
-          router.prefetch(`/shop/${vid}/${pid}`);
-          void catalogApi.prefetchProduct(pid);
-        }
-      }}
-    >
-      <CardImage item={item} />
-      <div className="p-3.5 flex flex-col flex-1">
-        <div className="flex items-start justify-between mb-1.5">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-bold text-gray-900 leading-tight truncate">{item.title}</h3>
-            <p className="text-[10px] text-gray-400 mt-0.5">{item.number}</p>
-          </div>
-          <div className="flex items-center gap-0.5 ml-2 shrink-0 bg-amber-50 px-1.5 py-0.5 rounded-full">
-            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-            <span className="text-xs font-bold text-amber-600">{item.rating}</span>
-          </div>
-        </div>
-        <p className="text-xs text-gray-500 mb-2.5 truncate">{item.provider}</p>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="flex items-center gap-1">
-            <ShoppingBag className="w-3 h-3 text-emerald-600" />
-            <span className="text-xs font-semibold text-gray-700">₹{item.price}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-            <span className="text-xs font-semibold text-amber-600">{item.pts} pts</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <Clock className="w-3 h-3 text-blue-500 shrink-0" />
-          <span className="text-xs text-gray-500">{item.duration}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type CategoryRailProps = {
-  categories: Category[];
-  selectedId: string;
-  allLabel: string;
-  onSelect: (categoryId: string) => void;
-  showAll?: boolean;
+  id: string | number;
+  title: string;
+  image: string;
+  price: number;
+  vendor: string;
+  vendorId: string;
+  rating: number;
+  reviews: number;
+  imageCount: number;
 };
 
-function CategoryThumb({
-  label,
-  image,
-  active,
-  onClick,
-  isAll = false,
+const SORT_OPTIONS = [
+  { value: "newest", label: "Newest First" },
+  { value: "low", label: "Price: Low to High" },
+  { value: "high", label: "Price: High to Low" },
+  { value: "popularity", label: "Popularity" },
+] as const;
+
+function formatInr(n: number): string {
+  return `₹${(Number(n) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Category / subcategory circle rail                                 */
+/* ------------------------------------------------------------------ */
+
+function CircleThumb({
+  label, image, active, onClick, isAll = false, size = 64,
 }: {
-  label: string;
-  image: string | null;
-  active: boolean;
-  onClick: () => void;
-  isAll?: boolean;
+  label: string; image: string | null; active: boolean; onClick: () => void; isAll?: boolean; size?: number;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={label}
-      className="group flex w-[78px] shrink-0 flex-col items-center gap-2 bg-transparent p-0 text-center outline-none"
+      className="group flex shrink-0 flex-col items-center gap-1.5 bg-transparent p-0 text-center outline-none"
+      style={{ width: size + 14 }}
     >
       <span
-        className={`flex h-[78px] w-[78px] items-center justify-center overflow-hidden rounded-[21px] border-2 bg-white transition-all ${
+        className={`flex items-center justify-center overflow-hidden rounded-full border-2 bg-white transition-all ${
           active
-            ? "border-[#009999] shadow-[0_8px_18px_rgba(0,153,153,0.14)]"
-            : "border-slate-200 shadow-sm group-hover:border-[#88d3d1]"
+            ? "border-[#009999] shadow-[0_6px_16px_rgba(0,153,153,0.18)]"
+            : "border-slate-200 group-hover:border-[#7fd0ce]"
         }`}
+        style={{ height: size, width: size }}
       >
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={image} alt="" className="h-[56px] w-[56px] rounded-full object-cover" />
+          <img src={image} alt="" className="h-full w-full object-cover" />
         ) : (
-          <span
-            className={`flex h-[44px] w-[44px] items-center justify-center rounded-full ${
-              isAll ? "bg-[#f3efe7] text-[#b3794a]" : "bg-slate-100 text-slate-400"
-            }`}
-          >
-            {isAll ? <Package className="h-6 w-6" /> : <ShoppingBag className="h-6 w-6" />}
+          <span className={`flex h-full w-full items-center justify-center ${isAll ? "bg-[#f3efe7] text-[#b3794a]" : "bg-slate-100 text-slate-400"}`}>
+            <Package className="h-6 w-6" />
           </span>
         )}
       </span>
       <span
         className={`block w-full truncate text-[11px] leading-tight ${
-          active ? "font-semibold text-[#009999]" : "font-medium text-slate-700"
+          active ? "font-semibold text-[#009999]" : "font-medium text-slate-600"
         }`}
       >
         {label}
@@ -196,478 +86,465 @@ function CategoryThumb({
   );
 }
 
-function CategoryRail({ categories, selectedId, allLabel, onSelect, showAll = true }: CategoryRailProps) {
+function CircleRail({
+  categories, selectedId, onSelect, showAll = true, allLabel = "All", size = 64,
+}: {
+  categories: Category[]; selectedId: string; onSelect: (id: string) => void;
+  showAll?: boolean; allLabel?: string; size?: number;
+}) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const scrollBy = (dir: 1 | -1) => scroller.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
   return (
     <div className="relative">
-      <div className="shop-category-rail flex gap-5 overflow-x-auto pb-2 pr-14">
+      <div ref={scroller} className="shop-category-rail flex gap-4 overflow-x-auto pb-1 pr-12">
         {showAll && (
-          <CategoryThumb
-            label={allLabel}
-            image={null}
-            active={!selectedId}
-            isAll
-            onClick={() => onSelect("")}
-          />
+          <CircleThumb label={allLabel} image={null} active={!selectedId} isAll size={size} onClick={() => onSelect("")} />
         )}
-        {categories.map((category) => (
-          <CategoryThumb
-            key={category.id}
-            label={category.name}
-            image={pickCategoryImage(category)}
-            active={selectedId === category.id}
-            onClick={() => onSelect(category.id)}
+        {categories.map((c) => (
+          <CircleThumb
+            key={c.id}
+            label={c.name}
+            image={pickCategoryImage(c)}
+            active={selectedId === c.id}
+            size={size}
+            onClick={() => onSelect(c.id)}
           />
         ))}
       </div>
-      <div className="pointer-events-none absolute right-0 top-0 flex h-[82px] w-16 items-center justify-end bg-gradient-to-l from-[#f8fafc] via-[#f8fafc]/90 to-transparent">
-        <span className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-md">
-          <ChevronRight className="h-5 w-5" />
+      <button
+        type="button"
+        onClick={() => scrollBy(1)}
+        className="absolute right-0 top-[calc(50%-14px)] flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-md"
+        aria-label="Scroll categories"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Product card                                                       */
+/* ------------------------------------------------------------------ */
+
+function ProductCard({
+  item, wished, onOpen, onCart, onBuy, onWish, view,
+}: {
+  item: ShopItem; wished: boolean; view: "grid" | "list";
+  onOpen: () => void; onCart: () => void; onBuy: () => void; onWish: () => void;
+}) {
+  const src = item.image && item.image.trim() ? item.image : SHOP_CARD_PLACEHOLDER;
+
+  const ImageBox = (
+    <div className={`relative overflow-hidden bg-gray-100 ${view === "list" ? "h-full w-full" : "aspect-[4/3]"}`}>
+      <Image
+        src={src}
+        alt={item.title}
+        fill
+        className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+      />
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onWish(); }}
+        className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur transition hover:bg-white"
+        aria-label="Wishlist"
+      >
+        <Heart className={`h-4 w-4 ${wished ? "fill-rose-500 text-rose-500" : "text-slate-500"}`} />
+      </button>
+      {item.imageCount > 1 && (
+        <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          <Images className="h-3 w-3" /> {item.imageCount}
         </span>
-      </div>
-    </div>
-  );
-}
- 
-
-type PaginationProps = {
-  current: number
-  total: number
-  onChange: (page: number) => void
-}
-
-function Pagination({ current, total, onChange }: PaginationProps) {
-
-
-  const getPages = () => {
-    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-    if (current <= 4) return [1, 2, 3, 4, 5, "...", total];
-    if (current >= total - 3) return [1, "...", total - 4, total - 3, total - 2, total - 1, total];
-    return [1, "...", current - 1, current, current + 1, "...", total];
-  };
-
-  return (
-    <div className="flex items-center justify-center gap-1.5 mt-8 mb-4">
-      <button
-        onClick={() => onChange(current - 1)}
-        disabled={current === 1}
-        className="p-2 rounded-xl bg-white shadow-sm border border-gray-200 disabled:opacity-30 hover:border-emerald-400 transition"
-      >
-        <ChevronLeft className="w-4 h-4 text-gray-600" />
-      </button>
-      {getPages().map((p, idx) =>
-        p === "..." ? (
-          <span key={`dots-${idx}`} className="w-8 text-center text-gray-400 text-sm">…</span>
-        ) : (
-          <button
-            key={p}
-            onClick={() => typeof p === "number" && onChange(p)}
-            className="w-9 h-9 rounded-xl text-xs font-semibold transition-all border"
-            style={
-              p === current
-                ? { background: TEAL_GRADIENT, color: "white", borderColor: "transparent" }
-                : { background: "white", color: "#374151", borderColor: "#e5e7eb" }
-            }
-          >
-            {p}
-          </button>
-        )
       )}
-      <button
-        onClick={() => onChange(current + 1)}
-        disabled={current === total}
-        className="p-2 rounded-xl bg-white shadow-sm border border-gray-200 disabled:opacity-30 hover:border-emerald-400 transition"
-      >
-        <ChevronRight className="w-4 h-4 text-gray-600" />
-      </button>
     </div>
   );
-}  
-type SidebarContentProps = {
-  offersOnly: boolean
-  setOffersOnly: (v: boolean) => void
-  ratingFilter: number | null
-  setRatingFilter: (v: number | null) => void
-  setPage: (p: number) => void
+
+  const Details = (
+    <div className="flex flex-1 flex-col p-3.5">
+      <p className="truncate text-[11px] font-medium" style={{ color: TEAL }}>{item.vendor}</p>
+      <h3 className="mt-0.5 line-clamp-2 text-[15px] font-semibold leading-snug text-gray-900">{item.title}</h3>
+      <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
+        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+        <span className="font-semibold text-gray-700">{item.rating}</span>
+        <span>({item.reviews})</span>
+      </div>
+      <p className="mt-1.5 text-[17px] font-bold text-gray-900">{formatInr(item.price)}</p>
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onCart(); }}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-full border py-2 text-sm font-semibold transition hover:bg-[#009999]/5"
+          style={{ borderColor: TEAL, color: TEAL }}
+        >
+          <ShoppingCart className="h-4 w-4" /> Cart
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onBuy(); }}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+          style={{ background: BUY_GRADIENT }}
+        >
+          <Zap className="h-4 w-4 fill-white" /> Buy
+        </button>
+      </div>
+    </div>
+  );
+
+  if (view === "list") {
+    return (
+      <div
+        onClick={onOpen}
+        className="group flex cursor-pointer overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"
+      >
+        <div className="relative h-auto w-40 shrink-0 sm:w-52">{ImageBox}</div>
+        {Details}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={onOpen}
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+    >
+      {ImageBox}
+      {Details}
+    </div>
+  );
 }
 
-function SidebarContent({
-  offersOnly,
-  setOffersOnly,
-  ratingFilter,
-  setRatingFilter,
-  setPage,
-}: SidebarContentProps) {
+/* ------------------------------------------------------------------ */
+/*  Filters drawer                                                     */
+/* ------------------------------------------------------------------ */
+
+function FiltersDrawer({
+  open, onClose, offersOnly, setOffersOnly, ratingFilter, setRatingFilter, onClear,
+}: {
+  open: boolean; onClose: () => void; offersOnly: boolean; setOffersOnly: (v: boolean) => void;
+  ratingFilter: number | null; setRatingFilter: (v: number | null) => void; onClear: () => void;
+}) {
+  if (!open) return null;
   return (
-    <div className="w-full space-y-3">
-      <div className="rounded-2xl px-4 py-3 bg-white shadow-sm border border-gray-100 text-xs text-gray-500">
-        <p className="font-semibold text-gray-600 mb-1">Category</p>
-        <p className="leading-relaxed">Use the category row above the product grid. Shop lists only products (not services).</p>
-      </div>
-      <div className="rounded-2xl px-4 py-3 bg-white shadow-sm border border-gray-100">
-        <p className="text-xs font-semibold tracking-[0.15em] uppercase mb-3 flex items-center gap-2 text-gray-500">
-          <Tag className="w-3.5 h-3.5 text-amber-400" /> Offers
-        </p>
-        <label className="flex items-center gap-3 cursor-pointer">
-          <div
-            onClick={() => { setOffersOnly(!offersOnly); setPage(1); }}
-            className="w-4 h-4 rounded border-2 flex items-center justify-center transition-all shrink-0"
-            style={
-              offersOnly
-                ? { borderColor: "#f59e0b", backgroundColor: "#f59e0b" }
-                : { borderColor: "#d1d5db", backgroundColor: "#fafafa" }
-            }
-          >
-            {offersOnly && (
-              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12">
-                <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-          </div>
-          <span className="text-sm font-medium" style={{ color: offersOnly ? "#b45309" : "#4b5563" }}>
-            Show deals only
-          </span>
-          {offersOnly && (
-            <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
-              ON
+    <div className="fixed inset-0 z-[1100]">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="absolute right-0 top-0 flex h-full w-[300px] flex-col bg-white p-5 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-base font-bold text-gray-900">Filters</h3>
+          <button onClick={onClose}><X className="h-5 w-5 text-gray-500" /></button>
+        </div>
+
+        <div className="mb-5 rounded-xl border border-gray-100 p-4">
+          <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <Tag className="h-3.5 w-3.5 text-amber-400" /> Offers
+          </p>
+          <label className="flex cursor-pointer items-center gap-3" onClick={() => setOffersOnly(!offersOnly)}>
+            <span className="flex h-4 w-4 items-center justify-center rounded border-2"
+              style={offersOnly ? { borderColor: "#f59e0b", background: "#f59e0b" } : { borderColor: "#d1d5db" }}>
+              {offersOnly && <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
             </span>
-          )}
-        </label>
-      </div> 
-      <div className="rounded-2xl px-4 py-3 bg-white shadow-sm border border-gray-100">
-        <p className="text-xs font-semibold tracking-[0.15em] uppercase mb-3 flex items-center gap-2 text-gray-500">
-          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> Rating
-        </p>
-        <div className="space-y-2.5">
-          {[4.5, 4.0, 3.5].map((r) => {
-            const active = ratingFilter === r;
-            return (
-              <label key={r} className="flex items-center gap-3 cursor-pointer">
-                <div
-                  onClick={() => { setRatingFilter(active ? null : r); setPage(1); }}
-                  className="w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all shrink-0"
-                  style={
-                    active
-                      ? { borderColor: "#f59e0b", backgroundColor: "#f59e0b" }
-                      : { borderColor: "#d1d5db", backgroundColor: "#fafafa" }
-                  }
-                >
-                  {active && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                </div>
-                <span
-                  className="text-sm font-medium flex items-center gap-1"
-                  style={{ color: active ? "#b45309" : "#4b5563" }}
-                >
-                  {Array.from({ length: Math.floor(r) }).map((_, i) => (
-                    <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
-                  ))}
-                  <span>{r}+</span>
-                </span>
-              </label>
-            );
-          })}
+            <span className="text-sm font-medium text-gray-700">Show deals only</span>
+          </label>
+        </div>
+
+        <div className="rounded-xl border border-gray-100 p-4">
+          <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> Rating
+          </p>
+          <div className="space-y-2.5">
+            {[4.5, 4.0, 3.5].map((r) => {
+              const active = ratingFilter === r;
+              return (
+                <label key={r} className="flex cursor-pointer items-center gap-3" onClick={() => setRatingFilter(active ? null : r)}>
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full border-2"
+                    style={active ? { borderColor: "#f59e0b", background: "#f59e0b" } : { borderColor: "#d1d5db" }}>
+                    {active && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                  </span>
+                  <span className="flex items-center gap-1 text-sm font-medium text-gray-700">
+                    {Array.from({ length: Math.floor(r) }).map((_, i) => <Star key={i} className="h-3 w-3 fill-amber-400 text-amber-400" />)}
+                    <span>{r}+</span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-auto flex gap-3 pt-5">
+          <button onClick={onClear} className="flex-1 rounded-full border border-gray-200 py-2.5 text-sm font-semibold text-gray-600">Clear</button>
+          <button onClick={onClose} className="flex-1 rounded-full py-2.5 text-sm font-semibold text-white" style={{ background: TEAL }}>Apply</button>
         </div>
       </div>
     </div>
   );
 }
- 
-export default function ShopPage({ onVendorSelect }: { onVendorSelect?: (vendorId: string) => void }) {
-  const [sellers, setSellers] = useState<ShopItem[]>([]);
+
+/* ------------------------------------------------------------------ */
+/*  Shop page                                                          */
+/* ------------------------------------------------------------------ */
+
+export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) => void }) {
+  const router = useRouter();
+  const { addToCart, clearCart } = useCart();
+
   const [rootCategories, setRootCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Category[]>([]);
-  const [parentCategoryId, setParentCategoryId] = useState<string>("");
-  const [subcategoryId, setSubcategoryId] = useState<string>("");
-  const [loadingSellers, setLoadingSellers] = useState(true);
+  const [parentCategoryId, setParentCategoryId] = useState("");
+  const [subcategoryId, setSubcategoryId] = useState("");
 
-  const [sortBy, setSortBy] = useState("popularity");
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [ratingFilter, setRatingFilter] = useState<number | null>(null);
+  const [items, setItems] = useState<ShopItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const [sortBy, setSortBy] = useState<string>("newest");
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [offersOnly, setOffersOnly] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [ratingFilter, setRatingFilter] = useState<number | null>(null);
+  const [wishIds, setWishIds] = useState<Set<string>>(new Set());
 
+  // Root categories
   useEffect(() => {
     catalogApi.getCategories({ limit: 200, kind: "product" }).then((res) => {
-      let list: Category[] = [];
-      if (Array.isArray(res)) list = res;
-      else if (res && typeof res === "object" && "data" in res && Array.isArray((res as { data: Category[] }).data)) {
-        list = (res as { data: Category[] }).data;
-      }
+      const list = Array.isArray(res) ? res : (res?.data ?? []);
       setRootCategories(list.filter((c) => !c.parentId));
     }).catch(() => {});
   }, []);
 
+  // Wishlist ids (best-effort; only when logged in)
   useEffect(() => {
-    if (!parentCategoryId) {
-      setSubcategories([]);
-      setSubcategoryId("");
-      return;
-    }
+    if (typeof window === "undefined" || !localStorage.getItem("p4u_token")) return;
+    profileApi.getWishlist().then((rows) => {
+      const list = Array.isArray(rows) ? rows : [];
+      setWishIds(new Set(list.map((r) => String((r as { productId?: string | number }).productId ?? r.id))));
+    }).catch(() => {});
+  }, []);
+
+  // Subcategories for selected parent
+  useEffect(() => {
+    if (!parentCategoryId) { setSubcategories([]); setSubcategoryId(""); return; }
     catalogApi.getCategoryChildren(parentCategoryId, { kind: "product" }).then((rows) => {
-      let list: Category[] = [];
-      if (Array.isArray(rows)) list = rows;
-      else if (rows && typeof rows === "object" && "data" in rows && Array.isArray((rows as { data: Category[] }).data)) {
-        list = (rows as { data: Category[] }).data;
-      }
+      const list = Array.isArray(rows) ? rows : ((rows as { data?: Category[] })?.data ?? []);
       setSubcategories(list);
-      setSubcategoryId("");
-    }).catch(() => {
-      setSubcategories([]);
-    });
+    }).catch(() => setSubcategories([]));
   }, [parentCategoryId]);
 
+  // Products
   useEffect(() => {
-    setLoadingSellers(true);
-    const params: {
-      limit: number;
-      offset: number;
-      categoryId?: string;
-      subcategoryId?: string;
-    } = { limit: 100, offset: 0 };
+    setLoading(true);
+    const params: { limit: number; offset: number; categoryId?: string; subcategoryId?: string } = { limit: 120, offset: 0 };
     if (subcategoryId.trim()) params.subcategoryId = subcategoryId.trim();
     else if (parentCategoryId.trim()) params.categoryId = parentCategoryId.trim();
 
     catalogApi.browseProducts(params).then((res) => {
       const rows = res.data ?? [];
-      setSellers(
-        rows.map((p): ShopItem => {
-          const unit = resolveCatalogUnitPrice(p as unknown as Record<string, unknown>);
-          const rawThumb =
-            (typeof p.thumbnailUrl === "string" && p.thumbnailUrl) ||
-            (p.metadata && typeof (p.metadata as { imageUrl?: string }).imageUrl === "string"
-              ? (p.metadata as { imageUrl?: string }).imageUrl
-              : "") ||
-            "";
-          const thumb = resolveMediaUrl(rawThumb) || rawThumb;
-          return {
-            id: p.id,
-            title: p.name || "Product",
-            number: String(p.id).slice(0, 8),
-            provider: (p as { vendorBusinessName?: string | null }).vendorBusinessName?.trim() || "Vendor",
-            category: "",
-            vendorId: String(p.vendorId ?? ""),
-            rating: 0,
-            duration: "Product",
-            price: unit,
-            pts: 0,
-            distance: "",
-            badge: null,
-            image: thumb || SHOP_CARD_PLACEHOLDER,
-          };
-        }),
-      );
-    }).catch((err: unknown) => {
-      console.error("Failed to load shop products:", err);
-      setSellers([]);
-    }).finally(() => setLoadingSellers(false));
+      setTotal(typeof res.total === "number" ? res.total : rows.length);
+      setItems(rows.map((p): ShopItem => {
+        const unit = resolveCatalogUnitPrice(p as unknown as Record<string, unknown>);
+        const rawThumb =
+          (typeof p.thumbnailUrl === "string" && p.thumbnailUrl) ||
+          (p.metadata && typeof (p.metadata as { imageUrl?: string }).imageUrl === "string" ? (p.metadata as { imageUrl?: string }).imageUrl : "") || "";
+        const thumb = resolveMediaUrl(rawThumb) || rawThumb;
+        const banners = Array.isArray(p.bannerUrls) ? p.bannerUrls.filter(Boolean) : [];
+        const imageCount = (thumb ? 1 : 0) + banners.length;
+        return {
+          id: p.id,
+          title: p.name || "Product",
+          image: thumb || SHOP_CARD_PLACEHOLDER,
+          price: unit,
+          vendor: (p as { vendorBusinessName?: string | null }).vendorBusinessName?.trim() || "Vendor",
+          vendorId: String(p.vendorId ?? ""),
+          rating: 0,
+          reviews: 0,
+          imageCount: imageCount || 1,
+        };
+      }));
+    }).catch(() => { setItems([]); setTotal(0); }).finally(() => setLoading(false));
   }, [parentCategoryId, subcategoryId]);
 
   const filtered = useMemo(() => {
-    let data = [...sellers];
-    if (search) data = data.filter((s) => s.title.toLowerCase().includes(search.toLowerCase()));
+    let data = [...items];
     if (ratingFilter) data = data.filter((s) => s.rating >= ratingFilter);
-    if (offersOnly) data = data.filter((s) => s.badge !== null);
     if (sortBy === "low") data.sort((a, b) => a.price - b.price);
     else if (sortBy === "high") data.sort((a, b) => b.price - a.price);
     else if (sortBy === "newest") data.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
-    else data.sort((a, b) => b.rating - a.rating);
     return data;
-  }, [sellers, search, ratingFilter, offersOnly, sortBy]);
+  }, [items, ratingFilter, sortBy]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
-  const selectedParentCategory = rootCategories.find((category) => category.id === parentCategoryId);
+  const parentCat = rootCategories.find((c) => c.id === parentCategoryId);
+  const subCat = subcategories.find((c) => c.id === subcategoryId);
+  const title = subCat?.name || parentCat?.name || "All Products";
+  const showSubRail = Boolean(parentCategoryId) && subcategories.length > 0;
+  const showShopHeading = showSubRail && !subcategoryId;
+  const showAllProductsHeading = Boolean(parentCategoryId) && !subcategoryId;
 
-  const activeFilters = [
-    sortBy !== "popularity" ? sortBy : null,
-    ratingFilter ? `⭐ ${ratingFilter}+` : null,
-    offersOnly ? "Offers" : null,
-  ].filter(Boolean);
+  function toggleWish(id: string) {
+    if (typeof window !== "undefined" && !localStorage.getItem("p4u_token")) {
+      window.dispatchEvent(new Event("p4u-open-auth"));
+      return;
+    }
+    const has = wishIds.has(id);
+    setWishIds((prev) => { const next = new Set(prev); if (has) next.delete(id); else next.add(id); return next; });
+    (has ? profileApi.removeFromWishlist(id) : profileApi.addToWishlist(id)).catch(() => {
+      setWishIds((prev) => { const next = new Set(prev); if (has) next.add(id); else next.delete(id); return next; });
+    });
+  }
 
-  const removeFilter = (f: string) => {
-    if (["low", "high", "newest"].includes(f)) setSortBy("popularity");
-    else if (f.startsWith("⭐")) setRatingFilter(null);
-    else if (f === "Offers") setOffersOnly(false);
-    setPage(1);
-  };
+  function cartPayload(item: ShopItem) {
+    return {
+      id: item.id, productId: item.id, variationId: null,
+      name: item.title, price: item.price, originalPrice: item.price,
+      image: item.image, imageUrl: item.image,
+      vendor: item.vendor, vendorId: item.vendorId,
+    };
+  }
 
-  const sidebarProps = { offersOnly, setOffersOnly, ratingFilter, setRatingFilter, setPage };
+  function handleCart(item: ShopItem) { addToCart(cartPayload(item)); }
+
+  function handleBuy(item: ShopItem) {
+    if (typeof window !== "undefined" && !localStorage.getItem("p4u_token")) {
+      window.dispatchEvent(new Event("p4u-open-auth"));
+      return;
+    }
+    clearCart();
+    addToCart(cartPayload(item));
+    try { sessionStorage.setItem("openCart", "1"); } catch { /* ignore */ }
+    router.push("/cart");
+  }
 
   return (
-    <div className="min-h-screen font-sans">
-      <div className="max-w-[1400px] mx-auto px-3 sm:px-4 md:px-6 py-5 flex gap-5 items-start"> 
-        <aside className="hidden lg:block w-52 shrink-0 sticky top-4">
-          <SidebarContent {...sidebarProps} />
-        </aside> 
-        {sidebarOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden">
-            <div
-              className="absolute inset-0 bg-white/50 backdrop-blur-sm"
-              onClick={() => setSidebarOpen(false)}
-            />
-            <div className="absolute left-0 top-0 bottom-0 w-64 bg-white p-4 overflow-y-auto shadow-2xl">
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-bold text-gray-800 text-sm">Filters</span>
-                <button onClick={() => setSidebarOpen(false)}>
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
-              <SidebarContent {...sidebarProps} />
-            </div>
+    <div className="min-h-screen bg-[#f7fafc] font-sans">
+      <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-8">
+        {/* Header row */}
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">{title}</h1>
+            <p className="mt-1 text-sm text-gray-400">Showing results near your selected location</p>
           </div>
-        )} 
-        <div className="flex-1 min-w-0"> 
-          <div className="mb-6 rounded-2xl bg-[#f8fafc] px-1 py-2">
-            <CategoryRail
-              categories={rootCategories}
-              selectedId={parentCategoryId}
-              allLabel="All"
-              onSelect={(categoryId) => {
-                setParentCategoryId(categoryId);
-                setSubcategoryId("");
-                setPage(1);
-              }}
-            />
-            {selectedParentCategory && subcategories.length > 0 && (
-              <div className="mt-8">
-                <h2 className="mb-5 text-[22px] font-bold leading-tight text-slate-950">
-                  Shop {selectedParentCategory.name}
-                </h2>
-                <CategoryRail
-                  categories={subcategories}
-                  selectedId={subcategoryId}
-                  allLabel="All"
-                  showAll={false}
-                  onSelect={(categoryId) => {
-                    setSubcategoryId(categoryId);
-                    setPage(1);
-                  }}
-                />
-              </div>
-            )}
-          </div>
+          <span className="shrink-0 pt-1 text-sm text-gray-500">{total} products</span>
+        </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-            <div className="space-y-2 min-w-0 flex-1">
-              <h1 className="text-lg font-bold text-gray-900">Shop — Products</h1>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Showing {Math.min((page - 1) * ITEMS_PER_PAGE + 1, filtered.length)}–
-                {Math.min(page * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} results
-              </p>
-            </div>
+        {/* Toolbar */}
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-gray-200 text-sm font-medium text-gray-700 shadow-sm"
+              type="button"
+              onClick={() => setFiltersOpen(true)}
+              className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:border-gray-300"
             >
-              <Filter className="w-4 h-4" /> Filters
-              {activeFilters.length > 0 && (
-                <span
-                  className="ml-1 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
-                  style={{ background: TEAL_GRADIENT }}
-                >
-                  {activeFilters.length}
-                </span>
-              )}
+              <SlidersHorizontal className="h-4 w-4" /> Filters
+              {(offersOnly || ratingFilter) && <span className="ml-0.5 h-2 w-2 rounded-full" style={{ background: TEAL }} />}
             </button>
-          </div> 
-          {activeFilters.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {activeFilters.map((f) => (
-                <span
-                  key={f}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-white shadow-sm"
-                  style={{ background: TEAL_GRADIENT }}
-                >
-                  {f}
-                  <button onClick={() => removeFilter(f as string)} className="hover:opacity-70">
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-              <button
-                onClick={() => {
-                  setSortBy("popularity");
-                  setRatingFilter(null); setOffersOnly(false); setPage(1);
-                }}
-                className="text-xs text-red-400 underline underline-offset-2 hover:text-red-600"
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="appearance-none rounded-full border border-gray-200 bg-white py-2.5 pl-4 pr-9 text-sm font-medium text-gray-700 shadow-sm outline-none hover:border-gray-300"
               >
-                Clear all
-              </button>
+                {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rotate-90 text-gray-400" />
             </div>
-          )} 
-          <div className="bg-white rounded-2xl px-4 py-3 mb-5 shadow-sm border border-gray-100"> 
-            <div
-              className="flex items-center gap-2 mb-3"
-              style={{ overflowX: "auto", scrollbarWidth: "none", msOverflowStyle: "none" }}
+          </div>
+          <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setView("grid")}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg ${view === "grid" ? "bg-[#009999]/10 text-[#009999]" : "text-gray-400"}`}
+              aria-label="Grid view"
             >
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-wide flex-shrink-0">Sort By</span>
-              {[
-                { label: "Price", icon: <ArrowUp className="w-3 h-3" />, val: "low" },
-                { label: "Price", icon: <ArrowDown className="w-3 h-3" />, val: "high" },
-                { label: "Newest", val: "newest" },
-                { label: "Popularity", val: "popularity" },
-              ].map((s) => (
-                <button
-                  key={s.val}
-                  onClick={() => { setSortBy(s.val); setPage(1); }}
-                  className="text-xs px-3.5 py-1.5 rounded-full font-medium border transition-all flex-shrink-0 flex items-center gap-1"
-                  style={
-                    sortBy === s.val
-                      ? { background: TEAL_GRADIENT, color: "white", borderColor: "transparent" }
-                      : { background: "#f9fafb", color: "#374151", borderColor: "#e5e7eb" }
-                  }
-                >
-                  {s.label}
-                  {s.icon && s.icon}
-                </button>
-              ))}
-            </div> 
-            <div className="flex justify-end">
-              <div className="flex items-center bg-gray-50 border border-gray-200 rounded-xl overflow-hidden w-48 sm:w-56">
-                <input
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                  placeholder="Search Seller"
-                  className="text-xs px-3 py-2 outline-none flex-1 bg-transparent min-w-0"
-                />
-                <button className="px-3 py-2 text-white flex-shrink-0" style={{ background: TEAL_GRADIENT }}>
-                  <Search className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div> 
-          <h2 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <span className="w-1 h-5 rounded-full inline-block" style={{ background: TEAL_GRADIENT }} />
-            Products
-          </h2>
- 
-          {loadingSellers ? (
-            <div className="flex justify-center py-24">
-              <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
-            </div>
-          ) : paginated.length === 0 ? (
-            <div className="bg-white rounded-2xl py-24 text-center text-gray-400 shadow-sm">
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("list")}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg ${view === "list" ? "bg-[#009999]/10 text-[#009999]" : "text-gray-400"}`}
+              aria-label="List view"
+            >
+              <ListIcon className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Category circle rail */}
+        <CircleRail
+          categories={rootCategories}
+          selectedId={parentCategoryId}
+          onSelect={(id) => { setParentCategoryId(id); setSubcategoryId(""); }}
+        />
+
+        {/* Subcategories */}
+        {showSubRail && (
+          <div className="mt-6">
+            {showShopHeading && (
+              <h2 className="mb-4 text-xl font-bold text-gray-900">Shop {parentCat?.name}</h2>
+            )}
+            <CircleRail
+              categories={subcategories}
+              selectedId={subcategoryId}
+              showAll={false}
+              size={58}
+              onSelect={(id) => setSubcategoryId(id)}
+            />
+          </div>
+        )}
+
+        {/* Grid heading */}
+        {showAllProductsHeading && (
+          <h2 className="mb-4 mt-8 text-xl font-bold text-gray-900">All products</h2>
+        )}
+
+        {/* Products */}
+        <div className={showAllProductsHeading ? "" : "mt-8"}>
+          {loading ? (
+            <div className="flex justify-center py-24"><Loader2 className="h-8 w-8 animate-spin text-teal-600" /></div>
+          ) : filtered.length === 0 ? (
+            <div className="rounded-2xl bg-white py-24 text-center text-gray-400 shadow-sm">
               No products found. Pick a category or adjust filters.
             </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
-              {paginated.map((service) => (
-                <ProductBrowseCard key={service.id} item={service} onVendorSelect={onVendorSelect} />
+          ) : view === "grid" ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {filtered.map((item) => (
+                <ProductCard
+                  key={item.id}
+                  item={item}
+                  view="grid"
+                  wished={wishIds.has(String(item.id))}
+                  onOpen={() => item.vendorId && router.push(`/shop/${item.vendorId}/${item.id}`)}
+                  onCart={() => handleCart(item)}
+                  onBuy={() => handleBuy(item)}
+                  onWish={() => toggleWish(String(item.id))}
+                />
               ))}
             </div>
-          )} 
-          {totalPages > 1 && (
-            <Pagination
-              current={page}
-              total={totalPages}
-              onChange={(p) => {
-                setPage(p);
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-            />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {filtered.map((item) => (
+                <ProductCard
+                  key={item.id}
+                  item={item}
+                  view="list"
+                  wished={wishIds.has(String(item.id))}
+                  onOpen={() => item.vendorId && router.push(`/shop/${item.vendorId}/${item.id}`)}
+                  onCart={() => handleCart(item)}
+                  onBuy={() => handleBuy(item)}
+                  onWish={() => toggleWish(String(item.id))}
+                />
+              ))}
+            </div>
           )}
         </div>
       </div>
+
+      <FiltersDrawer
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        offersOnly={offersOnly}
+        setOffersOnly={setOffersOnly}
+        ratingFilter={ratingFilter}
+        setRatingFilter={setRatingFilter}
+        onClear={() => { setOffersOnly(false); setRatingFilter(null); }}
+      />
     </div>
   );
 }
