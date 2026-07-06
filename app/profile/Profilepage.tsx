@@ -903,7 +903,12 @@ function PageProfile({ setActive }: { setActive: (p: ActivePage) => void }) {
 
   useEffect(() => {
     profileApi.getMe().then((p: any) => setProfile(p)).catch(() => {});
-    profileApi.getRewardPoints().then((r) => setPoints(r.balance ?? 0)).catch(() => {});
+    profileApi
+      .getWallet({ limit: 1, offset: 0 })
+      .then((wallet) => setPoints(Number(wallet.displayAmount ?? wallet.balance ?? 0)))
+      .catch(() => {
+        profileApi.getRewardPoints().then((r) => setPoints(r.balance ?? 0)).catch(() => {});
+      });
     profileApi.getReferralCode().then((r) => r.code && setReferralCode(r.code)).catch(() => {});
     profileApi.getWishlist().then((rows) => setWishlistCount(rows.length)).catch(() => {});
     profileApi.getAddresses().then((rows) => setAddressCount(rows.length)).catch(() => {});
@@ -924,14 +929,14 @@ function PageProfile({ setActive }: { setActive: (p: ActivePage) => void }) {
     { label: "Edit Profile", icon: <IcEdit s={20} />, page: "edit-profile" },
     { label: "My Orders", icon: <IcPackage s={20} />, value: orderCount, href: "/orders" },
     { label: "Wishlist", icon: <IcHeart s={20} />, value: wishlistCount, href: "/wishlist" },
-    { label: "Wallet & Points", icon: <IcWallet s={20} />, value: `${points} pts`, page: "reward-points" },
-    { label: "KYC Verification", icon: <IcShield s={20} />, page: "kyc" },
-    { label: "Saved Addresses", icon: <IcMapPin s={20} />, value: addressCount, page: "saved-addresses" },
-    { label: "Referrals", icon: <IcGift s={20} />, value: referralCode || referralCount, page: "refer-earn" },
+    { label: "Wallet & Points", icon: <IcWallet s={20} />, value: `${points} pts`, href: "/wallet" },
+    { label: "KYC Verification", icon: <IcShield s={20} />, href: "/kyc-verification" },
+    { label: "Saved Addresses", icon: <IcMapPin s={20} />, value: addressCount, href: "/saved-addresses" },
+    { label: "Referrals", icon: <IcGift s={20} />, value: referralCode || referralCount, href: "/referrals" },
     { label: "My Classifieds", icon: <IcNav s={20} />, href: "/classified" },
-    { label: "Support Tickets", icon: <IcFileText s={20} />, page: "support" },
-    { label: "Change Password", icon: <IcShield s={20} />, page: "change-password" },
-    { label: "Settings", icon: <IcSettings s={20} /> },
+    { label: "Support Tickets", icon: <IcFileText s={20} />, href: "/help-support" },
+    { label: "Change Password", icon: <IcShield s={20} />, href: "/change-password" },
+    { label: "Settings", icon: <IcSettings s={20} />, page: "edit-profile" },
     { label: "Logout", icon: <IcLogOut s={20} />, danger: true, page: "logout" },
   ];
 
@@ -988,7 +993,7 @@ function PageProfile({ setActive }: { setActive: (p: ActivePage) => void }) {
   );
 }
 
-function PageSavedAddresses() {
+export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
   const [showMap, setShowMap] = useState(false);
   const [editId, setEditId] = useState<string | number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -997,11 +1002,14 @@ function PageSavedAddresses() {
   const [addrForm, setAddrForm] = useState<AddressFormState>({ ...EMPTY_ADDRESS_FORM });
   const [addrErrors, setAddrErrors] = useState<Record<string, string>>({});
   const [addresses, setAddresses] = useState<ProfileAddress[]>([]);
+  const [completeness, setCompleteness] = useState(0);
 
   useEffect(() => {
-    profileApi
-      .getAddresses()
-      .then((items) => setAddresses(items))
+    Promise.all([profileApi.getAddresses(), profileApi.getMe()])
+      .then(([items, profile]) => {
+        setAddresses(items);
+        setCompleteness(computeProfileCompleteness(profile, items.length));
+      })
       .catch(() => {});
   }, []);
 
@@ -1098,7 +1106,7 @@ function PageSavedAddresses() {
     [a.line1, a.line2, [a.city, a.state, a.pincode].filter(Boolean).join(", ")].filter(Boolean);
 
   return (
-    <div className="p-5 sm:p-6">
+    <div className="mx-auto w-full max-w-[905px] py-7">
       {showMap && (
         <Modal
           onClose={() => {
@@ -1147,8 +1155,24 @@ function PageSavedAddresses() {
         </Modal>
       )}
 
-      <SectionTitle>Saved Addresses</SectionTitle>
-      <div className="flex flex-wrap gap-3 mb-5">
+      <AccountPageHeader title="Saved Addresses" onBack={onBack} />
+      <ProfileCompletenessCard percent={completeness} onKycClick={() => window.location.hash = "kyc"} />
+      <div className="mb-6 rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
+      <div className="mb-5 flex items-center justify-between">
+        <h2 className="text-[16px] font-bold text-slate-950">Saved Addresses</h2>
+        <button
+          type="button"
+          onClick={() => {
+            setShowAddForm((v) => !v);
+            setEditId(null);
+            setAddrErrors({});
+          }}
+          className="inline-flex items-center gap-2 rounded-[14px] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-950"
+        >
+          <IcPlus /> Add Address
+        </button>
+      </div>
+      <div className="mb-5 hidden flex-wrap gap-3">
         <button
           type="button"
           onClick={() => setShowMap(true)}
@@ -1215,17 +1239,16 @@ function PageSavedAddresses() {
         {addresses.map((a) => (
           <div
             key={a.id}
-            className="flex items-start gap-3 p-4 rounded-xl border border-slate-100 bg-white hover:border-emerald-100 hover:shadow-sm transition-all"
+            className={`flex items-start gap-3 rounded-[14px] border px-4 py-3 transition-all ${a.isDefault ? "border-teal-400 bg-teal-50/40" : "border-slate-100 bg-white"}`}
           >
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 mt-0.5"
-              style={{ background: PRIMARY_GRADIENT }}
+              className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-50 text-teal-600"
             >
-              <IcStore />
+              <IcMapPin s={14} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-medium text-slate-800">{a.label || "Address"}</p>
+                <p className="text-sm font-semibold text-slate-900">{a.label || "Address"}</p>
                 {a.isDefault && (
                   <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                     Default
@@ -1261,6 +1284,7 @@ function PageSavedAddresses() {
             </div>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );
@@ -1878,7 +1902,7 @@ function PageReferEarn() {
  
 type RewardTab = "Earned" | "Redeemed";
 
-function PageReferralsReference({ onBack }: { onBack: () => void }) {
+export function PageReferralsReference({ onBack }: { onBack: () => void }) {
   const [copied, setCopied] = useState(false);
   const [code, setCode] = useState("");
   const [referrals, setReferrals] = useState<Array<{ id: number; name?: string; joinedAt: string }>>([]);
@@ -1950,15 +1974,24 @@ function PageReferralsReference({ onBack }: { onBack: () => void }) {
   );
 }
 
-function PageRewardPoints() {
+export function PageRewardPoints({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<RewardTab>("Earned");
   const [totalPoints, setTotalPoints] = useState(0);
   const [history, setHistory] = useState<Array<{ id: string; points: number; balanceAfter: number; type: string; description: string | null; createdAt: string }>>([]);
+  const [totalTransactions, setTotalTransactions] = useState(0);
 
   useEffect(() => {
     profileApi.getRewardPoints().then((res) => {
       if (res.balance != null) setTotalPoints(res.balance);
       if (Array.isArray(res.recentHistory)) setHistory(res.recentHistory);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    profileApi.getWallet({ limit: 50, offset: 0 }).then((wallet) => {
+      setTotalPoints(Number(wallet.displayAmount ?? wallet.balance ?? 0));
+      setTotalTransactions(wallet.totalTransactions ?? wallet.recentTransactions?.length ?? 0);
+      if (Array.isArray(wallet.recentTransactions)) setHistory(wallet.recentTransactions);
     }).catch(() => {});
   }, []);
 
@@ -1977,6 +2010,109 @@ function PageRewardPoints() {
     };
     return map[t] || t.replace(/_/g, " ");
   };
+
+  const totalEarned = history.filter((h) => h.points > 0).reduce((sum, h) => sum + h.points, 0);
+  const totalRedeemed = Math.abs(history.filter((h) => h.points < 0).reduce((sum, h) => sum + h.points, 0));
+  const amountByType = (type: string) =>
+    history.filter((h) => h.type === type && h.points > 0).reduce((sum, h) => sum + h.points, 0);
+  const buckets = [
+    { label: "Welcome Bonus", type: "welcome_bonus", icon: <IcGift s={20} />, tone: "bg-teal-50 text-teal-600" },
+    { label: "Post Share", type: "post_share", icon: <IcShare2 s={20} />, tone: "bg-blue-50 text-blue-500" },
+    { label: "Vendor Referral", type: "referral_bonus", icon: <IcStore s={20} />, tone: "bg-emerald-50 text-emerald-600" },
+    { label: "Customer Referral", type: "customer_referral", icon: <IcUsers s={20} />, tone: "bg-emerald-50 text-emerald-600" },
+    { label: "Post Liked", type: "post_like", icon: <IcHeart s={20} />, tone: "bg-rose-50 text-rose-500" },
+    { label: "Story Liked", type: "story_like", icon: <IcHeart s={20} />, tone: "bg-rose-50 text-rose-500" },
+  ];
+
+  return (
+    <div className="mx-auto w-full max-w-[760px] py-7">
+      <AccountPageHeader title="My Wallet" onBack={onBack} />
+
+      <div className="mb-5 rounded-[16px] bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-sm">
+        <div className="mb-3 flex items-center gap-2 text-[12px] font-medium">
+          <IcWallet s={18} /> Total Points
+        </div>
+        <p className="text-[30px] font-bold leading-none">{totalPoints}</p>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <button type="button" className="h-9 rounded-[12px] bg-white text-[12px] font-bold text-slate-800">Redeem</button>
+          <button type="button" className="h-9 rounded-[12px] bg-white text-[12px] font-bold text-slate-800">Refer & Earn</button>
+        </div>
+      </div>
+
+      <div className="mb-4 grid grid-cols-3 gap-3">
+        {[
+          { value: `+${totalEarned}`, label: "Total Earned", color: "text-emerald-600" },
+          { value: `-${totalRedeemed}`, label: "Total Redeemed", color: "text-rose-500" },
+          { value: totalPoints, label: "Balance", color: "text-teal-600" },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-[14px] bg-white py-4 text-center shadow-sm ring-1 ring-slate-200">
+            <p className={`text-[16px] font-bold ${stat.color}`}>{stat.value}</p>
+            <p className="text-[10px] text-slate-500">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mb-3 rounded-[12px] border border-orange-200 bg-orange-50 px-4 py-3">
+        <p className="text-[12px] font-bold text-orange-600">Points expiring soon!</p>
+        <p className="text-[10px] text-orange-500">Use your points before they expire during checkout.</p>
+      </div>
+      <div className="mb-4 rounded-[12px] border border-blue-200 bg-blue-50 px-4 py-3">
+        <p className="text-[12px] font-bold text-blue-600">Points on cooling period</p>
+        <p className="text-[10px] text-blue-500">Newly earned points will be available after the cooling period.</p>
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        {buckets.map((bucket) => (
+          <div key={bucket.label} className={`rounded-[14px] px-4 py-5 text-center ${bucket.tone}`}>
+            <p className="mb-3 text-[12px] font-bold text-slate-950">{bucket.label}</p>
+            <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/70">{bucket.icon}</div>
+            <p className="text-[24px] font-bold text-slate-950">{amountByType(bucket.type)}</p>
+            <p className="text-[11px] text-slate-500">Points</p>
+          </div>
+        ))}
+      </div>
+
+      <button type="button" className="mb-5 flex h-10 w-full items-center justify-between rounded-[12px] bg-white px-4 text-left text-[12px] shadow-sm ring-1 ring-slate-200">
+        <span className="flex items-center gap-2 text-slate-950"><IcWallet s={16} /> Wallet Points Structure</span>
+        <IcChevronR s={16} />
+      </button>
+
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-[14px] font-bold text-slate-950">Transaction History</h2>
+        <span className="text-[10px] text-slate-500">{totalTransactions || history.length} transactions</span>
+      </div>
+
+      <div className="space-y-3">
+        {history.length === 0 ? (
+          <div className="rounded-[14px] bg-white px-5 py-10 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
+            No wallet transactions yet.
+          </div>
+        ) : history.map((entry) => (
+          <div key={entry.id} className="flex items-center justify-between rounded-[14px] bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${entry.points >= 0 ? "bg-emerald-50 text-emerald-500" : "bg-rose-50 text-rose-500"}`}>
+                {entry.points >= 0 ? <IcCheckCircle s={18} /> : <IcHeart s={18} />}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-[12px] font-bold text-slate-950">{entry.description || labelForType(entry.type)}</p>
+                <p className="text-[10px] text-slate-500">{new Date(entry.createdAt).toLocaleString("en-IN")}</p>
+              </div>
+            </div>
+            <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${entry.points >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
+              {entry.points > 0 ? "+" : ""}{entry.points}
+            </span>
+          </div>
+        ))}
+      </div>
+      {history.length > 0 && (
+        <div className="mt-5 flex items-center justify-center gap-3 text-[11px] text-slate-500">
+          <button type="button" className="rounded-full border border-slate-200 px-2 py-1"><IcChevronL s={14} /></button>
+          Page 1 of 1
+          <button type="button" className="rounded-full border border-slate-200 px-2 py-1"><IcChevronR s={14} /></button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="p-5 sm:p-6">
@@ -2200,7 +2336,7 @@ function PageAccountPrivacy() {
   );
 }
 
-function PageKycVerification({ onBack }: { onBack: () => void }) {
+export function PageKycVerification({ onBack }: { onBack: () => void }) {
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [addressCount, setAddressCount] = useState(0);
@@ -2332,7 +2468,7 @@ function PageKycVerification({ onBack }: { onBack: () => void }) {
   );
 }
 
-function PageChangePassword({ onBack }: { onBack: () => void }) {
+export function PageChangePassword({ onBack }: { onBack: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -2395,7 +2531,7 @@ function NewTicketModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function PageHelpSupport({ onBack }: { onBack: () => void }) {
+export function PageHelpSupport({ onBack }: { onBack: () => void }) {
   const [ticketOpen, setTicketOpen] = useState(false);
   return (
     <div className="mx-auto w-full max-w-[1050px] py-8">
@@ -2546,7 +2682,7 @@ const { isLoggedIn } = useAuth();
     switch (activePage) {
       case "profile": return <PageProfile setActive={setActivePage} />;
       case "edit-profile": return <PageEditProfile onBack={() => setActivePage("profile")} onOpenKyc={() => setActivePage("kyc")} />;
-      case "saved-addresses": return <PageSavedAddresses />;
+      case "saved-addresses": return <PageSavedAddresses onBack={() => setActivePage("profile")} />;
       case "select-language": return <PageSelectLanguage />;
       case "notification": return <PageNotification />;
       case "your-orders": return <PageYourOrders />;
@@ -2554,7 +2690,7 @@ const { isLoggedIn } = useAuth();
       case "reviews-ratings": return <PageReviews />;
       case "your-favourites": return <PageFavourites />;
       case "refer-earn": return <PageReferralsReference onBack={() => setActivePage("profile")} />;
-      case "reward-points": return <PageRewardPoints />;
+      case "reward-points": return <PageRewardPoints onBack={() => setActivePage("profile")} />;
       case "become-vendor": return <PageBecomeVendor />;
       case "account-privacy": return <PageAccountPrivacy />;
       case "kyc": return <PageKycVerification onBack={() => setActivePage("profile")} />;

@@ -215,12 +215,6 @@
   display: none;
 }
 
-@media (max-width: 460px) {
-  .welcome-card {
-    height: 204px;
-  }
-}
-
 * {
   scrollbar-width: thin;
   scrollbar-color: #d1d5db transparent;
