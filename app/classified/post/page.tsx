@@ -2,14 +2,14 @@
 
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import ClassifiedAdsView from "@/components/classified/ClassifiedAdsView";
+import ClassifiedPostView from "@/components/classified/ClassifiedPostView";
 
-export default function ClassifiedRoute() {
+export default function ClassifiedPostRoute() {
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc]">
       <Header />
       <main className="flex-1">
-        <ClassifiedAdsView />
+        <ClassifiedPostView />
       </main>
       <Footer />
     </div>

@@ -73,12 +73,15 @@ export interface Reel {
 }
 
 export interface ClassifiedItem {
-  id: number;
+  id: string | number;
   title: string;
   subtitle?: string;
-  price: number;
-  location?: string;
-  image?: string;
+  description?: string | null;
+  price: number | string;
+  location?: string | null;
+  image?: string | null;
+  categoryName?: string | null;
+  createdAt?: string | null;
 }
 
 export interface BrandItem {

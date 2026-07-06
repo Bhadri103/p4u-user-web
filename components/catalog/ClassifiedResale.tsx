@@ -5,7 +5,7 @@ import { contentApi } from "@/lib/api/content";
 import { resolveMediaUrl } from "@/lib/media";
 
 type Listing = {
-  id: number;
+  id: string | number;
   title: string;
   subtitle: string;
   price: string;
@@ -252,8 +252,8 @@ export default function ClassifiedsSection() {
         setListings(items.map((c) => ({
           id: c.id,
           title: c.title,
-          subtitle: c.subtitle ?? "",
-          price: `₹${c.price.toLocaleString("en-IN")}`,
+          subtitle: c.subtitle ?? c.categoryName ?? "",
+          price: typeof c.price === "number" ? `₹${c.price.toLocaleString("en-IN")}` : String(c.price ?? "₹0"),
           location: c.location ?? "",
           image: c.image ?? "",
         })));

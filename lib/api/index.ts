@@ -9,4 +9,5 @@ export { paymentsApi } from "./payments";
 export { notificationsApi } from "./notifications";
 export { vendorApi } from "./vendor";
 export { socialApi } from "./social";
-export { authApi } from "./auth";
+export { classifiedApi } from "./classified";
+export type { ClassifiedAd, ClassifiedCategory } from "./classified";
