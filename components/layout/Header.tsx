@@ -9,8 +9,8 @@ import { profileApi } from "@/lib/api/profile";
 import AuthModal from "@/components/auth/Authmodal";
 import {
   MapPin, Search, ShoppingCart, User, ChevronDown, Menu, X,
-  Calendar, Navigation, Clock, Package, Heart, Gift, Crown,
-  Store, Bell, LogOut, ChevronRight,
+  Navigation, Clock, Package, Heart, Gift,
+  Store, LogOut, Wallet, Shield, ChevronRight,
 } from "lucide-react";
 import Image from "next/image";
 import logo from "../../images/logo.png";
@@ -68,13 +68,12 @@ export default function Header({ onCartOpen }: HeaderProps) {
 
   const loginMenuItems = [
     { icon: User,    label: "My Profile",     href: "/profile"       },
-    { icon: Calendar, label: "My Bookings",   href: "/profile#my-bookings" },
     { icon: Package, label: "Orders",         href: "/orders"        },
     { icon: Heart,   label: `Wishlist${wishlistCount > 0 ? ` (${wishlistCount})` : ""}`,   href: "/wishlist"      },
-    { icon: Gift,    label: "Rewards",        href: "/rewards"       },
-    { icon: Crown,   label: "Membership",     href: "/membership"    },
+    { icon: Wallet,  label: "Wallet",         href: "/profile#reward-points" },
+    { icon: Gift,    label: "Referrals",      href: "/profile#refer-earn" },
+    { icon: Shield,  label: "KYC",            href: "/profile#kyc" },
     { icon: Store,   label: "Seller Account", href: "/seller"        },
-    { icon: Bell,    label: "Notification",   href: "/notifications" },
     { icon: LogOut,  label: "Logout",         href: "/"              },
   ];
 
@@ -198,17 +197,17 @@ export default function Header({ onCartOpen }: HeaderProps) {
       {isLoggedIn && isLoginDropdownOpen && (
         <div
           id="login-dropdown"
-          className="fixed bg-white border border-gray-200 rounded-xl shadow-2xl py-1 overflow-hidden"
-          style={{ top: "72px", right: "16px", zIndex: 999999, minWidth: "200px" }}
+          className="fixed overflow-hidden rounded-[18px] border border-slate-100 bg-white py-1 shadow-[0_10px_28px_rgba(15,23,42,0.16)]"
+          style={{ top: "64px", right: "16px", zIndex: 999999, width: "268px" }}
         >
-          {loginMenuItems.map(({ icon: Icon, label, href }) =>
+          {loginMenuItems.map(({ icon: Icon, label, href }, index) =>
             label === "Logout" ? (
               <button
                 key={label}
                 onClick={handleLogout}
-                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors text-left"
+                className="flex w-full items-center gap-4 border-t border-slate-100 px-5 py-3.5 text-left text-[16px] font-normal text-red-500 transition-colors hover:bg-red-50"
               >
-                <Icon className="w-4 h-4 flex-shrink-0" strokeWidth={1.5} />
+                <Icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.8} />
                 <span>{label}</span>
               </button>
             ) : (
@@ -216,9 +215,9 @@ export default function Header({ onCartOpen }: HeaderProps) {
                 key={label}
                 href={href}
                 onClick={() => setIsLoginDropdownOpen(false)}
-                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                className={`flex w-full items-center gap-4 px-5 py-3 text-[16px] font-normal text-slate-800 transition-colors hover:bg-slate-50 ${index === 5 ? "border-t border-slate-100" : ""}`}
               >
-                <Icon className="w-4 h-4 text-gray-500 flex-shrink-0" strokeWidth={1.5} />
+                <Icon className="h-5 w-5 flex-shrink-0 text-slate-800" strokeWidth={1.8} />
                 <span>{label}</span>
               </Link>
             )

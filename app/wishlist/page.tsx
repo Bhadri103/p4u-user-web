@@ -106,42 +106,42 @@ export default function WishlistPage() {
     <AuthGuard>
       <div className="min-h-screen flex flex-col bg-slate-50">
         <Header />
-        <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
-          <div className="flex items-center gap-3 mb-5">
+        <main className="flex-1 mx-auto w-full max-w-[1070px] px-4 py-8">
+          <div className="mb-10 flex items-center gap-8">
             <button
-              onClick={() => router.back()}
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100"
+              onClick={() => router.push("/profile")}
+              className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-slate-100"
               aria-label="Go back"
             >
-              <ArrowLeft className="w-4 h-4 text-slate-700" />
+              <ArrowLeft className="h-5 w-5 text-slate-900" />
             </button>
-            <h1 className="text-4xl font-semibold text-slate-900 leading-none">My Wishlist</h1>
+            <h1 className="text-[24px] font-bold leading-none text-slate-950">My Wishlist</h1>
           </div>
 
-          <div className="bg-slate-100 rounded-2xl p-1.5 grid grid-cols-3 gap-1 mb-8">
+          <div className="mb-20 grid grid-cols-3 gap-1 rounded-[18px] bg-slate-100 p-1.5">
             <button
               onClick={() => setActiveTab("products")}
-              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition ${
+              className={`flex items-center justify-center gap-2 rounded-[14px] py-3 text-[16px] font-medium transition ${
                 activeTab === "products" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
               }`}
             >
-              <Heart className="w-4 h-4" /> Products ({count})
+              <Heart className="h-5 w-5" /> Products ({count})
             </button>
             <button
               onClick={() => setActiveTab("services")}
-              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition ${
+              className={`flex items-center justify-center gap-2 rounded-[14px] py-3 text-[16px] font-medium transition ${
                 activeTab === "services" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
               }`}
             >
-              <Wrench className="w-4 h-4" /> Services ({servicesCount})
+              <Wrench className="h-5 w-5" /> Services ({servicesCount})
             </button>
             <button
               onClick={() => setActiveTab("sellers")}
-              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition ${
+              className={`flex items-center justify-center gap-2 rounded-[14px] py-3 text-[16px] font-medium transition ${
                 activeTab === "sellers" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
               }`}
             >
-              <Store className="w-4 h-4" /> Sellers (0)
+              <Store className="h-5 w-5" /> Sellers (0)
             </button>
           </div>
 
@@ -149,12 +149,10 @@ export default function WishlistPage() {
           {error && <p className="text-red-500">{error}</p>}
 
           {!loading && !error && ((isProductsTab && items.length === 0) || (isServicesTab && serviceItems.length === 0) || (!isProductsTab && !isServicesTab)) && (
-            <div className="min-h-[280px] flex flex-col items-center justify-center text-center">
-              <Store className="w-14 h-14 text-slate-500 mb-3" />
-              <p className="text-3xl font-medium text-slate-800">No items yet</p>
-              <Link href="/shop" className="text-sm text-teal-700 hover:underline mt-2">
-                Browse and add to wishlist
-              </Link>
+            <div className="flex min-h-[280px] flex-col items-center justify-center text-center">
+              <Heart className="mb-8 h-16 w-16 text-slate-500" strokeWidth={1.7} />
+              <p className="text-[24px] font-medium text-slate-950">No items yet</p>
+              <p className="mt-4 text-[16px] text-slate-500">Browse products and tap the heart icon to save</p>
             </div>
           )}
 

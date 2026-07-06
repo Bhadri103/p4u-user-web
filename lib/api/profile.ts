@@ -14,6 +14,7 @@ export interface UserProfile {
   email?: string;
   phone?: string;
   avatar?: string;
+  createdAt?: string;
   keycloakUserId?: string;
   dob?: string;
   gender?: string;
@@ -119,6 +120,12 @@ function mapCustomerRow(row: Record<string, unknown>): UserProfile {
               ? meta.avatar
               : null,
     ) ?? undefined,
+    createdAt:
+      typeof row.createdAt === "string"
+        ? row.createdAt
+        : typeof row.created_at === "string"
+          ? row.created_at
+          : undefined,
     keycloakUserId:
       typeof row.keycloakUserId === "string"
         ? row.keycloakUserId
