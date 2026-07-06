@@ -291,8 +291,8 @@ export default function Header({ onCartOpen }: HeaderProps) {
             <div className="flex items-center gap-3 xl:gap-4">
 
               <Link href="/" className="flex-shrink-0">
-                <div className="w-12 h-12 xl:w-14 xl:h-14 flex items-center justify-center relative overflow-hidden rounded-lg bg-[#0c1f1c]">
-                  <Image src={logo} alt="P4U" fill className="object-contain p-1.5" priority />
+                <div className="w-16 h-16 xl:w-20 xl:h-20 flex items-center justify-center relative overflow-hidden">
+                  <Image src={logo} alt="P4U" fill className="object-contain p-2" priority />
                 </div>
               </Link>
 
@@ -401,8 +401,8 @@ export default function Header({ onCartOpen }: HeaderProps) {
           <div className="px-3 sm:px-4 py-2.5">
             <div className="flex items-center justify-between gap-2">
               <Link href="/" className="flex-shrink-0">
-                <div className="w-11 h-11 flex items-center justify-center relative overflow-hidden rounded-lg bg-[#0c1f1c]">
-                  <Image src={logo} alt="P4U" fill className="object-contain p-1.5" priority />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center relative overflow-hidden">
+                  <Image src={logo} alt="P4U" fill className="object-contain p-2" priority />
                 </div>
               </Link>
               <div className="flex-[8] mx-1 relative" ref={searchRef}>
@@ -472,8 +472,8 @@ export default function Header({ onCartOpen }: HeaderProps) {
           <div className="px-3 py-2.5">
             <div className="flex items-center justify-between gap-2">
               <Link href="/" className="flex-shrink-0">
-                <div className="w-10 h-10 flex items-center justify-center relative overflow-hidden rounded-lg bg-[#0c1f1c]">
-                  <Image src={logo} alt="P4U" fill className="object-contain p-1" priority />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center relative overflow-hidden">
+                  <Image src={logo} alt="P4U" fill className="object-contain p-2" priority />
                 </div>
               </Link>
               <button type="button" className="p-2 text-white" onClick={() => setIsLocationModalOpen(true)}>
