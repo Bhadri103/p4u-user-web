@@ -70,9 +70,9 @@ export default function Header({ onCartOpen }: HeaderProps) {
     { icon: User,    label: "My Profile",     href: "/profile"       },
     { icon: Package, label: "Orders",         href: "/orders"        },
     { icon: Heart,   label: `Wishlist${wishlistCount > 0 ? ` (${wishlistCount})` : ""}`,   href: "/wishlist"      },
-    { icon: Wallet,  label: "Wallet",         href: "/profile#reward-points" },
-    { icon: Gift,    label: "Referrals",      href: "/profile#refer-earn" },
-    { icon: Shield,  label: "KYC",            href: "/profile#kyc" },
+    { icon: Wallet,  label: "Wallet",         href: "/wallet" },
+    { icon: Gift,    label: "Referrals",      href: "/referrals" },
+    { icon: Shield,  label: "KYC",            href: "/kyc-verification" },
     { icon: Store,   label: "Seller Account", href: "/seller"        },
     { icon: LogOut,  label: "Logout",         href: "/"              },
   ];
