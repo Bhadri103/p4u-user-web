@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect, useCallback, createContext, useContext } from "react";
+﻿import { useState, useRef, useEffect, useCallback, createContext, useContext, Fragment } from "react";
 import {
   Heart, MessageCircle, Send, Bookmark, MoreHorizontal,
   Search, X, PlusCircle, Phone, Video, Info, Image as ImageIcon,
@@ -10,7 +10,7 @@ import {
   User, Menu, Grid, Play, Pause, Layers, Loader2, Trash2, Mic,
   KeyRound, Shield, HelpCircle, Moon, LogOut, Flag, Mail, Smartphone, MapPin
 } from "lucide-react";
-import { socialApi, type ActivityNotification, type Conversation, type DirectMessage, type LinkedProduct, type Post, type SocioUserProfile, type Story, type UserSummary } from "@/lib/api/social";
+import { socialApi, type ActivityNotification, type Conversation, type DirectMessage, type LinkedProduct, type Post, type SocioUserProfile, type SponsoredAd, type Story, type UserSummary } from "@/lib/api/social";
 import { apiClient } from "@/lib/api/client";
 import { profileApi } from "@/lib/api/profile";
 import { catalogApi, type Product } from "@/lib/api/catalog";
@@ -776,6 +776,34 @@ function FeedVideo({
   );
 }
 
+function SponsoredAdCard({ ad }: { ad: SponsoredAd }) {
+  const img = ad.image ? resolveMediaUrl(ad.image) || ad.image : "";
+  const body = (
+    <div className="mb-4 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-slate-900">{ad.advertiser || ad.title}</p>
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-teal-600">Sponsored</span>
+        </div>
+        <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-600">Ad</span>
+      </div>
+      {img ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={img} alt={ad.title} className="max-h-[420px] w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+      ) : null}
+      {(ad.title || ad.caption) ? (
+        <div className="px-4 py-3">
+          {ad.title ? <p className="text-sm font-semibold text-slate-900">{ad.title}</p> : null}
+          {ad.caption ? <p className="mt-1 text-sm text-slate-600">{ad.caption}</p> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+  return ad.redirectUrl ? (
+    <a href={ad.redirectUrl} target="_blank" rel="noopener noreferrer" className="block">{body}</a>
+  ) : body;
+}
+
 function PostCard({ post: p, onUserClick, myUserId }: { post: PostItem; onUserClick: (userId: string) => void; myUserId?: string }) {
   const [liked, setLiked] = useState(p.isLiked ?? false);
   const [saved, setSaved] = useState(p.isSaved ?? false);
@@ -1397,6 +1425,7 @@ function UserProfilePage({ userId, onBack, onUserClick, onMessage }: { userId: s
 function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
   const [stories, setStories] = useState<StoryItem[]>([{ id: "my", mine: true, label: "Your Story", avatar: null, segments: [], viewed: false }]);
   const [posts, setPosts] = useState<PostItem[]>([]);
+  const [sponsoredAds, setSponsoredAds] = useState<SponsoredAd[]>([]);
   const [myUserId, setMyUserId] = useState("");
   const [searches, setSearches] = useState<SearchItem[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
@@ -1427,15 +1456,19 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
   const loadFeed = useCallback(async () => {
     try {
       setLoadingFeed(true);
-      const [feedRes, storyRes, suggestionsRes, meRes, myStoriesRes] = await Promise.allSettled([
+      const [feedRes, storyRes, suggestionsRes, meRes, myStoriesRes, adsRes] = await Promise.allSettled([
         socialApi.getPublicFeed({ limit: 20 }),
         socialApi.getStoryFeed(),
         socialApi.getSuggestions(),
         socialApi.getMyProfile(),
         socialApi.getMyStories(),
+        socialApi.getSocioAds({ limit: 5 }),
       ]);
       if (feedRes.status === "fulfilled") {
         setPosts(feedRes.value.data.map(mapApiPostToPostItem));
+      }
+      if (adsRes.status === "fulfilled" && Array.isArray(adsRes.value)) {
+        setSponsoredAds(adsRes.value);
       }
       if (meRes.status === "fulfilled") {
         setMyUserId(meRes.value.userId);
@@ -1554,7 +1587,20 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
               <p className="text-sm text-gray-400">No posts yet. Create a post to start the global feed.</p>
             </div>
           )}
-          {posts.map(post => <PostCard key={post.id} post={post} onUserClick={onUserClick} myUserId={myUserId} />)}
+          {posts.map((post, i) => {
+            // Interleave a sponsored ad after every 3rd post, cycling the pool.
+            const showAdBefore = sponsoredAds.length > 0 && i > 0 && i % 3 === 0;
+            const ad = showAdBefore ? sponsoredAds[(i / 3 - 1) % sponsoredAds.length] : null;
+            return (
+              <Fragment key={post.id}>
+                {ad ? <SponsoredAdCard ad={ad} /> : null}
+                <PostCard post={post} onUserClick={onUserClick} myUserId={myUserId} />
+              </Fragment>
+            );
+          })}
+          {!loadingFeed && posts.length === 0 && sponsoredAds.length > 0
+            ? sponsoredAds.map((ad) => <SponsoredAdCard key={ad.id} ad={ad} />)
+            : null}
         </div>
       </div>
 

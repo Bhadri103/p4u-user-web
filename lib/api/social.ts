@@ -6,6 +6,17 @@ const BASE = "/api/v1/social";
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
+/** A social advertisement surfaced in the feed (from the admin console). */
+export interface SponsoredAd {
+  id: string;
+  isSponsored: true;
+  title: string;
+  image: string | null;
+  caption: string;
+  advertiser: string;
+  redirectUrl: string | null;
+}
+
 export interface Post {
   id: string | number;
   userId?: string | number;
@@ -417,6 +428,21 @@ export const socialApi = {
     return apiClient
       .get<unknown>(`${BASE}/feed/public`, params as Record<string, string | number | boolean>)
       .then((raw) => ensurePostFeedResult(raw, params));
+  },
+
+  /** Active social advertisements to interleave into the feed as sponsored cards. */
+  getSocioAds(params?: { limit?: number }): Promise<SponsoredAd[]> {
+    return apiClient
+      .get<unknown>(`${BASE}/feed/ads`, params as Record<string, string | number | boolean>)
+      .then((raw) => {
+        const arr = Array.isArray(raw)
+          ? raw
+          : raw && typeof raw === "object" && Array.isArray((raw as { data?: unknown }).data)
+            ? (raw as { data: unknown[] }).data
+            : [];
+        return (arr as SponsoredAd[]).filter((a) => a && typeof a === "object");
+      })
+      .catch(() => []);
   },
 
   getPost(postId: string | number) {
