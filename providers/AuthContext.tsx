@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { createContext, useCallback, useContext, useState, useEffect, ReactNode } from "react";
 import type { ApiError } from "@/lib/api/client";
 import { ensureTokenFresh } from "@/lib/api/client";
@@ -40,13 +40,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setDisplayName(displayNameFromAccessToken(accessToken, phone || null));
   };
 
-  const clearSessionState = useCallback(() => {
-    clearUserAuthStorage();
+  const resetSessionState = useCallback(() => {
     setIsLoggedIn(false);
     setLoggedPhone("");
     setToken(null);
     setDisplayName("");
   }, []);
+
+  const clearSessionState = useCallback(() => {
+    clearUserAuthStorage();
+    resetSessionState();
+  }, [resetSessionState]);
 
   const applySessionFromStorage = useCallback(() => {
     const savedToken = localStorage.getItem("p4u_token");
@@ -82,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     applySessionFromStorage();
-  }, [applySessionFromStorage, clearSessionState]);
+  }, [applySessionFromStorage, clearSessionState, resetSessionState]);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!cancelled) {
             const updated = localStorage.getItem("p4u_token");
             if (!updated || !hasValidAccessToken()) {
-              clearSessionState();
+              resetSessionState();
             } else {
               setToken(updated);
               const phone = localStorage.getItem("p4u_phone") || "";
@@ -112,10 +116,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const status =
             typeof e === "object" && e !== null && "status" in e ? (e as ApiError).status : -1;
           // Only a genuine auth failure ends the session. A 429 (rate-limited
-          // refresh) or network blip must NOT log the user out — the session
+          // refresh) or network blip must NOT log the user out â€” the session
           // provider backs off and retries; the stored refresh token is still good.
           if (status === 401 || status === 403) {
-            if (!cancelled) clearSessionState();
+            if (!cancelled) resetSessionState();
           }
         }
       } else if (!hasValidAccessToken()) {
@@ -129,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [applySessionFromStorage, clearSessionState]);
+  }, [applySessionFromStorage, clearSessionState, resetSessionState]);
 
   useEffect(() => {
     const sync = () => syncSessionFromStorage();
@@ -184,3 +188,6 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
   return ctx;
 }
+
+
+

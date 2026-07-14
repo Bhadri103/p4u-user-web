@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Centralised HTTP client that talks to the P4U API Gateway.
  *
- * Every service module (catalog, content, …) imports `apiClient` and
+ * Every service module (catalog, content, â€¦) imports `apiClient` and
  * calls its convenience methods instead of using raw `fetch`.
  */
 
@@ -121,13 +121,10 @@ export function resetRefreshSessionState() {
 function clearUserSessionOnRefreshFailure() {
   refreshSessionDead = true;
   refreshBlockedUntil = Date.now() + 300_000;
-  if (typeof window === "undefined") return;
-  localStorage.removeItem("p4u_loggedIn");
-  localStorage.removeItem("p4u_token");
-  localStorage.removeItem("p4u_refresh_token");
-  localStorage.removeItem("p4u_token_expires_in");
-  localStorage.removeItem("p4u_customer_id");
-  broadcastTokenUpdate();
+  // Keep persistent auth storage intact here. Only explicit logout should clear
+  // tokens/localStorage; startup and protected-route checks can decide whether
+  // the stored refresh token is genuinely unusable and show login without
+  // causing SMS OTP on browser refresh/network blips.
 }
 
 function tokenSnapshot() {
@@ -239,7 +236,7 @@ async function refreshAccessTokenDeduped(): Promise<void> {
 /**
  * Refresh only once the access token is close to expiring. Keycloak access
  * tokens in this deployment live ~5 min, so a wide window (e.g. 5 min) would
- * refresh a brand-new token on the very first request after login — and if that
+ * refresh a brand-new token on the very first request after login â€” and if that
  * refresh of a just-minted token fails, the fresh session is killed and the user
  * is bounced to login. Keep the window small so healthy tokens are left alone.
  */
@@ -247,10 +244,10 @@ const REFRESH_BEFORE_EXPIRY_MS = 60_000;
 
 export async function ensureTokenFresh(): Promise<void> {
   const { access, refresh } = tokenSnapshot();
-  if (!access || !refresh) return;
+  if (!refresh) return;
   if (refreshSessionDead || Date.now() < refreshBlockedUntil) return;
-  const expMs = decodeJwtExpMs(access);
-  if (expMs != null && expMs - Date.now() > REFRESH_BEFORE_EXPIRY_MS) return;
+  const expMs = access ? decodeJwtExpMs(access) : null;
+  if (access && expMs != null && expMs - Date.now() > REFRESH_BEFORE_EXPIRY_MS) return;
   await refreshAccessTokenDeduped();
 }
 
@@ -494,3 +491,6 @@ export const apiClient = {
     }
   },
 };
+
+
+
