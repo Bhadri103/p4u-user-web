@@ -78,14 +78,16 @@ export default function OrdersPage() {
               .filter(Boolean),
           ),
         ];
-        const productMap = new Map<string, { name?: string; image?: string }>();
+        const productMap = new Map<string, { name?: string; image?: string; price?: number }>();
         await Promise.all(
           productIds.map(async (pid) => {
             try {
-              const p = await catalogApi.getProduct(pid);
+              const p: any = await catalogApi.getProduct(pid);
+              const price = Number(p?.finalPrice ?? p?.sellPrice ?? p?.price ?? 0);
               productMap.set(pid, {
                 name: p?.name || undefined,
-                image: pickProductImage(p as any) || undefined,
+                image: pickProductImage(p) || undefined,
+                price: Number.isFinite(price) && price > 0 ? price : undefined,
               });
             } catch {
               productMap.set(pid, {});
@@ -99,10 +101,15 @@ export default function OrdersPage() {
             const fallbackName = ref?.name || "";
             const rawName = String(i.productName || "").trim();
             const safeName = !isUnsafeProductName(rawName) ? rawName : fallbackName || "Product";
+            // Fall back to catalog price when the saved line price is 0/missing.
+            const lineUnit = Number(i.unitPrice || i.price || 0);
+            const unitPrice = lineUnit > 0 ? lineUnit : Number(ref?.price || 0);
             return {
               ...i,
               productName: safeName,
               productImage: i.productImage || ref?.image || "",
+              unitPrice,
+              price: unitPrice,
             };
           }),
         }));
@@ -181,7 +188,7 @@ export default function OrdersPage() {
             >
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-[17px] font-bold text-slate-950">P4U-{String(o.id).slice(0, 16)}</p>
+                  <p className="text-[17px] font-bold text-slate-950">{String((o as any).orderRef || o.id)}</p>
                   <p className="mt-1 text-[13px] text-slate-500">
                     {new Date(o.createdAt).toLocaleDateString()} &middot;{" "}
                     {o.items.length} item{o.items.length !== 1 ? "s" : ""}

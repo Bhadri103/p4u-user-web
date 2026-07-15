@@ -55,6 +55,7 @@ export default function OrderDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<any>(null);
   const [lines, setLines] = useState<OrderLine[]>([]);
+  const [vendorName, setVendorName] = useState<string>("");
 
   useEffect(() => {
     if (!orderId) {
@@ -80,20 +81,52 @@ export default function OrderDetailsPage() {
           ),
         ];
 
-        const productMap = new Map<string, { name?: string; image?: string }>();
+        const productMap = new Map<
+          string,
+          { name?: string; image?: string; price?: number; vendorId?: string }
+        >();
         await Promise.all(
           productIds.map(async (pid) => {
             try {
-              const p = await catalogApi.getProduct(pid);
+              const p: any = await catalogApi.getProduct(pid);
+              const price = Number(p?.finalPrice ?? p?.sellPrice ?? p?.price ?? 0);
               productMap.set(pid, {
                 name: p?.name || undefined,
-                image: pickProductImage(p as any) || undefined,
+                image: pickProductImage(p) || undefined,
+                price: Number.isFinite(price) && price > 0 ? price : undefined,
+                vendorId: p?.vendorId ? String(p.vendorId) : undefined,
               });
             } catch {
               productMap.set(pid, {});
             }
           }),
         );
+
+        // Vendor display name: prefer the name the pricing step already snapshotted
+        // into metadata.totals.vendors[], else resolve the vendor from the catalog.
+        // Order/line vendorId can be a business code (VEND…) OR a catalog id; the
+        // resolved product's vendorId is guaranteed to match the catalog vendor.
+        const totalsVendors = Array.isArray(raw?.metadata?.totals?.vendors)
+          ? raw.metadata.totals.vendors
+          : [];
+        let resolvedVendorName = String(
+          totalsVendors[0]?.vendorName || raw?.vendorName || "",
+        ).trim();
+        if (!resolvedVendorName) {
+          const refVendorId = [...productMap.values()].map((x) => x.vendorId).find(Boolean);
+          const vid = String(
+            refVendorId || raw?.vendorId || baseLines[0]?.vendorId || "",
+          ).trim();
+          if (vid) {
+            try {
+              const v: any = await catalogApi.getVendor(vid);
+              resolvedVendorName = String(v?.businessName || v?.name || "").trim();
+            } catch {
+              /* keep empty → falls back to "Seller" */
+            }
+          }
+        }
+        setVendorName(resolvedVendorName);
 
         const normalized: OrderLine[] = baseLines.map((line, idx) => {
           const pid = String(line?.productId || "").trim();
@@ -103,8 +136,12 @@ export default function OrderDetailsPage() {
           ).trim();
           const productName = !isUnsafeProductName(rawName) ? rawName : ref?.name || "Product";
           const qty = Number(line?.quantity || 1);
-          const unitPrice = Number(line?.unitPrice || line?.price || 0);
-          const lineTotal = Number(line?.lineTotal || unitPrice * qty || 0);
+          // Prefer the price actually charged; fall back to the catalog price so
+          // legacy lines saved with unitPrice 0 still show a real amount.
+          const lineUnit = Number(line?.unitPrice || line?.price || 0);
+          const unitPrice = lineUnit > 0 ? lineUnit : Number(ref?.price || 0);
+          const lineRaw = Number(line?.lineTotal || 0);
+          const lineTotal = lineRaw > 0 ? lineRaw : unitPrice * qty;
           const image =
             line?.productImage ||
             line?.metadata?.productImage ||
@@ -135,11 +172,8 @@ export default function OrderDetailsPage() {
   );
   const total = Number(order?.totalAmount ?? itemTotal);
   const orderStatus = String(order?.status || "created");
-  const vendorLabel = useMemo(() => {
-    const firstLine = (Array.isArray(order?.metadata?.lines) ? order.metadata.lines[0] : null) as any;
-    const vendorName = firstLine?.metadata?.vendorName || order?.vendorName || order?.vendorId;
-    return String(vendorName || "Unknown vendor");
-  }, [order]);
+  // Never surface a raw vendor code/UUID; resolved async into vendorName above.
+  const vendorLabel = vendorName || "Seller";
   const paymentRef = String(order?.paymentRefId || order?.paymentReferenceId || order?.paymentId || "—");
 
   return (
