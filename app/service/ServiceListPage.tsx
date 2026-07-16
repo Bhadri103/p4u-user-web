@@ -346,7 +346,11 @@ export default function ServiceListPage({ onSelectSeller, busyServiceId }: Servi
 
   const useGps = () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) { setGpsOn(true); return; }
-    navigator.geolocation.getCurrentPosition(() => setGpsOn(true), () => setGpsOn(false));
+    navigator.geolocation.getCurrentPosition((position) => {
+      localStorage.setItem("p4u_customer_latitude", String(position.coords.latitude));
+      localStorage.setItem("p4u_customer_longitude", String(position.coords.longitude));
+      setGpsOn(true);
+    }, () => setGpsOn(false));
   };
 
   return (

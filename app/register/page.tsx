@@ -129,6 +129,8 @@ export default function RegisterPage() {
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        localStorage.setItem("p4u_customer_latitude", String(pos.coords.latitude));
+        localStorage.setItem("p4u_customer_longitude", String(pos.coords.longitude));
         setForm((prev) => ({
           ...prev,
           latitude: Number(pos.coords.latitude.toFixed(7)),
@@ -174,6 +176,9 @@ export default function RegisterPage() {
         longitude: form.longitude,
         referralCode: form.referralCode.trim() || null,
       });
+
+      localStorage.setItem("p4u_customer_state", form.state || "");
+      localStorage.setItem("p4u_customer_district", form.district || "");
 
       const cid =
         auth.customerId != null && String(auth.customerId).trim() !== ""

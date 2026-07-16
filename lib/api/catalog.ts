@@ -2,6 +2,24 @@ import { apiClient, PaginatedResponse } from "./client";
 
 const BASE = "/api/v1/catalog";
 
+function withCustomerLocation(params?: Record<string, unknown>): Record<string, string | number | boolean> {
+  const next = { ...(params || {}) } as Record<string, string | number | boolean>;
+  if (typeof window === "undefined") return next;
+  const latitudeRaw = localStorage.getItem("p4u_customer_latitude");
+  const longitudeRaw = localStorage.getItem("p4u_customer_longitude");
+  const latitude = latitudeRaw == null ? NaN : Number(latitudeRaw);
+  const longitude = longitudeRaw == null ? NaN : Number(longitudeRaw);
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    next["latitude"] = latitude;
+    next["longitude"] = longitude;
+  }
+  const district = localStorage.getItem("p4u_customer_district");
+  const state = localStorage.getItem("p4u_customer_state");
+  if (district) next["district"] = district;
+  if (state) next["state"] = state;
+  return next;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
@@ -122,19 +140,19 @@ export const catalogApi = {
   },
 
   getVendors(params?: { limit?: number; offset?: number; vendorKind?: "product" | "service" }) {
-    return apiClient.get<PaginatedResponse<Vendor>>(`${BASE}/vendors`, params as Record<string, string | number | boolean>, { cacheTtlMs: 20_000 });
+    return apiClient.get<PaginatedResponse<Vendor>>(`${BASE}/vendors`, withCustomerLocation(params), { cacheTtlMs: 20_000 });
   },
 
   getVendor(vendorId: number | string) {
-    return apiClient.get<Vendor>(`${BASE}/vendors/${vendorId}`, undefined, { cacheTtlMs: 45_000 });
+    return apiClient.get<Vendor>(`${BASE}/vendors/${vendorId}`, withCustomerLocation(), { cacheTtlMs: 45_000 });
   },
 
   getVendorProducts(vendorId: number | string, params?: { limit?: number; offset?: number }) {
-    return apiClient.get<PaginatedResponse<Product>>(`${BASE}/vendors/${vendorId}/products`, params as Record<string, string | number | boolean>, { cacheTtlMs: 20_000 });
+    return apiClient.get<PaginatedResponse<Product>>(`${BASE}/vendors/${vendorId}/products`, withCustomerLocation(params), { cacheTtlMs: 20_000 });
   },
 
   getProduct(productId: number | string) {
-    return apiClient.get<Product>(`${BASE}/products/${productId}`, undefined, { cacheTtlMs: 45_000 });
+    return apiClient.get<Product>(`${BASE}/products/${productId}`, withCustomerLocation(), { cacheTtlMs: 45_000 });
   },
 
   getServices(params?: {
@@ -153,12 +171,12 @@ export const catalogApi = {
     categoryId?: string;
     subcategoryId?: string;
   }) {
-    return apiClient.get<PaginatedResponse<ProductBrowseRow>>(`${BASE}/browse/products`, params as Record<string, string | number | boolean>, { cacheTtlMs: 20_000 });
+    return apiClient.get<PaginatedResponse<ProductBrowseRow>>(`${BASE}/browse/products`, withCustomerLocation(params), { cacheTtlMs: 20_000 });
   },
 
   /** After choosing a service: vendors offering it with per-vendor price. */
   getServiceVendorOffers(serviceId: string) {
-    return apiClient.get<ServiceVendorOffer[]>(`${BASE}/browse/services/${serviceId}/vendors`, undefined, { cacheTtlMs: 30_000 });
+    return apiClient.get<ServiceVendorOffer[]>(`${BASE}/browse/services/${serviceId}/vendors`, withCustomerLocation(), { cacheTtlMs: 30_000 });
   },
 
   getService(serviceId: string | number) {
@@ -182,6 +200,6 @@ export const catalogApi = {
   },
 
   search(q: string, params?: { limit?: number; offset?: number }) {
-    return apiClient.get<SearchResult>(`${BASE}/search`, { q, ...params } as Record<string, string | number | boolean>);
+    return apiClient.get<SearchResult>(`${BASE}/search`, withCustomerLocation({ q, ...params }));
   },
 };
