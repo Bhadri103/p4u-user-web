@@ -8,7 +8,7 @@ import {
   MessageSquare, Tag, Share2, UserPlus, ThumbsUp,
   ThumbsDown, UserX, Check, Edit3, Home, Compass, Film, Settings,
   User, Menu, Grid, Play, Pause, Layers, Loader2, Trash2, Mic,
-  KeyRound, Shield, HelpCircle, Moon, LogOut, Flag, Mail, Smartphone, MapPin
+  Shield, HelpCircle, Moon, LogOut, Flag, Mail, Smartphone, MapPin
 } from "lucide-react";
 import { socialApi, type ActivityNotification, type Conversation, type DirectMessage, type LinkedProduct, type Post, type SocioUserProfile, type SponsoredAd, type Story, type UserSummary } from "@/lib/api/social";
 import { apiClient } from "@/lib/api/client";
@@ -4031,74 +4031,6 @@ function EditProfilePanel() {
   );
 }
 
-function ChangePasswordPanel() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    profileApi.getMe()
-      .then((profile) => {
-        if (!cancelled) setEmail(profile.email ?? "");
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
-
-  const canSubmit = password.length >= 6 && password === confirm;
-
-  return (
-    <div className="min-h-full bg-[#F9FAFB] px-4 py-6 sm:px-6">
-      <div className="w-full max-w-[636px] space-y-7">
-        <div className="rounded-2xl bg-slate-50 px-6 py-5">
-          <span className="text-base text-slate-500">Account: </span>
-          <span className="text-base font-bold text-slate-950">{email || "your account"}</span>
-        </div>
-        <p className="text-base leading-relaxed text-slate-500">Set a new password for your account. Must be at least 6 characters.</p>
-        <div className="space-y-6">
-          <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4">
-            <Lock className="h-6 w-6 shrink-0 text-slate-500" />
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="New password"
-              className="min-w-0 flex-1 bg-transparent text-base text-slate-700 outline-none placeholder:text-slate-500"
-            />
-            <button type="button" onClick={() => setShowPassword((value) => !value)} className="shrink-0 text-slate-500">
-              <Eye className="h-5 w-5" />
-            </button>
-          </div>
-          <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4">
-            <Lock className="h-6 w-6 shrink-0 text-slate-500" />
-            <input
-              type={showConfirm ? "text" : "password"}
-              value={confirm}
-              onChange={(event) => setConfirm(event.target.value)}
-              placeholder="Confirm new password"
-              className="min-w-0 flex-1 bg-transparent text-base text-slate-700 outline-none placeholder:text-slate-500"
-            />
-            <button type="button" onClick={() => setShowConfirm((value) => !value)} className="shrink-0 text-slate-500">
-              <Eye className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-        <button
-          type="button"
-          disabled={!canSubmit}
-          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#7fcfcb] px-6 py-4 text-base font-bold text-white disabled:opacity-80"
-        >
-          <Shield className="h-6 w-6" />
-          Update Password
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function PrivacyPanel() {
   const { settings, loading, patch } = useSettingsContext();
   const priv = settings?.privateAccount ?? false;
@@ -4233,7 +4165,7 @@ function NotificationSettingsPanel() {
   );
 }
 
-function SecurityPanel({ onNavigate }: { onNavigate: (key: string) => void }) {
+function SecurityPanel() {
   const [twoFactor, setTwoFactor] = useState(false);
   const [loginAlerts, setLoginAlerts] = useState(true);
 
@@ -4274,11 +4206,10 @@ function SecurityPanel({ onNavigate }: { onNavigate: (key: string) => void }) {
           <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-500">Account Protection</h2>
           <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-100">
             {[
-              { key:"change_password", label:"Change Password", icon: Shield },
               { key:"logout_other", label:"Log out of all other devices", icon: LogOut },
               { key:"ownership", label:"Account Ownership & Control", icon: MapPin },
             ].map(({ key, label, icon: Icon }, i, arr) => (
-              <button key={key} type="button" onClick={() => key === "change_password" && onNavigate("change_password")} className={`flex w-full items-center gap-5 px-7 py-5 text-left ${i < arr.length - 1 ? "border-b border-slate-100" : ""}`}>
+              <button key={key} type="button" className={`flex w-full items-center gap-5 px-7 py-5 text-left ${i < arr.length - 1 ? "border-b border-slate-100" : ""}`}>
                 <Icon className="h-7 w-7 shrink-0 text-slate-500" />
                 <span className="min-w-0 flex-1 text-lg font-bold text-slate-950">{label}</span>
                 <ChevronRight className="h-6 w-6 text-slate-500" />
@@ -4320,7 +4251,7 @@ function HelpCenterPanel() {
               "How do I change my username?",
               "Why can't I send messages?",
               "How do I delete my account?",
-              "How do I recover my password?",
+              "How do I sign in with phone OTP?",
               "How do reels work?",
               "How do I earn rewards?",
             ].map((question, i, arr) => (
@@ -4826,7 +4757,6 @@ function SettingsLanding({ onNavigate }: { onNavigate: (key: string) => void }) 
       heading: "ACCOUNT",
       items: [
         { key: "edit_profile", label: "Edit Profile", icon: User },
-        { key: "change_password", label: "Change Password", icon: KeyRound },
         { key: "privacy", label: "Privacy", icon: Eye },
         { key: "security", label: "Security", icon: Shield },
       ],
@@ -4935,8 +4865,7 @@ function SettingsSection() {
       case "edit_profile": return <EditProfilePanel />;
       case "notification_settings": return <NotificationSettingsPanel />;
       case "privacy": return <PrivacyPanel />;
-      case "change_password": return <ChangePasswordPanel />;
-      case "security": return <SecurityPanel onNavigate={handleMenu} />;
+      case "security": return <SecurityPanel />;
       case "help_center": return <HelpCenterPanel />;
       case "about": return <AboutPanel />;
       case "language": return <LanguagePanel />;

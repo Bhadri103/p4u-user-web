@@ -2,17 +2,9 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { contentApi } from "@/lib/api/content";
-import { catalogApi } from "@/lib/api/catalog";
-import { resolveCatalogUnitPrice } from "@/lib/catalog/resolvePrice";
 import { resolveMediaUrl } from "@/lib/media";
-import bluetooth from "../../images/best-products/bluetooth-speaker.png";
-import mobile from "../../images/best-products/mobile.png";
-import moniter from "../../images/best-products/moniter.png";
-import printer from "../../images/best-products/printer.png";
-import watch from "../../images/best-products/watch.png";
 
 interface ProductCard {
   id?: string;
@@ -20,7 +12,8 @@ interface ProductCard {
   name: string;
   subtitle: string | null;
   price: string | null;
-  image: any;
+  image: string;
+  orderCount: number;
 }
 
 export default function BestProducts() {
@@ -30,48 +23,21 @@ export default function BestProducts() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fromFeatured = (items: Array<{ name: string; section?: string | null; price?: string | number | null; imageUrl?: string | null }>) =>
+    const fromFeatured = (items: Array<{ id: string; vendorId?: string | null; name: string; price?: string | number | null; imageUrl?: string | null; orderCount?: number }>) =>
       items.slice(0, 12).map((p) => ({
+        id: p.id,
+        vendorId: p.vendorId ? String(p.vendorId) : "",
         name: p.name,
-        subtitle: p.section ?? null,
+        subtitle: null,
         price: p.price ? (String(p.price).startsWith("₹") ? String(p.price) : `₹${p.price}`) : null,
-        image: (p.imageUrl && resolveMediaUrl(p.imageUrl)) || p.imageUrl || mobile,
+        image: (p.imageUrl && resolveMediaUrl(p.imageUrl)) || p.imageUrl || "",
+        orderCount: Number(p.orderCount ?? 0),
       }));
-
-    const fromCatalog = async () => {
-      const res = await catalogApi.browseProducts({ limit: 12, offset: 0 });
-      return (res.data ?? []).map((p) => {
-        const unit = resolveCatalogUnitPrice(p as unknown as Record<string, unknown>);
-        return {
-          id: String(p.id ?? ""),
-          vendorId: String(p.vendorId ?? ""),
-          name: p.name || "Product",
-          subtitle: null,
-          price: unit > 0 ? `₹${unit}` : null,
-          image: resolveMediaUrl(p.thumbnailUrl) || p.thumbnailUrl || mobile,
-        };
-      });
-    };
 
     contentApi
       .getFeaturedProducts()
-      .then(async (items) => {
-        const featured = fromFeatured(items);
-        if (featured.length > 0) {
-          setProducts(featured);
-          return;
-        }
-        const catalogRows = await fromCatalog();
-        setProducts(catalogRows);
-      })
-      .catch(async () => {
-        try {
-          const catalogRows = await fromCatalog();
-          setProducts(catalogRows);
-        } catch {
-          setProducts([]);
-        }
-      })
+      .then((items) => setProducts(fromFeatured(items)))
+      .catch(() => setProducts([]))
       .finally(() => setLoading(false));
   }, []);
 
@@ -155,14 +121,9 @@ export default function BestProducts() {
                   className="flex-shrink-0 w-[160px] sm:w-[200px] lg:w-[240px] bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer"
                 >
                   <div className="h-[160px] sm:h-[200px] lg:h-[240px] bg-white flex items-center justify-center p-4 sm:p-5 lg:p-6">
-                    <div className="relative w-full h-full">
-                      <Image
-                        src={product.image}
-                        alt={product.name}
-                        fill
-                        className="object-contain"
-                      />
-                    </div>
+                    {product.image ? <img src={product.image} alt={product.name} className="h-full w-full object-contain" /> : (
+                      <div className="flex h-full w-full items-center justify-center rounded-xl bg-slate-50 text-xs text-slate-400">No image</div>
+                    )}
                   </div>
                   <div className="p-3 sm:p-4 lg:p-5 text-center bg-white border-t border-gray-100">
                     <p className="text-xs sm:text-sm lg:text-base text-gray-800 mb-1 font-medium line-clamp-2">
@@ -178,6 +139,9 @@ export default function BestProducts() {
                         From {product.price}
                       </p>
                     )}
+                    <p className="mt-1 text-xs font-medium text-teal-700">
+                      {product.orderCount} completed {product.orderCount === 1 ? "order" : "orders"}
+                    </p>
                   </div>
                 </div>
               ))}

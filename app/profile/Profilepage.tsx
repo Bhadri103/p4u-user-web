@@ -15,7 +15,7 @@ import { authApi } from "@/lib/api/auth";
 type ActivePage =
   | "profile" | "edit-profile" | "saved-addresses" | "select-language" | "notification"
   | "your-orders" | "my-bookings" | "reviews-ratings" | "your-favourites" | "refer-earn"
-  | "reward-points" | "become-vendor" | "account-privacy" | "kyc" | "change-password" | "support" | "logout";
+  | "reward-points" | "become-vendor" | "account-privacy" | "kyc" | "support" | "logout";
 
 interface SidebarItem { id: ActivePage; label: string; icon: React.ReactNode; } 
 const Ic = ({ d, size = 16, sw = "1.8" }: { d: string; size?: number; sw?: string }) => (
@@ -935,7 +935,6 @@ function PageProfile({ setActive }: { setActive: (p: ActivePage) => void }) {
     { label: "Referrals", icon: <IcGift s={20} />, value: referralCode || referralCount, href: "/referrals" },
     { label: "My Classifieds", icon: <IcNav s={20} />, href: "/classified" },
     { label: "Support Tickets", icon: <IcFileText s={20} />, href: "/help-support" },
-    { label: "Change Password", icon: <IcShield s={20} />, href: "/change-password" },
     { label: "Settings", icon: <IcSettings s={20} />, page: "edit-profile" },
     { label: "Logout", icon: <IcLogOut s={20} />, danger: true, page: "logout" },
   ];
@@ -2274,22 +2273,6 @@ function PageBecomeVendor() {
   );
 }
   
-function ChangePasswordBlock() {
-  // Password auth has been removed in favour of phone OTP. The block stays
-  // visible so the layout stays consistent, but it just explains the new
-  // sign-in model. Re-enable when/if password auth is reintroduced.
-  return (
-    <div className="mb-6">
-      <SectionTitle>Sign-in method</SectionTitle>
-      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-        Your account uses phone OTP for sign-in. There is no password to change.
-        Each time you sign in we send a fresh 6-digit code to your registered
-        mobile number.
-      </div>
-    </div>
-  );
-}
-
 function PageAccountPrivacy() {
   const [deleteConsent, setDeleteConsent] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -2308,7 +2291,6 @@ function PageAccountPrivacy() {
           </div>
         </Modal>
       )}
-      <ChangePasswordBlock />
       <SectionTitle>Account Privacy</SectionTitle>
       <div className="text-sm text-slate-600 mb-5 space-y-3 leading-relaxed">
         <p>At Planext4u, we are committed to protecting the privacy and security of our users&apos; personal information.</p>
@@ -2464,46 +2446,6 @@ export function PageKycVerification({ onBack }: { onBack: () => void }) {
           );
         })}
       </div>
-    </div>
-  );
-}
-
-export function PageChangePassword({ onBack }: { onBack: () => void }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  useEffect(() => {
-    profileApi.getMe().then((p) => setEmail(p.email ?? "")).catch(() => {});
-  }, []);
-  return (
-    <div className="mx-auto w-full max-w-[870px] py-8">
-      <AccountPageHeader title="Change Password" onBack={onBack} />
-      <div className="rounded-[18px] bg-slate-50 px-8 py-6">
-        <span className="text-[18px] text-slate-500">Account: </span>
-        <span className="text-[18px] font-bold text-slate-950">{email || "your account"}</span>
-      </div>
-      <p className="my-10 text-[18px] text-slate-500">Set a new password for your account. Must be at least 6 characters.</p>
-      <div className="space-y-7">
-        {[
-          ["New password", password, setPassword],
-          ["Confirm new password", confirm, setConfirm],
-        ].map(([placeholder, value, setter]) => (
-          <div key={String(placeholder)} className="flex h-[86px] items-center gap-5 rounded-[18px] border border-slate-200 bg-white px-6">
-            <IcShield s={28} />
-            <input
-              type="password"
-              value={String(value)}
-              onChange={(event) => (setter as React.Dispatch<React.SetStateAction<string>>)(event.target.value)}
-              placeholder={String(placeholder)}
-              className="min-w-0 flex-1 bg-transparent text-[18px] text-slate-700 outline-none placeholder:text-slate-500"
-            />
-            <IcUser s={26} />
-          </div>
-        ))}
-      </div>
-      <button type="button" className="mt-8 flex h-[72px] w-full items-center justify-center gap-4 rounded-[18px] bg-[#83cfcb] text-[22px] font-bold text-white">
-        <IcShield s={28} /> Update Password
-      </button>
     </div>
   );
 }
@@ -2670,7 +2612,6 @@ const { isLoggedIn } = useAuth();
       else if (h === "refer-earn" || h === "referrals") setActivePage("refer-earn");
       else if (h === "wallet" || h === "reward-points") setActivePage("reward-points");
       else if (h === "kyc") setActivePage("kyc");
-      else if (h === "change-password") setActivePage("change-password");
       else if (h === "support" || h === "help") setActivePage("support");
     };
     applyHash();
@@ -2694,7 +2635,6 @@ const { isLoggedIn } = useAuth();
       case "become-vendor": return <PageBecomeVendor />;
       case "account-privacy": return <PageAccountPrivacy />;
       case "kyc": return <PageKycVerification onBack={() => setActivePage("profile")} />;
-      case "change-password": return <PageChangePassword onBack={() => setActivePage("profile")} />;
       case "support": return <PageHelpSupport onBack={() => setActivePage("profile")} />;
       case "logout": return <PageLogout onCancel={() => setActivePage("profile")} />;
       default: return <PageProfile setActive={setActivePage} />;

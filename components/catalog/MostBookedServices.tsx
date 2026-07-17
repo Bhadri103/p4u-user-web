@@ -5,6 +5,7 @@ import { Heart, Clock, Star } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { catalogApi } from "@/lib/api/catalog";
+import { contentApi } from "@/lib/api/content";
 import { pickServiceImage, resolveMediaUrl } from "@/lib/media";
 
 import homeApp from "../../images/home-services/home-application-left.png";
@@ -12,7 +13,7 @@ import homeApp from "../../images/home-services/home-application-left.png";
 export default function ServiceComponents() {
   const SHOW_HOME_SERVICES = false;
   const router = useRouter();
-  const [mostBookedServices, setMostBookedServices] = useState<{ id: string | number; image: string; title: string; rating: number; reviews: number; price: number; originalPrice: number; duration: string; description: string; offer: string }[]>([]);
+  const [mostBookedServices, setMostBookedServices] = useState<{ id: string | number; image: string; title: string; rating: number; reviews: number; price: number; originalPrice: number; duration: string; description: string; offer: string; bookingCount: number }[]>([]);
   const [homeServices, setHomeServices] = useState<{ id: string; vendorId: string; name: string; price: string; image: string }[]>([]);
 
   useEffect(() => {
@@ -37,21 +38,22 @@ export default function ServiceComponents() {
         setHomeServices([]);
       });
 
-    catalogApi.getServices({ limit: 10 }).then((res) => {
+    contentApi.getServiceHighlights().then((items) => {
       setMostBookedServices(
-        (res.data ?? []).map((s) => ({
+        items.slice(0, 10).map((s) => ({
           id: s.id,
           image: pickServiceImage(s as any) || "",
-          title: s.name || "Service",
+          title: s.name || s.title || "Service",
           rating: 0,
           reviews: 0,
-          price: Number((s as any).metadata?.price ?? (s as any).price ?? 0),
+          price: Number(s.basePrice ?? s.price ?? 0),
           originalPrice: (s as any).metadata?.originalPrice
             ? Number((s as any).metadata.originalPrice)
-            : Number((s as any).metadata?.price ?? 0),
+            : Number(s.basePrice ?? s.price ?? 0),
           duration: String((s as any).metadata?.duration ?? ""),
           description: s.description ?? "",
           offer: "",
+          bookingCount: Number(s.bookingCount ?? 0),
         })),
       );
     }).catch(() => {
@@ -107,6 +109,9 @@ export default function ServiceComponents() {
                 <h3 className="font-semibold text-xs lg:text-sm leading-tight line-clamp-2 mb-2 min-h-[32px]">
                   {service.title}
                 </h3>
+                <p className="mb-2 text-xs font-semibold text-teal-700">
+                  {service.bookingCount} completed {service.bookingCount === 1 ? "booking" : "bookings"}
+                </p>
  
                 <div className="mb-2">
                   <div className="text-xs lg:text-sm">
@@ -137,7 +142,7 @@ export default function ServiceComponents() {
                 ) : null}
                 <button
                   className="w-full py-1.5 lg:py-2 border border-teal-500 text-teal-600 rounded text-xs lg:text-sm font-medium hover:bg-teal-50 transition-colors mt-auto"
-                  onClick={() => router.push("/service")}
+                  onClick={() => router.push(`/service?serviceId=${encodeURIComponent(String(service.id))}`)}
                 >
                   Book now
                 </button>

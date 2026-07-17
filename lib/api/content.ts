@@ -102,6 +102,9 @@ export interface FeaturedProductItem {
   redirectUrl?: string;
   sortOrder: number;
   isActive: boolean;
+  vendorId?: string | null;
+  orderCount?: number;
+  moderationStatus?: string;
 }
 
 export interface ServiceHighlightItem {
@@ -113,6 +116,10 @@ export interface ServiceHighlightItem {
   redirectUrl?: string;
   sortOrder: number;
   isActive: boolean;
+  name?: string;
+  price?: string | number | null;
+  basePrice?: string | number | null;
+  bookingCount?: number;
 }
 
 export interface HomeContent {
