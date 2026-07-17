@@ -17,6 +17,8 @@ import { catalogApi, type Product } from "@/lib/api/catalog";
 import { resolveMediaUrl } from "@/lib/media";
 import { DEFAULT_NOTIFICATION_SETTINGS, useSocialSettings } from "@/lib/hooks/useSocialSettings";
 import { clearUserAuthStorage } from "@/lib/authSession";
+import { useRouter } from "next/navigation";
+import type { SocioAdConfig } from "@/lib/api/social";
 
 const TEAL = "linear-gradient(135deg, #009999, #007777)";
 const TEAL_SOLID = "#009999";
@@ -776,10 +778,26 @@ function FeedVideo({
   );
 }
 
-function SponsoredAdCard({ ad }: { ad: SponsoredAd }) {
-  const img = ad.image ? resolveMediaUrl(ad.image) || ad.image : "";
+function SponsoredAdCard({ ad, compact = false }: { ad: SponsoredAd; compact?: boolean }) {
+  const router = useRouter();
+  const imgSource = compact ? (ad.mobileImage || ad.image) : (ad.desktopImage || ad.image);
+  const img = imgSource ? resolveMediaUrl(imgSource) || imgSource : "";
+  const openAd = () => {
+    const target = String(ad.targetType || "").toLowerCase();
+    if (target === "product" && ad.productId && ad.vendorId) {
+      router.push(`/shop/${encodeURIComponent(ad.vendorId)}/${encodeURIComponent(ad.productId)}`);
+      return;
+    }
+    if (target === "vendor" && ad.vendorId) {
+      router.push(`/shop/${encodeURIComponent(ad.vendorId)}`);
+      return;
+    }
+    if (!ad.redirectUrl) return;
+    if (ad.redirectUrl.startsWith("/")) router.push(ad.redirectUrl);
+    else window.open(ad.redirectUrl, "_blank", "noopener,noreferrer");
+  };
   const body = (
-    <div className="mb-4 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+    <div className={compact ? "w-60 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm" : "mb-4 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"}>
       <div className="flex items-center justify-between px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-900">{ad.advertiser || ad.title}</p>
@@ -789,7 +807,7 @@ function SponsoredAdCard({ ad }: { ad: SponsoredAd }) {
       </div>
       {img ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={img} alt={ad.title} className="max-h-[420px] w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+        <img src={img} alt={ad.title} className={compact ? "h-16 w-full object-cover" : "max-h-[420px] w-full object-cover"} onError={(e) => { e.currentTarget.style.display = "none"; }} />
       ) : null}
       {(ad.title || ad.caption) ? (
         <div className="px-4 py-3">
@@ -799,9 +817,54 @@ function SponsoredAdCard({ ad }: { ad: SponsoredAd }) {
       ) : null}
     </div>
   );
-  return ad.redirectUrl ? (
-    <a href={ad.redirectUrl} target="_blank" rel="noopener noreferrer" className="block">{body}</a>
-  ) : body;
+  return ad.redirectUrl || ad.productId || ad.vendorId
+    ? <button type="button" onClick={openAd} className="block w-full text-left">{body}</button>
+    : body;
+}
+
+const ADSENSE_ENABLED = process.env.NEXT_PUBLIC_SOCIO_ADSENSE_ENABLED === "true";
+const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_SOCIO_ADSENSE_CLIENT || "";
+const ADSENSE_SLOT = process.env.NEXT_PUBLIC_SOCIO_ADSENSE_SLOT || "";
+
+function WebAdSenseCard({ compact = false }: { compact?: boolean }) {
+  useEffect(() => {
+    if (!ADSENSE_ENABLED || !ADSENSE_CLIENT || !ADSENSE_SLOT) return;
+    const load = () => {
+      try {
+        const ads = window as unknown as { adsbygoogle?: unknown[] };
+        (ads.adsbygoogle = ads.adsbygoogle || []).push({});
+      } catch { /* a blocked ad must never break the feed */ }
+    };
+    const existing = document.querySelector<HTMLScriptElement>('script[data-p4u-socio-adsense]');
+    if (existing) {
+      if (existing.dataset.loaded === "true") load();
+      else existing.addEventListener("load", load, { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.async = true;
+    script.crossOrigin = "anonymous";
+    script.dataset.p4uSocioAdsense = "true";
+    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(ADSENSE_CLIENT)}`;
+    script.addEventListener("load", () => { script.dataset.loaded = "true"; load(); }, { once: true });
+    document.head.appendChild(script);
+  }, []);
+  if (!ADSENSE_ENABLED || !ADSENSE_CLIENT || !ADSENSE_SLOT) return null;
+  return (
+    <div className={compact ? "w-80 shrink-0 overflow-hidden rounded-xl bg-white" : "mb-4 overflow-hidden rounded-2xl bg-white"}>
+      <ins className="adsbygoogle block" data-ad-client={ADSENSE_CLIENT} data-ad-slot={ADSENSE_SLOT} data-ad-format={compact ? "horizontal" : "auto"} data-full-width-responsive="true" />
+    </div>
+  );
+}
+
+function HybridAdSlot({ slotIndex, ads, config, compact = false }: { slotIndex: number; ads: SponsoredAd[]; config: SocioAdConfig; compact?: boolean }) {
+  const admin = ads.length ? ads[slotIndex % ads.length] : null;
+  const wantsAdmin = config.mode === "admin_only"
+    || config.mode === "prefer_admin_then_admob"
+    || (config.mode === "alternate" && slotIndex % 2 === 0);
+  if (wantsAdmin && admin) return <SponsoredAdCard ad={admin} compact={compact} />;
+  if (config.mode === "admin_only") return null;
+  return <WebAdSenseCard compact={compact} />;
 }
 
 function PostCard({ post: p, onUserClick, myUserId }: { post: PostItem; onUserClick: (userId: string) => void; myUserId?: string }) {
@@ -1426,6 +1489,7 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
   const [stories, setStories] = useState<StoryItem[]>([{ id: "my", mine: true, label: "Your Story", avatar: null, segments: [], viewed: false }]);
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [sponsoredAds, setSponsoredAds] = useState<SponsoredAd[]>([]);
+  const [adConfig, setAdConfig] = useState<SocioAdConfig>({ adEveryN: 5, mode: "prefer_admin_then_admob" });
   const [myUserId, setMyUserId] = useState("");
   const [searches, setSearches] = useState<SearchItem[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
@@ -1456,13 +1520,14 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
   const loadFeed = useCallback(async () => {
     try {
       setLoadingFeed(true);
-      const [feedRes, storyRes, suggestionsRes, meRes, myStoriesRes, adsRes] = await Promise.allSettled([
+      const [feedRes, storyRes, suggestionsRes, meRes, myStoriesRes, adsRes, adConfigRes] = await Promise.allSettled([
         socialApi.getPublicFeed({ limit: 20 }),
         socialApi.getStoryFeed(),
         socialApi.getSuggestions(),
         socialApi.getMyProfile(),
         socialApi.getMyStories(),
         socialApi.getSocioAds({ limit: 5 }),
+        socialApi.getSocioAdConfig(),
       ]);
       if (feedRes.status === "fulfilled") {
         setPosts(feedRes.value.data.map(mapApiPostToPostItem));
@@ -1470,6 +1535,7 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
       if (adsRes.status === "fulfilled" && Array.isArray(adsRes.value)) {
         setSponsoredAds(adsRes.value);
       }
+      if (adConfigRes.status === "fulfilled") setAdConfig(adConfigRes.value);
       if (meRes.status === "fulfilled") {
         setMyUserId(meRes.value.userId);
       }
@@ -1549,10 +1615,15 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
         <div className="shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-4 mb-5">
           <p className="text-xs font-semibold tracking-widest uppercase text-gray-400 mb-3">Stories</p>
           <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-            {stories.map(s => (
-              <StoryCircle key={s.id} story={s}
-                onCreate={() => setShowCreateStory(true)}
-                onClick={() => s.mine && s.segments.length === 0 ? setShowCreateStory(true) : setStoryView({ open: true, story: s })} />
+            {stories.map((s, index) => (
+              <Fragment key={s.id}>
+                <StoryCircle story={s}
+                  onCreate={() => setShowCreateStory(true)}
+                  onClick={() => s.mine && s.segments.length === 0 ? setShowCreateStory(true) : setStoryView({ open: true, story: s })} />
+                {(index + 1) % adConfig.adEveryN === 0
+                  ? <HybridAdSlot slotIndex={(index + 1) / adConfig.adEveryN - 1} ads={sponsoredAds} config={adConfig} compact />
+                  : null}
+              </Fragment>
             ))}
           </div>
         </div>
@@ -1588,19 +1659,16 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
             </div>
           )}
           {posts.map((post, i) => {
-            // Interleave a sponsored ad after every 3rd post, cycling the pool.
-            const showAdBefore = sponsoredAds.length > 0 && i > 0 && i % 3 === 0;
-            const ad = showAdBefore ? sponsoredAds[(i / 3 - 1) % sponsoredAds.length] : null;
+            const showAdAfter = (i + 1) % adConfig.adEveryN === 0;
             return (
               <Fragment key={post.id}>
-                {ad ? <SponsoredAdCard ad={ad} /> : null}
                 <PostCard post={post} onUserClick={onUserClick} myUserId={myUserId} />
+                {showAdAfter
+                  ? <HybridAdSlot slotIndex={(i + 1) / adConfig.adEveryN - 1} ads={sponsoredAds} config={adConfig} />
+                  : null}
               </Fragment>
             );
           })}
-          {!loadingFeed && posts.length === 0 && sponsoredAds.length > 0
-            ? sponsoredAds.map((ad) => <SponsoredAdCard key={ad.id} ad={ad} />)
-            : null}
         </div>
       </div>
 

@@ -15,6 +15,18 @@ export interface SponsoredAd {
   caption: string;
   advertiser: string;
   redirectUrl: string | null;
+  desktopImage?: string | null;
+  mobileImage?: string | null;
+  targetType?: string | null;
+  productId?: string | null;
+  vendorId?: string | null;
+  trendingVendor?: boolean;
+}
+
+export type SocioAdMode = "prefer_admin_then_admob" | "alternate" | "admin_only" | "admob_only";
+export interface SocioAdConfig {
+  adEveryN: number;
+  mode: SocioAdMode;
 }
 
 export interface Post {
@@ -443,6 +455,18 @@ export const socialApi = {
         return (arr as SponsoredAd[]).filter((a) => a && typeof a === "object");
       })
       .catch(() => []);
+  },
+
+  getSocioAdConfig(): Promise<SocioAdConfig> {
+    return apiClient
+      .get<Partial<SocioAdConfig>>(`${BASE}/feed/ad-config`)
+      .then((raw) => ({
+        adEveryN: Math.max(1, Math.min(100, Math.trunc(Number(raw.adEveryN) || 5))),
+        mode: ["prefer_admin_then_admob", "alternate", "admin_only", "admob_only"].includes(String(raw.mode))
+          ? raw.mode as SocioAdMode
+          : "prefer_admin_then_admob",
+      }))
+      .catch(() => ({ adEveryN: 5, mode: "prefer_admin_then_admob" }));
   },
 
   getPost(postId: string | number) {
