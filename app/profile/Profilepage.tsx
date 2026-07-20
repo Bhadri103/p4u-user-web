@@ -1657,7 +1657,7 @@ function PageReviews() {
       }
       setApiReviewMap(next);
     });
-  }, [tab]);
+  }, [data, tab]);
 
   const submit = async () => {
     const e: { rating?: string; text?: string } = {};
@@ -1852,7 +1852,7 @@ function PageReferEarn() {
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(code).catch(() => { });
     setCopied(true); setTimeout(() => setCopied(false), 2000);
-  }, []);
+  }, [code]);
 
   const steps = [
     { icon: <IcUserPlus s={20} />, label: "Refer a Friend", bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700" },

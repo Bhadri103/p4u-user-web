@@ -129,7 +129,7 @@ export default function CheckoutPage() {
     if (checkoutItems.length > 0) {
       fetchQuote();
     }
-  }, [checkoutItems.length, subtotal]);
+  }, [checkoutItems.length, fetchQuote]);
 
   const applyCoupon = async () => {
     const code = coupon.trim();

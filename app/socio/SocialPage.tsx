@@ -433,6 +433,7 @@ function StoryViewer({
   const nextInitialIndex = useRef(0);
   const segments = story.segments;
   const active = segments[index];
+  const activeId = active?.id;
   const rail = (storyRail && storyRail.length > 0 ? storyRail : [story]).filter((item) => item.segments.length > 0);
   const railIndex = Math.max(0, rail.findIndex((item) => item.id === story.id));
 
@@ -473,10 +474,10 @@ function StoryViewer({
 
   useEffect(() => {
     setProgress(0);
-    if (!active || story.mine) return;
-    socialApi.viewStory(active.id).catch(() => {});
-    onViewed?.(active.id);
-  }, [active?.id, onViewed, story.mine]);
+    if (!activeId || story.mine) return;
+    socialApi.viewStory(activeId).catch(() => {});
+    onViewed?.(activeId);
+  }, [activeId, onViewed, story.mine]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -3945,7 +3946,10 @@ function EditProfilePanel() {
             username: socioRes.value.userName,
             bio: prev.bio || socioRes.value.bio || "",
           }));
-          if (!avatar && socioRes.value.userAvatar) setAvatar(resolveMediaUrl(socioRes.value.userAvatar) || socioRes.value.userAvatar);
+          if (socioRes.value.userAvatar) {
+            const socioAvatar = resolveMediaUrl(socioRes.value.userAvatar) || socioRes.value.userAvatar;
+            setAvatar((current) => current || socioAvatar);
+          }
         }
       })
       .catch(() => {});
@@ -4064,7 +4068,7 @@ function PrivacyPanel() {
             <div className="flex items-center gap-6 px-7 py-6">
               <div className="min-w-0 flex-1">
                 <p className="text-lg font-bold text-slate-950">Activity Status</p>
-                <p className="mt-1 text-base text-slate-500">Show when you're active on the app</p>
+                <p className="mt-1 text-base text-slate-500">Show when you&apos;re active on the app</p>
               </div>
               <Toggle checked={actStatus} onChange={(v) => save({ showActivityStatus: v })} />
             </div>
@@ -4095,7 +4099,7 @@ function PrivacyPanel() {
             <div className="flex items-center gap-6 border-b border-slate-100 px-7 py-6">
               <div className="min-w-0 flex-1">
                 <p className="text-lg font-bold text-slate-950">Hide Like Counts</p>
-                <p className="mt-1 text-base text-slate-500">Others won't be able to see likes on your posts</p>
+                <p className="mt-1 text-base text-slate-500">Others won&apos;t be able to see likes on your posts</p>
               </div>
               <Toggle checked={hideLikeCounts} onChange={setHideLikeCounts} />
             </div>
@@ -4819,7 +4823,7 @@ function SettingsLanding({ onNavigate }: { onNavigate: (key: string) => void }) 
             <div className="flex min-h-[64px] items-center gap-5 px-7 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-slate-950">Activity Status</p>
-                <p className="mt-0.5 text-[11px] text-slate-500">Show when you're online</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">Show when you&apos;re online</p>
               </div>
               <Toggle checked={activityStatus} onChange={(v) => saveSetting({ showActivityStatus: v })} />
             </div>

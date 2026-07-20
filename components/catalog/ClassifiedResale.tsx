@@ -263,7 +263,7 @@ export default function ClassifiedsSection() {
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el || listings.length === 0) return;
     const handleScroll = () => {
       const cardWidth = el.scrollWidth / listings.length;
       const index = Math.round(el.scrollLeft / cardWidth);
@@ -271,11 +271,11 @@ export default function ClassifiedsSection() {
     };
     el.addEventListener("scroll", handleScroll, { passive: true });
     return () => el.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [listings.length]);
 
   const scrollToCard = (index: number) => {
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el || listings.length === 0) return;
     const cardWidth = el.scrollWidth / listings.length;
     el.scrollTo({ left: cardWidth * index, behavior: "smooth" });
   };

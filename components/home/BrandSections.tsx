@@ -16,6 +16,8 @@ export default function BrandSections() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScrollTimer = useRef<NodeJS.Timeout | null>(null);
   const brands = [...originalBrands, ...originalBrands, ...originalBrands];
+  const brandCount = originalBrands.length;
+  const totalBrandCount = brandCount * 3;
 
   useEffect(() => {
     contentApi.getBrands().then((items) => {
@@ -30,6 +32,7 @@ export default function BrandSections() {
   }, []);
  
   useEffect(() => {
+    if (brandCount <= 1) return undefined;
     const startAutoScroll = () => {
       if (autoScrollTimer.current) {
         clearInterval(autoScrollTimer.current);
@@ -38,16 +41,16 @@ export default function BrandSections() {
       autoScrollTimer.current = setInterval(() => {
         setCurrentSlide((prev) => {
           const next = prev + 1; 
-          if (next >= originalBrands.length * 2) { 
+          if (next >= brandCount * 2) {
             setTimeout(() => {
               if (scrollRef.current) {
-                const scrollWidth = scrollRef.current.scrollWidth / brands.length;
+                const scrollWidth = scrollRef.current.scrollWidth / totalBrandCount;
                 scrollRef.current.scrollTo({
-                  left: scrollWidth * originalBrands.length,
+                  left: scrollWidth * brandCount,
                   behavior: "auto",
                 });
               }
-              setCurrentSlide(originalBrands.length);
+              setCurrentSlide(brandCount);
             }, 300);
           }
           return next;
@@ -62,7 +65,7 @@ export default function BrandSections() {
         clearInterval(autoScrollTimer.current);
       }
     };
-  }, []);
+  }, [brandCount, totalBrandCount]);
  
   useEffect(() => {
     if (scrollRef.current) {
@@ -72,17 +75,17 @@ export default function BrandSections() {
         behavior: "smooth",
       });
     }
-  }, [currentSlide]);
+  }, [brands.length, currentSlide]);
  
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && brands.length > 0) {
       const scrollWidth = scrollRef.current.scrollWidth / brands.length;
       scrollRef.current.scrollTo({
         left: scrollWidth * originalBrands.length,
         behavior: "auto",
       });
     }
-  }, []);
+  }, [brands.length, originalBrands.length]);
 
   const handleDotClick = (index: number) => { 
     if (autoScrollTimer.current) {

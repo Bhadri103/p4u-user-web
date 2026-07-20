@@ -1,6 +1,6 @@
 
 "use client";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useCart } from "@/providers/CartContext";
 import {
   Star, MapPin, ChevronLeft, ChevronRight, Search,
@@ -135,7 +135,7 @@ function VendorBanner({ banners, vendorName }: { banners: Banner[]; vendorName: 
   const [dir, setDir] = useState<"next" | "prev">("next");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const go = (direction: "next" | "prev") => {
+  const go = useCallback((direction: "next" | "prev") => {
     if (animating || slides.length === 0) return;
     setDir(direction);
     setAnimating(true);
@@ -148,13 +148,13 @@ function VendorBanner({ banners, vendorName }: { banners: Banner[]; vendorName: 
       );
       setAnimating(false);
     }, 350);
-  };
+  }, [animating, slides.length]);
 
   useEffect(() => {
     if (slides.length <= 1) return undefined;
     timerRef.current = setInterval(() => go("next"), 5000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [current, animating, slides.length]);
+  }, [current, go, slides.length]);
 
   const safeIndex = slides.length ? Math.min(current, slides.length - 1) : 0;
   const b = normalizeBanner(slides[safeIndex]);
