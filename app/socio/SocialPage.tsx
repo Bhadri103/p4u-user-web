@@ -340,7 +340,7 @@ function ProfileReelsViewer({ reels, initialIndex, onClose, onUserClick }: { ree
   );
 }
 
-function ProfileGridCell({ media, onClick }: { media: ProfileGridMedia; onClick: () => void }) {
+function ProfileGridCell({ media, onClick, onDelete }: { media: ProfileGridMedia; onClick: () => void; onDelete?: () => void }) {
   return (
     <div className="relative aspect-square overflow-hidden cursor-pointer group bg-gray-100" onClick={onClick}>
       {media.type === "video" ? (
@@ -362,6 +362,16 @@ function ProfileGridCell({ media, onClick }: { media: ProfileGridMedia; onClick:
         <img src={media.url} alt="" loading="lazy" decoding="async" className="block h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
       )}
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+      {onDelete && (
+        <button
+          type="button"
+          aria-label="Delete your upload"
+          onClick={(event) => { event.stopPropagation(); onDelete(); }}
+          className="absolute right-2 top-2 z-10 rounded-full bg-black/65 p-2 text-white opacity-100 shadow-sm hover:bg-red-600 sm:opacity-0 sm:group-hover:opacity-100"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 }
@@ -528,8 +538,9 @@ function StoryViewer({
       onDeleted?.(active.id);
       if (segments.length <= 1) onClose();
       else if (index >= segments.length - 1) setIndex((current) => Math.max(0, current - 1));
-    } catch { /* ignore delete failures */ }
-    finally { setDeleting(false); }
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not delete this story.');
+    } finally { setDeleting(false); }
   };
 
   if (!active) return null;
@@ -868,7 +879,7 @@ function HybridAdSlot({ slotIndex, ads, config, compact = false }: { slotIndex: 
   return <WebAdSenseCard compact={compact} />;
 }
 
-function PostCard({ post: p, onUserClick, myUserId }: { post: PostItem; onUserClick: (userId: string) => void; myUserId?: string }) {
+function PostCard({ post: p, onUserClick, myUserId, onDeleted }: { post: PostItem; onUserClick: (userId: string) => void; myUserId?: string; onDeleted?: (postId: string | number) => void }) {
   const [liked, setLiked] = useState(p.isLiked ?? false);
   const [saved, setSaved] = useState(p.isSaved ?? false);
   const [following, setFollowing] = useState(p.isFollowing ?? false);
@@ -884,6 +895,7 @@ function PostCard({ post: p, onUserClick, myUserId }: { post: PostItem; onUserCl
   const [likeBusy, setLikeBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   useEffect(() => {
     setLiked(p.isLiked ?? false);
@@ -1011,6 +1023,19 @@ function PostCard({ post: p, onUserClick, myUserId }: { post: PostItem; onUserCl
   };
 
   const addEmoji = (emoji: string) => setComment((value) => `${value}${emoji}`);
+  const deleteOwnPost = async () => {
+    if (!isSelfPost || deleteBusy || !window.confirm('Delete this post and its uploaded media?')) return;
+    setDeleteBusy(true);
+    try {
+      await socialApi.deletePost(p.id);
+      onDeleted?.(p.id);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not delete this post.');
+    } finally {
+      setDeleteBusy(false);
+      setShowMenu(false);
+    }
+  };
   const commentEmojis = ["😊", "🎉", "🔥", "💯", "👏", "💖", "🥳", "🫶", "💐", "🌟"];
 
   return (
@@ -1042,7 +1067,14 @@ function PostCard({ post: p, onUserClick, myUserId }: { post: PostItem; onUserCl
           {showMenu && (
             <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50" onClick={() => setShowMenu(false)}>
               <div className="bg-white rounded-2xl shadow-2xl w-72 overflow-hidden" onClick={e => e.stopPropagation()}>
-                {["Report", "Go to post", "Share to...", "Copy link", "Embed", "About this account"].map(item => (
+                {isSelfPost ? (
+                  <button disabled={deleteBusy} onClick={deleteOwnPost} className="w-full px-4 py-3.5 text-center border-b hover:bg-red-50 text-sm font-semibold text-red-600 disabled:opacity-60">
+                    {deleteBusy ? 'Deleting...' : 'Delete post'}
+                  </button>
+                ) : (
+                  <button onClick={() => setShowMenu(false)} className="w-full px-4 py-3.5 text-center border-b hover:bg-gray-50 text-sm text-gray-700">Report</button>
+                )}
+                {['Go to post', 'Share to...', 'Copy link', 'Embed', 'About this account'].map(item => (
                   <button key={item} onClick={() => setShowMenu(false)} className="w-full px-4 py-3.5 text-center border-b last:border-b-0 hover:bg-gray-50 text-sm text-gray-700">{item}</button>
                 ))}
                 <button onClick={() => setShowMenu(false)} className="w-full px-4 py-3.5 text-center text-red-500 hover:bg-gray-50 text-sm font-semibold">Cancel</button>
@@ -1663,7 +1695,7 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
             const showAdAfter = (i + 1) % adConfig.adEveryN === 0;
             return (
               <Fragment key={post.id}>
-                <PostCard post={post} onUserClick={onUserClick} myUserId={myUserId} />
+                <PostCard post={post} onUserClick={onUserClick} myUserId={myUserId} onDeleted={(postId) => setPosts((current) => current.filter((item) => String(item.id) !== String(postId)))} />
                 {showAdAfter
                   ? <HybridAdSlot slotIndex={(i + 1) / adConfig.adEveryN - 1} ads={sponsoredAds} config={adConfig} />
                   : null}
@@ -3562,12 +3594,14 @@ function FollowListScreen({
   onBack,
   onUserClick,
   onRelationshipChange,
+  showHeader = true,
 }: {
   ownerId: string;
   initialTab: FollowListTab;
   onBack: () => void;
   onUserClick: (userId: string) => void;
   onRelationshipChange?: (change: { targetUserId: string; isFollowing: boolean; delta: number }) => void;
+  showHeader?: boolean;
 }) {
   const [tab, setTab] = useState<FollowListTab>(initialTab);
   const [rows, setRows] = useState<FollowListUser[]>([]);
@@ -3643,10 +3677,12 @@ function FollowListScreen({
 
   return (
     <div className="min-h-full bg-white">
-      <div className="sticky top-0 z-10 flex items-center gap-4 bg-white px-6 py-5">
-        <button onClick={onBack} className="p-1"><ArrowLeft className="h-6 w-6 text-slate-950" /></button>
-        <h1 className="text-2xl font-bold text-slate-950">Profile</h1>
-      </div>
+      {showHeader && (
+        <div className="sticky top-0 z-10 flex items-center gap-4 bg-white px-6 py-5">
+          <button onClick={onBack} className="p-1"><ArrowLeft className="h-6 w-6 text-slate-950" /></button>
+          <h1 className="text-2xl font-bold text-slate-950">Profile</h1>
+        </div>
+      )}
       <div className="grid grid-cols-2 border-b border-slate-100">
         {(["followers", "following"] as FollowListTab[]).map((item) => (
           <button
@@ -3716,6 +3752,21 @@ function FollowListScreen({
   );
 }
 
+function FriendsSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
+  const [ownerId, setOwnerId] = useState('');
+  useEffect(() => {
+    let active = true;
+    socialApi.getMyProfile()
+      .then((profile) => { if (active) setOwnerId(profile.userId); })
+      .catch(() => { if (active) setOwnerId(''); });
+    return () => { active = false; };
+  }, []);
+
+  if (!ownerId) {
+    return <div className="flex min-h-[320px] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-teal-500" /></div>;
+  }
+  return <FollowListScreen ownerId={ownerId} initialTab="following" onBack={() => {}} onUserClick={onUserClick} showHeader={false} />;
+}
 function MyProfileSection({ onUserClick }: { onUserClick: (userId: string) => void }) {
   const [activeTab, setActiveTab] = useState("Posts");
   const [selectedMedia, setSelectedMedia] = useState<ProfileGridMedia | null>(null);
@@ -3763,6 +3814,19 @@ function MyProfileSection({ onUserClick }: { onUserClick: (userId: string) => vo
     return () => window.removeEventListener("p4u:socio-follow-changed", onFollowChanged);
   }, []);
 
+  const deleteOwnUpload = async (postId: string | number) => {
+    if (!window.confirm('Delete this upload permanently?')) return;
+    try {
+      await socialApi.deletePost(postId);
+      setGridImages((current) => current.filter((item) => String(item.id) !== String(postId)));
+      setGridReels((current) => current.filter((item) => String(item.postId) !== String(postId)));
+      setSelectedMedia(null);
+      setSelectedReelIndex(null);
+      setProfile((current) => current ? { ...current, postCount: Math.max(0, current.postCount - 1) } : current);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Could not delete this upload.');
+    }
+  };
   const displayImages = activeTab === "Saved" ? savedImages : gridImages;
   const avatar = profile?.userAvatar ? resolveMediaUrl(profile.userAvatar) || profile.userAvatar : null;
   const openProfileMedia = (media: ProfileGridMedia) => {
@@ -3877,7 +3941,7 @@ function MyProfileSection({ onUserClick }: { onUserClick: (userId: string) => vo
         ) : (
           <div className="grid grid-cols-3 gap-0.5">
             {gridReels.map((reel, index) => (
-              <ProfileGridCell key={reel.id} media={{ id: reel.id, url: reel.video, type: "video" }} onClick={() => setSelectedReelIndex(index)} />
+              <ProfileGridCell key={reel.id} media={{ id: reel.postId, url: reel.video, type: "video" }} onClick={() => setSelectedReelIndex(index)} onDelete={() => void deleteOwnUpload(reel.postId)} />
             ))}
           </div>
         )
@@ -3890,7 +3954,7 @@ function MyProfileSection({ onUserClick }: { onUserClick: (userId: string) => vo
       ) : (
       <div className="grid grid-cols-3 gap-0.5">
         {displayImages.map((media) => (
-          <ProfileGridCell key={media.id} media={media} onClick={() => openProfileMedia(media)} />
+          <ProfileGridCell key={media.id} media={media} onClick={() => openProfileMedia(media)} onDelete={activeTab === "Saved" ? undefined : () => void deleteOwnUpload(media.id)} />
         ))}
       </div>
       )}
@@ -5011,7 +5075,7 @@ export default function SocialApp() {
       case "explore": return <ExploreSection onUserClick={handleUserClick} />;
       case "reels": return <ReelsSection onUserClick={handleUserClick} />;
       case "messages": return <MessagesSection onUserClick={handleUserClick} pendingUserId={pendingMessageUserId} onPendingHandled={() => setPendingMessageUserId(null)} />;
-      case "friends": return <ExploreSection onUserClick={handleUserClick} />;
+      case "friends": return <FriendsSection onUserClick={handleUserClick} />;
       case "notifications": return <NotificationsSection onUserClick={handleUserClick} />;
       case "create": return <CreateSection onPosted={() => setSection("home")} />;
       case "profile": return <MyProfileSection onUserClick={handleUserClick} />;

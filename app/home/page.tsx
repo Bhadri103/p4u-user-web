@@ -11,22 +11,26 @@ import SubscriptionNewsletter from '@/components/home/SubscriptionNewsletter';
 import Footer from '@/components/layout/Footer';
 import ClassifiedResale from '@/components/catalog/ClassifiedResale';
 import ReelsVideo from '@/components/catalog/ReelsVideo';
+import { HomeCategoryGrid, HomeCategoryRail, HomeRideActions, HomeServiceCategories } from '@/components/home/HomeCategorySections';
 
 export default function HomePage() {
   return (
     <div className="min-h-screen">
       <Header />
-      {/* <Navigation /> */}
+      <HomeCategoryRail />
       <HeroSlider />
       <HomepageCmsBlocks />
-      <ServiceCards />
+      <HomeRideActions />
       <BestProducts />
+      <HomeCategoryGrid />
       <BrandSections />
       <PickupSection />
       <TopServicer />
       <MostBookedServices />
-
-      <ReelsVideo /> <ClassifiedResale />
+      <HomeServiceCategories />
+      <ServiceCards />
+      <ReelsVideo />
+      <ClassifiedResale />
       <SubscriptionNewsletter />
       <Footer />
     </div>

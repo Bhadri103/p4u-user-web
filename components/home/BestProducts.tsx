@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { contentApi } from "@/lib/api/content";
+import { catalogApi, type Product } from "@/lib/api/catalog";
 import { resolveMediaUrl } from "@/lib/media";
 
 interface ProductCard {
@@ -23,24 +24,42 @@ export default function BestProducts() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fromFeatured = (items: Array<{ id: string; vendorId?: string | null; name: string; price?: string | number | null; imageUrl?: string | null; orderCount?: number }>) =>
-      items.slice(0, 12).map((p) => ({
-        id: p.id,
-        vendorId: p.vendorId ? String(p.vendorId) : "",
-        name: p.name,
-        subtitle: null,
-        price: p.price ? (String(p.price).startsWith("₹") ? String(p.price) : `₹${p.price}`) : null,
-        image: (p.imageUrl && resolveMediaUrl(p.imageUrl)) || p.imageUrl || "",
-        orderCount: Number(p.orderCount ?? 0),
-      }));
+    let cancelled = false;
+    const normalize = (items: Array<Product | { id: string; vendorId?: string | null; name: string; price?: string | number | null; imageUrl?: string | null; orderCount?: number }>) =>
+      items.slice(0, 12).map((product) => {
+        const row = product as Product & { imageUrl?: string | null; orderCount?: number };
+        const imageUrl = row.thumbnailUrl || row.image || row.metadata?.imageUrl || row.imageUrl || "";
+        const price = row.finalPrice || row.sellPrice || row.price;
+        return {
+          id: String(row.id),
+          vendorId: row.vendorId ? String(row.vendorId) : "",
+          name: row.name,
+          subtitle: row.shortDescription || null,
+          price: price != null && String(price) !== "" ? `₹${price}` : null,
+          image: resolveMediaUrl(imageUrl) || imageUrl,
+          orderCount: Number(row.orderCount ?? 0),
+        };
+      });
 
-    contentApi
-      .getFeaturedProducts()
-      .then((items) => setProducts(fromFeatured(items)))
-      .catch(() => setProducts([]))
-      .finally(() => setLoading(false));
+    catalogApi
+      .browseProducts({ limit: 120, offset: 0 })
+      .then((result) => {
+        if (!cancelled && result.data.length) setProducts(normalize(result.data));
+        else if (!cancelled) throw new Error("No catalogue products");
+      })
+      .catch(() => contentApi.getFeaturedProducts().then((items) => {
+        if (!cancelled) setProducts(normalize(items));
+      }))
+      .catch(() => {
+        if (!cancelled) setProducts([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
   const scroll = (direction: "left" | "right") => {
     if (scrollRef.current) {
       const scrollAmount = 280;

@@ -41,11 +41,11 @@ export default function Header({ onCartOpen }: HeaderProps) {
   const router = useRouter();
   const { totalItems, addToCart } = useCart();
 
-  const navItems = [
+  const navItems: Array<{ icon: typeof ShoppingBag; label: string; href: string }> = [
     { icon: ShoppingBag, label: "Shop", href: "/shop" },
     { icon: Megaphone, label: "Socio", href: "/socio" },
     { icon: Wrench, label: "Services", href: "/service" },
-    { icon: Building2, label: "Find Home", href: "/find-home", soon: true },
+    { icon: Building2, label: "Find Home", href: "/find-home" },
     { icon: Newspaper, label: "Classified Ads", href: "/classified" },
     { icon: UtensilsCrossed, label: "Food", href: "/food" },
   ];
@@ -542,22 +542,8 @@ export default function Header({ onCartOpen }: HeaderProps) {
           <div className="max-w-[1400px] mx-auto px-4 xl:px-6">
             <div className="hidden min-[1200px]:block py-3">
               <div className="flex items-center justify-between gap-3">
-                {navItems.map(({ icon: Icon, label, href, soon }) => {
+                {navItems.map(({ icon: Icon, label, href }) => {
                   const active = isActive(href);
-                  if (soon) {
-                    return (
-                      <div
-                        key={label}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap border border-[#0a9a9a] bg-white text-[#0a9a9a] cursor-default"
-                      >
-                        <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
-                        <span className="font-medium text-base">{label}</span>
-                        <span className="ml-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-white" style={{ backgroundColor: SELLER_ORANGE }}>
-                          Soon
-                        </span>
-                      </div>
-                    );
-                  }
                   return (
                     <Link
                       key={label}
@@ -579,20 +565,8 @@ export default function Header({ onCartOpen }: HeaderProps) {
             <div className="min-[1200px]:hidden py-2.5 overflow-x-auto" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
               <style>{`div::-webkit-scrollbar { display: none; }`}</style>
               <div className="flex gap-2.5 px-1">
-                {navItems.map(({ icon: Icon, label, href, soon }) => {
+                {navItems.map(({ icon: Icon, label, href }) => {
                   const active = isActive(href);
-                  if (soon) {
-                    return (
-                      <div
-                        key={label}
-                        className="flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap flex-shrink-0 border border-[#0a9a9a] bg-white text-[#0a9a9a]"
-                      >
-                        <Icon className="w-4 h-4" strokeWidth={2} />
-                        <span className="font-medium text-sm">{label}</span>
-                        <span className="rounded px-1 py-0.5 text-[9px] font-bold uppercase text-white" style={{ backgroundColor: SELLER_ORANGE }}>Soon</span>
-                      </div>
-                    );
-                  }
                   return (
                     <Link
                       key={label}
