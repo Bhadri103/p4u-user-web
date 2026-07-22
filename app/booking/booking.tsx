@@ -474,7 +474,7 @@ export default function Booking() {
       {/* Tabs */}
       <div style={{ display: "flex", justifyContent: "center", paddingTop: 32, paddingBottom: 16, paddingLeft: 16, paddingRight: 16 }}>
         <div className="tabs-wrapper">
-          {["Taxi","Hotel","Mice/Events","Bus","Flights"].map((tab) => (
+          {["Taxi"].map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)} style={{
               padding: "8px 20px", borderRadius: 99, fontSize: 13, fontWeight: 600,
               border: "none", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
@@ -569,17 +569,7 @@ export default function Booking() {
             </div>
           </div>
         </>
-      ) : (
-        /* Coming Soon Placeholder for other tabs */
-        <div style={{ padding: "100px 20px", textAlign: "center" }}>
-          <h2 style={{ fontSize: 28, fontWeight: 700, color: "#111827", marginBottom: 12 }}>
-            {activeTab} Bookings
-          </h2>
-          <p style={{ fontSize: 16, color: "#6b7280" }}>
-            We&apos;re currently building out the {activeTab.toLowerCase()} experience. Check back soon!
-          </p>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 

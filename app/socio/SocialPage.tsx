@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect, useCallback, createContext, useContext, Fragment } from "react";
+import { useState, useRef, useEffect, useCallback, createContext, useContext, Fragment } from "react";
 import {
   Heart, MessageCircle, Send, Bookmark, MoreHorizontal,
   Search, X, PlusCircle, Phone, Video, Info, Image as ImageIcon,
@@ -10,7 +10,7 @@ import {
   User, Menu, Grid, Play, Pause, Layers, Loader2, Trash2, Mic,
   Shield, HelpCircle, Moon, LogOut, Flag, Mail, Smartphone, MapPin
 } from "lucide-react";
-import { socialApi, type ActivityNotification, type Conversation, type DirectMessage, type LinkedProduct, type Post, type SocioUserProfile, type SponsoredAd, type Story, type UserSummary } from "@/lib/api/social";
+import { socialApi, type ActivityNotification, type Conversation, type DirectMessage, type LinkedProduct, type Post, type SocioUserProfile, type SponsoredAd, type SocialCall, type Story, type UserSummary } from "@/lib/api/social";
 import { apiClient } from "@/lib/api/client";
 import { profileApi } from "@/lib/api/profile";
 import { catalogApi, type Product } from "@/lib/api/catalog";
@@ -2455,6 +2455,22 @@ function MessagesSection({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const [activeCall,setActiveCall]=useState<SocialCall|null>(null);
+  const [callError,setCallError]=useState('');
+  const [localCallStream,setLocalCallStream]=useState<MediaStream|null>(null);
+  const [remoteCallStream,setRemoteCallStream]=useState<MediaStream|null>(null);
+  const callPeerRef=useRef<RTCPeerConnection|null>(null);
+  const callInitiatorRef=useRef(false);
+  const localVideoRef=useRef<HTMLVideoElement>(null),remoteVideoRef=useRef<HTMLVideoElement>(null);
+  const waitForIce=(pc:RTCPeerConnection)=>new Promise<void>(resolve=>{if(pc.iceGatheringState==='complete')return resolve();const done=()=>{if(pc.iceGatheringState==='complete'){pc.removeEventListener('icegatheringstatechange',done);resolve();}};pc.addEventListener('icegatheringstatechange',done);window.setTimeout(()=>{pc.removeEventListener('icegatheringstatechange',done);resolve();},2500);});
+  const preparePeer=async(type:'audio'|'video')=>{const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:type==='video'});const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});stream.getTracks().forEach(track=>pc.addTrack(track,stream));pc.ontrack=e=>setRemoteCallStream(e.streams[0]||new MediaStream([e.track]));callPeerRef.current=pc;setLocalCallStream(stream);return pc;};
+  const closePeer=useCallback(()=>{callPeerRef.current?.close();callPeerRef.current=null;localCallStream?.getTracks().forEach(t=>t.stop());remoteCallStream?.getTracks().forEach(t=>t.stop());setLocalCallStream(null);setRemoteCallStream(null);},[localCallStream,remoteCallStream]);
+  const startCall=async(type:'audio'|'video')=>{if(!activeId)return;setCallError('');try{callInitiatorRef.current=true;const pc=await preparePeer(type);await pc.setLocalDescription(await pc.createOffer());await waitForIce(pc);setActiveCall(await socialApi.startCall(activeId,type,pc.localDescription?.sdp));}catch(e){closePeer();setCallError(e instanceof Error?e.message:'Unable to start call');}};
+  const acceptIncomingCall=async()=>{if(!activeCall)return;setCallError('');try{callInitiatorRef.current=false;const pc=await preparePeer(activeCall.call_type);if(!activeCall.offer_sdp)throw new Error('Call offer is missing');await pc.setRemoteDescription({type:'offer',sdp:activeCall.offer_sdp});await pc.setLocalDescription(await pc.createAnswer());await waitForIce(pc);setActiveCall(await socialApi.acceptCall(activeCall.id,pc.localDescription?.sdp));}catch(e){closePeer();setCallError(e instanceof Error?e.message:'Unable to answer call');}};
+  const finishCall=async(reject=false)=>{if(activeCall){try{await(reject?socialApi.rejectCall(activeCall.id):socialApi.endCall(activeCall.id));}catch{}}closePeer();setActiveCall(null);};
+  useEffect(()=>{if(activeCall)return;const poll=async()=>{try{const calls=await socialApi.listCalls();const incoming=calls.find(c=>c.status==='ringing'&&conversations.some(x=>String(x.id)===c.conversation_id&&x.participantId===c.caller_id));if(incoming)setActiveCall(incoming);}catch{}};void poll();const timer=window.setInterval(poll,5000);return()=>window.clearInterval(timer);},[activeCall,conversations]);
+  useEffect(()=>{if(!activeCall)return;let cancelled=false;const poll=async()=>{try{const next=await socialApi.getCall(activeCall.id);if(cancelled)return;setActiveCall(next);if(callInitiatorRef.current&&next.status==='accepted'&&next.answer_sdp&&callPeerRef.current&&!callPeerRef.current.remoteDescription)await callPeerRef.current.setRemoteDescription({type:'answer',sdp:next.answer_sdp});if(['rejected','ended','missed'].includes(next.status)){closePeer();setActiveCall(null);}}catch{}};const timer=window.setInterval(poll,2000);return()=>{cancelled=true;window.clearInterval(timer);};},[activeCall?.id,closePeer]);
+  useEffect(()=>{if(localVideoRef.current)localVideoRef.current.srcObject=localCallStream;if(remoteVideoRef.current)remoteVideoRef.current.srcObject=remoteCallStream;},[localCallStream,remoteCallStream,activeCall]);
 
   const activeConversation = conversations.find((conversation) => String(conversation.id) === activeId) ?? null;
   const sortConversations = useCallback((rows: Conversation[]) => {
@@ -2717,6 +2733,7 @@ function MessagesSection({
 
   return (
     <div className="flex min-h-[calc(100vh-96px)] bg-[#fafafa]">
+      {activeCall&&<div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4"><div className="w-full max-w-xl rounded-3xl bg-slate-950 p-5 text-center text-white"><h2 className="text-xl font-bold">{activeCall.status==='ringing'?(callInitiatorRef.current?'Calling…':`Incoming ${activeCall.call_type} call`):'Call connected'}</h2><p className="mt-1 text-sm text-slate-300">{activeConversation?.participantName||'P4U Social'}</p>{activeCall.call_type==='video'&&<div className="relative mt-5 aspect-video overflow-hidden rounded-2xl bg-black"><video ref={remoteVideoRef} autoPlay playsInline className="h-full w-full object-cover"/><video ref={localVideoRef} autoPlay playsInline muted className="absolute bottom-3 right-3 h-28 w-20 rounded-xl bg-slate-800 object-cover"/></div>}{activeCall.call_type==='audio'&&<audio ref={remoteVideoRef as React.RefObject<HTMLAudioElement>} autoPlay/>}{callError&&<p className="mt-3 text-sm text-red-400">{callError}</p>}<div className="mt-6 flex justify-center gap-3">{activeCall.status==='ringing'&&!callInitiatorRef.current&&<button onClick={()=>void acceptIncomingCall()} className="rounded-full bg-emerald-600 px-6 py-3 font-bold">Accept</button>}<button onClick={()=>void finishCall(activeCall.status==='ringing'&&!callInitiatorRef.current)} className="rounded-full bg-red-600 px-6 py-3 font-bold">{activeCall.status==='ringing'&&!callInitiatorRef.current?'Decline':'End'}</button></div></div></div>}
       {viewer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 px-4" onClick={() => setViewer(null)}>
           <img src={viewer} alt="" className="max-h-[86vh] max-w-3xl rounded-2xl object-contain" onClick={(event) => event.stopPropagation()} />
@@ -2820,8 +2837,8 @@ function MessagesSection({
                 <button onClick={() => onUserClick(activeConversation.participantId)} className="block truncate text-left text-base font-bold text-slate-950">{activeConversation.participantName}</button>
                 <p className="text-xs text-slate-500">{activeConversation.isOnline ? "Active now" : "Active today"}</p>
               </div>
-              <button className="rounded-full p-2 hover:bg-slate-100"><Phone className="h-5 w-5 text-slate-950" /></button>
-              <button className="rounded-full p-2 hover:bg-slate-100"><Video className="h-5 w-5 text-slate-950" /></button>
+              <button onClick={()=>void startCall("audio")} className="rounded-full p-2 hover:bg-slate-100"><Phone className="h-5 w-5 text-slate-950" /></button>
+              <button onClick={()=>void startCall("video")} className="rounded-full p-2 hover:bg-slate-100"><Video className="h-5 w-5 text-slate-950" /></button>
             </div>
 
             <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5">

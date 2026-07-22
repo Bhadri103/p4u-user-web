@@ -186,6 +186,7 @@ export default function CheckoutPage() {
         const intent = await paymentsApi.createIntent({
           orderId: order.id,
           amount,
+          metadata: { orderType: "product", productOrderId: String(order.id) },
         });
 
         if (!intent.providerRef) {

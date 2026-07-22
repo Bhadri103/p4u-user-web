@@ -115,6 +115,7 @@ export interface Conversation {
   isRequest?: boolean;
 }
 
+export interface SocialCall { id:string; conversation_id:string; caller_id:string; callee_id:string; call_type:'audio'|'video'; status:'ringing'|'accepted'|'rejected'|'ended'|'missed'; offer_sdp?:string|null; answer_sdp?:string|null; created_at:string; }
 export interface DirectMessage {
   id: string | number;
   conversationId: string | number;
@@ -862,4 +863,11 @@ export const socialApi = {
       return result;
     });
   },
-};
+  listCalls(){return apiClient.get<SocialCall[]>(`${BASE}/calls`,undefined,{forceRefresh:true,cacheTtlMs:0});},
+  getCall(id:string){return apiClient.get<SocialCall>(`${BASE}/calls/${encodeURIComponent(id)}`,undefined,{forceRefresh:true,cacheTtlMs:0});},
+  startCall(conversationId:string,type:'audio'|'video',offerSdp?:string,idempotencyKey=crypto.randomUUID()){return apiClient.post<SocialCall>(`${BASE}/calls`,{conversationId,type,offerSdp,idempotencyKey});},
+  acceptCall(id:string,answerSdp?:string){return apiClient.post<SocialCall>(`${BASE}/calls/${encodeURIComponent(id)}/accept`,{answerSdp});},
+  rejectCall(id:string){return apiClient.post<SocialCall>(`${BASE}/calls/${encodeURIComponent(id)}/reject`,{});},
+  endCall(id:string){return apiClient.post<SocialCall>(`${BASE}/calls/${encodeURIComponent(id)}/end`,{});},
+  sendCallSignal(id:string,type:string,payload:Record<string,unknown>){return apiClient.post(`${BASE}/calls/${encodeURIComponent(id)}/signals`,{type,payload});},
+  callSignals(id:string,since=0){return apiClient.get<Record<string,unknown>[]>(`${BASE}/calls/${encodeURIComponent(id)}/signals`,{since}, {forceRefresh:true,cacheTtlMs:0});},};

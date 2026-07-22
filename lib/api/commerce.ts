@@ -37,6 +37,21 @@ export interface Order {
   createdAt: string;
 }
 
+export interface ProductTracking {
+  orderId: string;
+  orderRef?: string | null;
+  status: string;
+  shippingType?: string | null;
+  courierName?: string | null;
+  trackingNumber?: string | null;
+  trackingUrl?: string | null;
+  shippedAt?: string | null;
+  estimatedDeliveryAt?: string | null;
+  deliveredAt?: string | null;
+  customerConfirmedAt?: string | null;
+  history: Array<{ status: string; at: string; actor?: string; note?: string }>;
+  returnRequest?: Record<string, unknown> | null;
+}
 export interface OrderItem {
   id: number;
   productId: number;
@@ -115,6 +130,7 @@ export interface Booking {
   /** Aliases for simple screens */
   date: string;
   slot: string;
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface AvailableSlot {
@@ -154,6 +170,7 @@ function normalizeBooking(row: Record<string, unknown>): Booking {
     createdAt: String(row.createdAt ?? row.created_at ?? ""),
     date: bookingDate,
     slot: timeSlot,
+    metadata: row.metadata && typeof row.metadata === "object" ? row.metadata as Record<string, unknown> : null,
   };
 }
 
@@ -264,6 +281,21 @@ export const commerceApi = {
   cancelOrder(orderId: string | number) {
     return apiClient.post<Order>(`${BASE}/orders/${orderId}/cancel`);
   },
+  getProductTracking(orderId: string | number) {
+    return apiClient.get<ProductTracking>(`${BASE}/orders/${encodeURIComponent(String(orderId))}/tracking`);
+  },
+
+  confirmProductDelivery(orderId: string | number) {
+    return apiClient.post<Order>(`${BASE}/orders/${encodeURIComponent(String(orderId))}/confirm-delivery`);
+  },
+
+  requestProductReturn(orderId: string | number, data: { reason: string; items?: unknown[]; photoUrls?: string[]; refundAmount?: number }) {
+    return apiClient.post<Record<string, unknown>>(`${BASE}/orders/${encodeURIComponent(String(orderId))}/returns`, data);
+  },
+
+  getProductReturn(orderId: string | number) {
+    return apiClient.get<Record<string, unknown> | null>(`${BASE}/orders/${encodeURIComponent(String(orderId))}/returns`);
+  },
 
   // Checkout — backend expects itemTotal, platformFee, discount (see commerce.routes.ts)
   getCheckoutQuote(data: { itemTotal: number; platformFee?: number; discount?: number }) {
@@ -356,6 +388,17 @@ export const commerceApi = {
     return apiClient.post<Record<string, unknown>>(`${BASE}/bookings/${bookingId}/cancel`).then((row) => normalizeBooking(row));
   },
 
+  getServiceCompletionOtp(bookingId: string | number) {
+    return apiClient.get<{ bookingId: string; otp: string; expiresAt: string }>(`${BASE}/bookings/${encodeURIComponent(String(bookingId))}/completion-otp`);
+  },
+
+  confirmServiceCompletion(bookingId: string | number, accept: boolean, reason?: string) {
+    return apiClient.post<Record<string, unknown>>(`${BASE}/bookings/${encodeURIComponent(String(bookingId))}/completion-confirmation`, { accept, reason }).then((row) => normalizeBooking(row));
+  },
+
+  disputeService(bookingId: string | number, reason: string, photoUrls: string[] = []) {
+    return apiClient.post<Record<string, unknown>>(`${BASE}/bookings/${encodeURIComponent(String(bookingId))}/disputes`, { reason, photoUrls });
+  },
   getAvailableSlots(vendorId: string | number, date: string, serviceId?: string | null) {
     const params: Record<string, string> = { vendorId: String(vendorId), date };
     const sid = serviceId != null ? String(serviceId).trim() : "";

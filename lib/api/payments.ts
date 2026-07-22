@@ -36,11 +36,12 @@ export const paymentsApi = {
     return apiClient.get<{ status: string }>(`${BASE}/public/health`);
   },
 
-  createIntent(data: { orderId: string | number; amount: number | string; currency?: string }) {
+  createIntent(data: { orderId: string | number; amount: number | string; currency?: string; metadata?: Record<string, unknown> }) {
     return apiClient.post<PaymentIntent>(`${BASE}/intents`, {
       orderId: String(data.orderId),
       amount: String(data.amount),
       currency: data.currency,
+      metadata: data.metadata,
     });
   },
 

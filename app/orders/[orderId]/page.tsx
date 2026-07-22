@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, ChevronRight, Download, Loader2, Package, Store } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, Download, Loader2, Package, RotateCcw, Store, Truck } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import AuthGuard from "@/providers/AuthGuard";
@@ -56,6 +56,9 @@ export default function OrderDetailsPage() {
   const [order, setOrder] = useState<any>(null);
   const [lines, setLines] = useState<OrderLine[]>([]);
   const [vendorName, setVendorName] = useState<string>("");
+  const [tracking, setTracking] = useState<any>(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     if (!orderId) {
@@ -166,6 +169,31 @@ export default function OrderDetailsPage() {
       .finally(() => setLoading(false));
   }, [orderId]);
 
+  useEffect(() => {
+    if (!orderId) return;
+    commerceApi.getProductTracking(orderId).then(setTracking).catch(() => setTracking(null));
+  }, [orderId, order?.status]);
+
+  async function confirmDelivery() {
+    setActionBusy(true); setActionError("");
+    try {
+      const updated = await commerceApi.confirmProductDelivery(orderId);
+      setOrder((current: any) => ({ ...current, ...updated }));
+    } catch (e: any) { setActionError(e?.message || "Could not confirm delivery"); }
+    finally { setActionBusy(false); }
+  }
+
+  async function requestReturn() {
+    const reason = window.prompt("Tell us why you are returning this order (minimum 5 characters):")?.trim();
+    if (!reason) return;
+    setActionBusy(true); setActionError("");
+    try {
+      await commerceApi.requestProductReturn(orderId, { reason });
+      const fresh = await commerceApi.getProductTracking(orderId);
+      setTracking(fresh); setOrder((current: any) => ({ ...current, status: "return_requested" }));
+    } catch (e: any) { setActionError(e?.message || "Could not request return"); }
+    finally { setActionBusy(false); }
+  }
   const itemTotal = useMemo(
     () => lines.reduce((sum, line) => sum + Number(line.lineTotal || 0), 0),
     [lines],
@@ -233,6 +261,27 @@ export default function OrderDetailsPage() {
                 </div>
               </div>
 
+              <div className="rounded-2xl border bg-white p-5">
+                <h2 className="flex items-center gap-2 text-xl font-bold text-slate-900"><Truck className="h-5 w-5" /> Delivery &amp; returns</h2>
+                <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+                  <p>Status: <strong className="capitalize text-slate-900">{String(tracking?.status || orderStatus).replace(/_/g, " ")}</strong></p>
+                  <p>Shipping: <strong className="capitalize text-slate-900">{tracking?.shippingType || "Not dispatched"}</strong></p>
+                  {tracking?.courierName ? <p>Courier: <strong className="text-slate-900">{tracking.courierName}</strong></p> : null}
+                  {tracking?.trackingNumber ? <p>Tracking / AWB: <strong className="text-slate-900">{tracking.trackingNumber}</strong></p> : null}
+                </div>
+                {tracking?.trackingUrl ? <a className="mt-3 inline-block text-sm font-semibold text-teal-700 hover:underline" href={tracking.trackingUrl} target="_blank" rel="noreferrer">Track with courier</a> : null}
+                {Array.isArray(tracking?.history) && tracking.history.length ? (
+                  <ol className="mt-4 space-y-2 border-l-2 border-teal-100 pl-4 text-sm">
+                    {tracking.history.map((entry: any, index: number) => <li key={`${entry.at}-${index}`}><strong className="capitalize">{String(entry.status).replace(/_/g, " ")}</strong><span className="ml-2 text-slate-500">{entry.at ? new Date(entry.at).toLocaleString() : ""}</span></li>)}
+                  </ol>
+                ) : null}
+                {tracking?.returnRequest ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Return status: <strong className="capitalize">{String(tracking.returnRequest.status || "requested").replace(/_/g, " ")}</strong>{tracking.returnRequest.refundStatus ? ` · Refund: ${tracking.returnRequest.refundStatus}` : ""}</p> : null}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {["shipped", "out_for_delivery"].includes(orderStatus.toLowerCase()) ? <button disabled={actionBusy} onClick={() => void confirmDelivery()} className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /> Confirm delivery</button> : null}
+                  {["delivered", "completed"].includes(orderStatus.toLowerCase()) && !tracking?.returnRequest ? <button disabled={actionBusy} onClick={() => void requestReturn()} className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold text-slate-800 disabled:opacity-50"><RotateCcw className="h-4 w-4" /> Request return</button> : null}
+                </div>
+                {actionError ? <p className="mt-3 text-sm text-red-600">{actionError}</p> : null}
+              </div>
               <div className="rounded-2xl border bg-white p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">

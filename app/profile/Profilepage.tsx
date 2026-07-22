@@ -12,6 +12,7 @@ import { pickProductImage, resolveMediaUrl } from "@/lib/media";
 import { resolveCustomerIdFromAccessToken, avatarInitialsFromDisplayName } from "@/lib/resolveCustomerId";
 import { socialApi } from "@/lib/api/social";
 import { authApi } from "@/lib/api/auth";
+import { supportApi, type SupportTicket } from "@/lib/api/support";
 type ActivePage =
   | "profile" | "edit-profile" | "saved-addresses" | "select-language" | "notification"
   | "your-orders" | "my-bookings" | "reviews-ratings" | "your-favourites" | "refer-earn"
@@ -2450,79 +2451,30 @@ export function PageKycVerification({ onBack }: { onBack: () => void }) {
   );
 }
 
-function NewTicketModal({ onClose }: { onClose: () => void }) {
-  return (
-    <Modal onClose={onClose}>
-      <div className="p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="flex items-center gap-2 text-[16px] font-bold text-slate-950"><IcPlus s={16} /> New Support Ticket</h3>
-          <button type="button" onClick={onClose} className="text-slate-500"><IcX s={18} /></button>
-        </div>
-        <div className="space-y-4">
-          <Select label="Category *" options={[{ value: "", label: "Select category" }, { value: "order", label: "Order" }, { value: "payment", label: "Payment" }, { value: "account", label: "Account" }]} />
-          <Input label="Subject *" placeholder="Brief description of your issue" />
-          <Textarea label="Description" rows={4} placeholder="Provide details..." />
-          <Select label="Priority" defaultValue="medium" options={[{ value: "low", label: "Low" }, { value: "medium", label: "Medium" }, { value: "high", label: "High" }]} />
-        </div>
-        <div className="mt-5 flex justify-end gap-3">
-          <GhostBtn onClick={onClose}>Cancel</GhostBtn>
-          <button type="button" className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-bold text-white">Submit</button>
-        </div>
-      </div>
-    </Modal>
-  );
+function NewTicketModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [form,setForm]=useState({category:'order',subject:'',message:'',priority:'medium'}); const [busy,setBusy]=useState(false); const [error,setError]=useState('');
+  const submit=async()=>{setBusy(true);setError('');try{await supportApi.create(form);onCreated();onClose();}catch(e){setError(e instanceof Error?e.message:'Unable to create ticket');}finally{setBusy(false);}};
+  return <Modal onClose={onClose}><div className="p-5"><div className="mb-4 flex items-center justify-between"><h3 className="flex items-center gap-2 text-[16px] font-bold"><IcPlus s={16}/> New Support Ticket</h3><button onClick={onClose}><IcX s={18}/></button></div><div className="space-y-4">
+    <select aria-label="Category" value={form.category} onChange={e=>setForm({...form,category:e.target.value})} className="h-12 w-full rounded-xl border px-3"><option value="order">Order</option><option value="payment">Payment</option><option value="account">Account</option><option value="service">Service</option><option value="property">Property</option></select>
+    <input aria-label="Subject" value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})} placeholder="Brief description of your issue" className="h-12 w-full rounded-xl border px-3"/>
+    <textarea aria-label="Description" value={form.message} onChange={e=>setForm({...form,message:e.target.value})} rows={4} placeholder="Provide details..." className="w-full rounded-xl border p-3"/>
+    <select aria-label="Priority" value={form.priority} onChange={e=>setForm({...form,priority:e.target.value})} className="h-12 w-full rounded-xl border px-3"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select>
+    {error&&<p role="alert" className="text-sm text-red-600">{error}</p>}</div><div className="mt-5 flex justify-end gap-3"><GhostBtn onClick={onClose}>Cancel</GhostBtn><button disabled={busy||form.subject.trim().length<4||form.message.trim().length<2} onClick={submit} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">{busy?'Submitting...':'Submit'}</button></div></div></Modal>;
 }
 
 export function PageHelpSupport({ onBack }: { onBack: () => void }) {
-  const [ticketOpen, setTicketOpen] = useState(false);
-  return (
-    <div className="mx-auto w-full max-w-[1050px] py-8">
-      {ticketOpen && <NewTicketModal onClose={() => setTicketOpen(false)} />}
-      <AccountPageHeader title="Help & Support" onBack={onBack} />
-      <div className="mb-8 flex items-center justify-between">
-        <div className="flex items-start gap-3">
-          <span className="mt-1 text-teal-600"><IcHeadphones s={28} /></span>
-          <div>
-            <p className="text-[14px] text-slate-500">Get help, raise issues, and track responses</p>
-          </div>
-        </div>
-        <button type="button" onClick={() => setTicketOpen(true)} className="inline-flex items-center gap-2 rounded-[18px] bg-teal-600 px-6 py-3 text-[16px] font-bold text-white">
-          <IcPlus s={22} /> New Ticket
-        </button>
-      </div>
-      <div className="mb-6 grid grid-cols-2 rounded-[18px] bg-slate-100 p-1.5">
-        <button className="rounded-[14px] bg-white py-3 text-[16px] font-medium text-slate-950 shadow-sm">Support Tickets (0)</button>
-        <button className="rounded-[14px] py-3 text-[16px] font-medium text-slate-500">Complaints (0)</button>
-      </div>
-      <div className="mb-6 grid grid-cols-4 gap-3">
-        {[["0", "Total", "text-teal-600"], ["0", "Open", "text-red-500"], ["0", "In Progress", "text-orange-500"], ["0", "Resolved", "text-emerald-500"]].map(([value, label, color]) => (
-          <div key={label} className="rounded-[18px] bg-white py-5 text-center shadow-sm ring-1 ring-slate-200">
-            <div className={`mx-auto mb-2 ${color}`}><IcCheckCircle s={24} /></div>
-            <p className="text-[22px] font-bold text-slate-950">{value}</p>
-            <p className="text-[10px] text-slate-500">{label}</p>
-          </div>
-        ))}
-      </div>
-      <div className="mb-6 grid gap-3 md:grid-cols-[1fr_180px]">
-        <div className="flex h-[50px] items-center gap-3 rounded-[16px] border border-slate-200 bg-white px-4">
-          <IcSearch s={22} />
-          <input placeholder="Search tickets..." className="min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-slate-500" />
-        </div>
-        <select className="h-[50px] rounded-[16px] border border-slate-200 bg-white px-4 text-[16px] text-slate-950">
-          <option>All Status</option>
-        </select>
-      </div>
-      <div className="flex min-h-[255px] flex-col items-center justify-center rounded-[18px] bg-white shadow-sm ring-1 ring-slate-200">
-        <IcHeadphones s={62} />
-        <p className="mt-4 text-[16px] text-slate-500">No tickets yet</p>
-        <button type="button" onClick={() => setTicketOpen(true)} className="mt-5 rounded-[18px] border border-slate-200 px-6 py-3 text-[16px] font-bold text-slate-950">
-          Raise a ticket
-        </button>
-      </div>
-    </div>
-  );
+  const [ticketOpen,setTicketOpen]=useState(false); const [tickets,setTickets]=useState<SupportTicket[]>([]); const [selected,setSelected]=useState<SupportTicket|null>(null); const [reply,setReply]=useState(''); const [loading,setLoading]=useState(true); const [error,setError]=useState('');
+  const load=useCallback(async()=>{setLoading(true);setError('');try{const r=await supportApi.list();setTickets(r.items||[]);}catch(e){setError(e instanceof Error?e.message:'Unable to load tickets');}finally{setLoading(false);}},[]);
+  useEffect(()=>{void load();},[load]);
+  const open=async(id:string)=>{try{setSelected(await supportApi.get(id));}catch(e){setError(e instanceof Error?e.message:'Unable to load ticket');}};
+  const send=async()=>{if(!selected||reply.trim().length<2)return;try{setSelected(await supportApi.message(selected.id,reply));setReply('');await load();}catch(e){setError(e instanceof Error?e.message:'Unable to send reply');}};
+  const counts=(status:string)=>tickets.filter(t=>t.status===status).length;
+  return <div className="mx-auto w-full max-w-[1050px] py-8">{ticketOpen&&<NewTicketModal onClose={()=>setTicketOpen(false)} onCreated={load}/>}<AccountPageHeader title="Help & Support" onBack={onBack}/>
+    <div className="mb-6 flex items-center justify-between"><p className="text-slate-500">Get help, raise issues, and chat with support</p><button onClick={()=>setTicketOpen(true)} className="rounded-[18px] bg-teal-600 px-6 py-3 font-bold text-white"><IcPlus s={18}/> New Ticket</button></div>
+    <div className="mb-6 grid grid-cols-4 gap-3">{[[tickets.length,'Total'],[counts('open'),'Open'],[counts('in_progress')+counts('waiting_customer'),'In Progress'],[counts('resolved')+counts('closed'),'Resolved']].map(([v,l])=><div key={String(l)} className="rounded-[18px] bg-white py-5 text-center ring-1 ring-slate-200"><p className="text-[22px] font-bold">{v}</p><p className="text-xs text-slate-500">{l}</p></div>)}</div>
+    {error&&<p role="alert" className="mb-3 text-sm text-red-600">{error}</p>}{loading?<p className="rounded-xl bg-white p-6">Loading tickets...</p>:tickets.length===0?<div className="flex min-h-[255px] flex-col items-center justify-center rounded-[18px] bg-white ring-1 ring-slate-200"><IcHeadphones s={62}/><p className="mt-4 text-slate-500">No tickets yet</p></div>:<div className="grid gap-4 md:grid-cols-[320px_1fr]"><div className="space-y-2">{tickets.map(t=><button key={t.id} onClick={()=>open(t.id)} className="w-full rounded-xl bg-white p-4 text-left ring-1 ring-slate-200"><div className="flex justify-between"><b>{t.subject}</b><span className="text-xs uppercase text-teal-700">{t.status.replace('_',' ')}</span></div><p className="mt-1 text-xs text-slate-500">{t.category} · {t.priority}</p></button>)}</div><div className="min-h-[320px] rounded-xl bg-white p-4 ring-1 ring-slate-200">{selected?<><div className="mb-4 flex justify-between"><h3 className="font-bold">{selected.subject}</h3>{!['closed','resolved'].includes(selected.status)&&<button onClick={async()=>{setSelected(await supportApi.close(selected.id));await load();}} className="text-sm text-red-600">Close ticket</button>}</div><div className="max-h-72 space-y-2 overflow-auto">{selected.messages?.map(m=><div key={m.id} className={`rounded-xl p-3 text-sm ${m.sender_type==='admin'?'bg-teal-50':'bg-slate-100'}`}><b>{m.sender_type==='admin'?'Support':'You'}</b><p>{m.message}</p></div>)}</div>{!['closed','resolved'].includes(selected.status)&&<div className="mt-4 flex gap-2"><input value={reply} onChange={e=>setReply(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void send();}} placeholder="Reply to support" className="h-11 flex-1 rounded-xl border px-3"/><button onClick={send} className="rounded-xl bg-teal-600 px-4 text-white">Send</button></div>}</>:<p className="text-slate-500">Select a ticket to open the conversation.</p>}</div></div>}
+  </div>;
 }
- 
 function PageLogout({ onCancel }: { onCancel: () => void }) {
   return (
     <div className="p-5 sm:p-6 flex items-center justify-center min-h-72">

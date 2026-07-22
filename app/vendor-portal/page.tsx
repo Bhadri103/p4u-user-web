@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Store, Package, Star, Loader2, Calendar, Clock } from "lucide-react";
-import { vendorApi, VendorProfile, VendorOrder } from "@/lib/api/vendor";
+import { vendorApi, VendorProfile, VendorOrder, VendorReview } from "@/lib/api/vendor";
 import { commerceApi, Booking } from "@/lib/api/commerce";
 import AuthGuard from "@/providers/AuthGuard";
 import { pickVendorImage } from "@/lib/media";
@@ -16,6 +16,7 @@ export default function VendorPortalPage() {
   const [profile, setProfile] = useState<VendorProfile | null>(null);
   const [orders, setOrders] = useState<VendorOrder[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [reviews, setReviews] = useState<Array<VendorReview & { orderRef: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +42,11 @@ export default function VendorPortalPage() {
         .then((res) => setBookings(res.data))
         .catch(() => setError("Unable to load service bookings"))
         .finally(() => setLoading(false));
+    } else if (tab === "reviews") {
+      vendorApi.getOrders({ limit: 100 }).then(async (result) => {
+        const groups = await Promise.all(result.data.map(async (order) => (await vendorApi.getReviewsByOrder(order.id)).map((review) => ({ ...review, orderRef: String(order.id) }))));
+        setReviews(groups.flat().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      }).catch(() => setError("Unable to load vendor reviews")).finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
@@ -209,9 +215,10 @@ export default function VendorPortalPage() {
 
         {/* Reviews Tab */}
         {!loading && !error && tab === "reviews" && (
-          <p className="text-center text-gray-400 py-20">
-            Reviews section coming soon.
-          </p>
+          <div className="space-y-3">
+            {reviews.map((review) => <article key={`${review.orderRef}-${review.id}`} className="rounded-2xl border bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-3"><p className="font-bold text-amber-500">{"★".repeat(Math.max(0, Math.min(5, Number(review.rating || 0))))}<span className="text-gray-200">{"★".repeat(Math.max(0, 5 - Number(review.rating || 0)))}</span></p><span className="text-xs text-gray-400">Order {review.orderRef}</span></div><p className="mt-2 text-gray-700">{review.comment || "Customer left a rating."}</p><div className="mt-3 flex justify-between text-xs text-gray-400"><span>{review.customerName || "Customer"}</span><span>{review.createdAt ? new Date(review.createdAt).toLocaleDateString() : ""}</span></div></article>)}
+            {reviews.length === 0 && <p className="py-20 text-center text-gray-400">No customer reviews yet.</p>}
+          </div>
         )}
       </main>
       <Footer />

@@ -294,6 +294,7 @@ export default function CartCheckout({
           const intent = await paymentsApi.createIntent({
             orderId: order.id,
             amount: total,
+            metadata: { orderType: "product", productOrderId: String(order.id) },
           });
 
           // Poll for payment status

@@ -63,6 +63,23 @@ export default function BookingsPage() {
     }
   };
 
+  const completionOtp = async (id: string) => {
+    try { const data = await commerceApi.getServiceCompletionOtp(id); alert(`Completion OTP: ${data.otp}\nExpires: ${new Date(data.expiresAt).toLocaleTimeString()}`); }
+    catch (e: any) { alert(e?.message || "OTP is not available"); }
+  };
+
+  const confirmCompletion = async (id: string) => {
+    try { const updated = await commerceApi.confirmServiceCompletion(id, true); setBookings((prev) => prev.map((b) => b.id === id ? updated : b)); }
+    catch (e: any) { alert(e?.message || "Confirmation failed"); }
+  };
+
+  const disputeCompletion = async (id: string, pendingConfirmation = false) => {
+    const reason = prompt("Describe the service issue (minimum 5 characters):")?.trim(); if (!reason) return;
+    try {
+      if (pendingConfirmation) await commerceApi.confirmServiceCompletion(id, false, reason); else await commerceApi.disputeService(id, reason);
+      setBookings((prev) => prev.map((b) => b.id === id ? { ...b, status: "disputed" } : b));
+    } catch (e: any) { alert(e?.message || "Dispute could not be opened"); }
+  };
   return (
     <AuthGuard>
     <div className="min-h-screen flex flex-col">
@@ -117,7 +134,10 @@ export default function BookingsPage() {
                   {b.status}
                 </span>
                 <span className="text-[10px] text-gray-400">#{String(b.id).slice(0, 8)}</span>
-                {b.status !== "cancelled" && (
+                {b.status === "completion_pending" ? <button onClick={() => void completionOtp(b.id)} className="text-xs font-semibold text-teal-700 hover:underline">Show completion OTP</button> : null}
+                {b.status === "completion_pending_confirmation" ? <><button onClick={() => void confirmCompletion(b.id)} className="text-xs font-semibold text-green-700 hover:underline">Confirm service</button><button onClick={() => void disputeCompletion(b.id, true)} className="text-xs font-semibold text-red-600 hover:underline">Dispute</button></> : null}
+                {b.status === "completed" ? <button onClick={() => void disputeCompletion(b.id)} className="text-xs text-red-600 hover:underline">Report issue</button> : null}
+                {!["cancelled", "completed", "completion_pending", "completion_pending_confirmation", "disputed", "rejected"].includes(b.status) && (
                   <button
                     onClick={() => cancelBooking(b.id)}
                     className="text-xs text-red-500 hover:underline"

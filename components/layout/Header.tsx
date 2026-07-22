@@ -11,7 +11,7 @@ import {
   MapPin, Search, ShoppingCart, User, ChevronDown, Menu, X,
   Navigation, Clock, Package, Heart, Gift,
   Store, LogOut, Wallet, Shield, ChevronRight,
-  ShoppingBag, Megaphone, Wrench, Building2, Newspaper,
+  ShoppingBag, Megaphone, Wrench, Building2, Newspaper, UtensilsCrossed,
 } from "lucide-react";
 import Image from "next/image";
 import logo from "../../images/logo.png";
@@ -47,6 +47,7 @@ export default function Header({ onCartOpen }: HeaderProps) {
     { icon: Wrench, label: "Services", href: "/service" },
     { icon: Building2, label: "Find Home", href: "/find-home", soon: true },
     { icon: Newspaper, label: "Classified Ads", href: "/classified" },
+    { icon: UtensilsCrossed, label: "Food", href: "/food" },
   ];
 
   const pathname = usePathname();
