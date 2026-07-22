@@ -26,6 +26,21 @@ function isUnsafeProductName(v: unknown): boolean {
   return false;
 }
 
+const CANCELLABLE_ORDER_STATUSES = new Set([
+  "created",
+  "placed",
+  "pending",
+  "paid",
+  "accepted",
+  "processing",
+  "in_progress",
+  "new",
+]);
+
+function canCancelOrder(status: string | undefined | null): boolean {
+  return CANCELLABLE_ORDER_STATUSES.has(String(status || "").trim().toLowerCase());
+}
+
 export default function OrdersPage() {
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -237,7 +252,7 @@ export default function OrdersPage() {
                 </Link>
               </div>
 
-              {o.status !== "delivered" && o.status !== "cancelled" && (
+              {canCancelOrder(o.status) && (
                 <button
                   onClick={() => cancelOrder(o.id)}
                   className="mt-3 text-xs text-red-500 hover:underline"

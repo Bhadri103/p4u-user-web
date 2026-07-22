@@ -1600,7 +1600,7 @@ function PageMyBookings() {
               <div className="flex items-center gap-3">
                 <span className={`text-xs px-2 py-0.5 rounded-full ${statusClass}`}>{st || "pending"}</span>
                 <span className="text-[10px] text-slate-400">#{String(b.id).slice(0, 8)}</span>
-                {st !== "cancelled" && st !== "rejected" && (
+                {!["cancelled", "canceled", "completed", "rejected", "completion_pending", "completion_pending_confirmation", "disputed"].includes(String(st || "").toLowerCase()) && (
                   <button
                     type="button"
                     className="text-xs text-red-500 hover:underline"
