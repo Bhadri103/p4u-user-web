@@ -65,7 +65,7 @@ export default function PropertyDetailView({ id }: { id: string }) {
   const images = Array.isArray(property.images) ? property.images.map(String).filter(Boolean) : [];
   const hero = resolveMediaUrl(
     String(property.image_url || property.cover_image || images[0] || ""),
-  );
+  ) || "";
   const metaBits = [
     property.bhk != null && String(property.bhk) !== "0" ? `${property.bhk} BHK` : "",
     property.property_type,

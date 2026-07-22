@@ -17,7 +17,7 @@ const messageOf = (error: unknown) =>
 
 function coverOf(row: PropertyRow): string {
   const images = Array.isArray(row.images) ? row.images.map(String).filter(Boolean) : [];
-  return resolveMediaUrl(String(row.image_url || row.cover_image || images[0] || ""));
+  return resolveMediaUrl(String(row.image_url || row.cover_image || images[0] || "")) || "";
 }
 
 export default function PropertyWorkspace({
@@ -712,7 +712,7 @@ export function PropertyForm({
               ) : preview || imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={preview || resolveMediaUrl(imageUrl)}
+                  src={preview || resolveMediaUrl(imageUrl) || ""}
                   alt="Property preview"
                   className="h-full w-full object-cover"
                 />
