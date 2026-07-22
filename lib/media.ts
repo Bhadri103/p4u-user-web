@@ -39,14 +39,34 @@ export function resolveMediaUrl(url: string | null | undefined): string | null {
   if (/^https?:\/\//i.test(u)) {
     try {
       const parsed = new URL(u);
-      if (parsed.pathname.startsWith("/uploads") || parsed.pathname.startsWith("/vendor-uploads") || parsed.pathname.startsWith("/socio-uploads")) {
-        return `${assetOrigin()}${parsed.pathname}${parsed.search}`;
+      const path = `${parsed.pathname}${parsed.search}`;
+      if (
+        parsed.pathname.startsWith("/uploads") ||
+        parsed.pathname.startsWith("/vendor-uploads") ||
+        parsed.pathname.startsWith("/socio-uploads")
+      ) {
+        return `${assetOrigin()}${path}`;
+      }
+      // Stale local/dev hosts break on customer devices — rewrite onto gateway.
+      if (
+        parsed.hostname === "localhost" ||
+        parsed.hostname === "127.0.0.1" ||
+        parsed.hostname === "0.0.0.0"
+      ) {
+        return `${assetOrigin()}${path}`;
       }
     } catch {
       return u;
     }
   }
   return u;
+}
+
+/** Swap admin ↔ vendor upload prefix when the first path 404s. */
+export function alternateUploadUrl(url: string): string | null {
+  if (url.includes("/vendor-uploads/")) return url.replace("/vendor-uploads/", "/uploads/");
+  if (url.includes("/uploads/")) return url.replace("/uploads/", "/vendor-uploads/");
+  return null;
 }
 
 export function pickProductImage(p: {

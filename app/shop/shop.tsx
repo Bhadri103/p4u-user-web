@@ -10,13 +10,14 @@ import {
 import { useRouter } from "next/navigation";
 import { catalogApi, type Category } from "@/lib/api/catalog";
 import { resolveCatalogUnitPrice } from "@/lib/catalog/resolvePrice";
-import { pickCategoryImage, resolveMediaUrl } from "@/lib/media";
+import { pickCategoryImage, pickProductImage, resolveMediaUrl, alternateUploadUrl } from "@/lib/media";
 import { useCart } from "@/providers/CartContext";
 import { profileApi } from "@/lib/api/profile";
 
 const SHOP_CARD_PLACEHOLDER = "https://placehold.co/600x400/f3f4f6/64748b?text=P4U";
 const TEAL = "#009999";
 const BUY_GRADIENT = "linear-gradient(90deg,#0AA79E 0%,#12b3a6 45%,#F5A623 100%)";
+const PAGE_SIZE = 24;
 
 type ShopItem = {
   id: string | number;
@@ -133,7 +134,14 @@ function ProductCard({
   item: ShopItem; wished: boolean; view: "grid" | "list";
   onOpen: () => void; onCart: () => void; onBuy: () => void; onWish: () => void;
 }) {
-  const src = item.image && item.image.trim() ? item.image : SHOP_CARD_PLACEHOLDER;
+  const initial = item.image && item.image.trim() ? item.image : SHOP_CARD_PLACEHOLDER;
+  const [src, setSrc] = useState(initial);
+  const [triedAlt, setTriedAlt] = useState(false);
+
+  useEffect(() => {
+    setSrc(initial);
+    setTriedAlt(false);
+  }, [initial]);
 
   const ImageBox = (
     <div className={`relative overflow-hidden bg-gray-100 ${view === "list" ? "h-full w-full" : "aspect-[4/3]"}`}>
@@ -143,6 +151,18 @@ function ProductCard({
         fill
         className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+        loading="lazy"
+        onError={() => {
+          if (!triedAlt) {
+            const alt = alternateUploadUrl(src);
+            if (alt && alt !== src) {
+              setTriedAlt(true);
+              setSrc(alt);
+              return;
+            }
+          }
+          if (src !== SHOP_CARD_PLACEHOLDER) setSrc(SHOP_CARD_PLACEHOLDER);
+        }}
       />
       <button
         type="button"
@@ -295,6 +315,8 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
   const [items, setItems] = useState<ShopItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
 
   const [sortBy, setSortBy] = useState<string>("newest");
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -302,6 +324,26 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
   const [offersOnly, setOffersOnly] = useState(false);
   const [ratingFilter, setRatingFilter] = useState<number | null>(null);
   const [wishIds, setWishIds] = useState<Set<string>>(new Set());
+
+  function mapProductRows(rows: Awaited<ReturnType<typeof catalogApi.browseProducts>>["data"]): ShopItem[] {
+    return (rows ?? []).map((p): ShopItem => {
+      const unit = resolveCatalogUnitPrice(p as unknown as Record<string, unknown>);
+      const thumb = pickProductImage(p) || "";
+      const banners = Array.isArray(p.bannerUrls) ? p.bannerUrls.filter(Boolean) : [];
+      const imageCount = (thumb ? 1 : 0) + banners.filter((b) => resolveMediaUrl(b) !== thumb).length;
+      return {
+        id: p.id,
+        title: p.name || "Product",
+        image: thumb || SHOP_CARD_PLACEHOLDER,
+        price: unit,
+        vendor: (p as { vendorBusinessName?: string | null }).vendorBusinessName?.trim() || "Vendor",
+        vendorId: String(p.vendorId ?? ""),
+        rating: 0,
+        reviews: 0,
+        imageCount: imageCount || 1,
+      };
+    });
+  }
 
   // Root categories
   useEffect(() => {
@@ -329,38 +371,62 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
     }).catch(() => setSubcategories([]));
   }, [parentCategoryId]);
 
-  // Products
+  // Products (first page)
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    const params: { limit: number; offset: number; categoryId?: string; subcategoryId?: string } = { limit: 120, offset: 0 };
+    setHasMore(false);
+    const params: { limit: number; offset: number; categoryId?: string; subcategoryId?: string } = {
+      limit: PAGE_SIZE,
+      offset: 0,
+    };
     if (subcategoryId.trim()) params.subcategoryId = subcategoryId.trim();
     else if (parentCategoryId.trim()) params.categoryId = parentCategoryId.trim();
 
     catalogApi.browseProducts(params).then((res) => {
+      if (cancelled) return;
       const rows = res.data ?? [];
-      setTotal(typeof res.total === "number" ? res.total : rows.length);
-      setItems(rows.map((p): ShopItem => {
-        const unit = resolveCatalogUnitPrice(p as unknown as Record<string, unknown>);
-        const rawThumb =
-          (typeof p.thumbnailUrl === "string" && p.thumbnailUrl) ||
-          (p.metadata && typeof (p.metadata as { imageUrl?: string }).imageUrl === "string" ? (p.metadata as { imageUrl?: string }).imageUrl : "") || "";
-        const thumb = resolveMediaUrl(rawThumb) || rawThumb;
-        const banners = Array.isArray(p.bannerUrls) ? p.bannerUrls.filter(Boolean) : [];
-        const imageCount = (thumb ? 1 : 0) + banners.length;
-        return {
-          id: p.id,
-          title: p.name || "Product",
-          image: thumb || SHOP_CARD_PLACEHOLDER,
-          price: unit,
-          vendor: (p as { vendorBusinessName?: string | null }).vendorBusinessName?.trim() || "Vendor",
-          vendorId: String(p.vendorId ?? ""),
-          rating: 0,
-          reviews: 0,
-          imageCount: imageCount || 1,
-        };
-      }));
-    }).catch(() => { setItems([]); setTotal(0); }).finally(() => setLoading(false));
+      const totalCount = typeof res.total === "number" ? res.total : rows.length;
+      setTotal(totalCount);
+      setItems(mapProductRows(rows));
+      setHasMore(rows.length >= PAGE_SIZE);
+    }).catch(() => {
+      if (cancelled) return;
+      setItems([]);
+      setTotal(0);
+      setHasMore(false);
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [parentCategoryId, subcategoryId]);
+
+  async function loadMore() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const params: { limit: number; offset: number; categoryId?: string; subcategoryId?: string } = {
+        limit: PAGE_SIZE,
+        offset: items.length,
+      };
+      if (subcategoryId.trim()) params.subcategoryId = subcategoryId.trim();
+      else if (parentCategoryId.trim()) params.categoryId = parentCategoryId.trim();
+      const res = await catalogApi.browseProducts(params);
+      const rows = res.data ?? [];
+      const totalCount = typeof res.total === "number" ? res.total : total;
+      setTotal(totalCount);
+      setItems((prev) => {
+        const seen = new Set(prev.map((p) => String(p.id)));
+        const next = mapProductRows(rows).filter((p) => !seen.has(String(p.id)));
+        return [...prev, ...next];
+      });
+      setHasMore(rows.length >= PAGE_SIZE);
+    } catch {
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     let data = [...items];
@@ -531,6 +597,19 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
                   onWish={() => toggleWish(String(item.id))}
                 />
               ))}
+            </div>
+          )}
+          {hasMore && (
+            <div className="mt-8 flex justify-center">
+              <button
+                type="button"
+                onClick={() => void loadMore()}
+                disabled={loadingMore}
+                className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:border-gray-300 disabled:opacity-60"
+              >
+                {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {loadingMore ? "Loading…" : "Load more products"}
+              </button>
             </div>
           )}
         </div>
