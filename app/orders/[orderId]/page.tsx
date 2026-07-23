@@ -383,8 +383,46 @@ export default function OrderDetailsPage() {
                   </div>
                   <div className="flex justify-between text-slate-600">
                     <span>Payment</span>
-                    <span className="text-emerald-600 font-semibold">Paid</span>
+                    <span
+                      className={
+                        String(
+                          (order as { metadata?: { paymentStatus?: string; paymentMode?: string } } | null)?.metadata
+                            ?.paymentStatus ||
+                            order?.status ||
+                            "",
+                        )
+                          .toLowerCase()
+                          .match(/paid|cod|placed/)
+                          ? "text-emerald-600 font-semibold"
+                          : "text-amber-600 font-semibold"
+                      }
+                    >
+                      {(() => {
+                        const meta = (order as { metadata?: Record<string, unknown> } | null)?.metadata || {};
+                        const paymentStatus = String(meta.paymentStatus || "").toLowerCase();
+                        const paymentMode = String(meta.paymentMode || "").toLowerCase();
+                        const status = String(order?.status || "").toLowerCase();
+                        if (paymentStatus === "paid" || status === "paid") return "Paid";
+                        if (paymentMode === "cod" || paymentStatus === "cod") return "Cash on Delivery";
+                        if (paymentStatus === "failed") return "Payment failed";
+                        if (paymentStatus === "pending" || status === "created") return "Pending payment";
+                        return status || "—";
+                      })()}
+                    </span>
                   </div>
+                  {Boolean((order as { metadata?: { shippingAddress?: unknown } } | null)?.metadata?.shippingAddress) && (
+                    <div className="flex justify-between gap-3 text-slate-600">
+                      <span>Deliver to</span>
+                      <span className="text-slate-900 font-medium text-right max-w-[60%]">
+                        {(() => {
+                          const ship = (order as { metadata?: { shippingAddress?: Record<string, unknown> } })
+                            ?.metadata?.shippingAddress;
+                          if (!ship || typeof ship !== "object") return "—";
+                          return [ship.line1, ship.city, ship.pincode].filter(Boolean).join(", ");
+                        })()}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-slate-600">
                     <span>Payment Ref ID</span>
                     <span className="text-slate-900 font-medium">{paymentRef}</span>

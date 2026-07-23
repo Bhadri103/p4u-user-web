@@ -75,6 +75,8 @@ export interface CartQuoteBreakdown {
   currency: "INR";
   itemSubtotal: string;
   discount: string;
+  couponCode?: string | null;
+  couponId?: string | null;
   pointsRedeemed: number;
   pointsRedeemedValue: string;
   platformFee: string;
@@ -252,17 +254,32 @@ export const commerceApi = {
   },
 
   /** Pre-checkout pricing engine: returns full breakdown (fees, commission, redemption cap). */
-  quoteCart(opts: { redeemPoints?: number } = {}) {
+  quoteCart(opts: { redeemPoints?: number; couponCode?: string; vendorId?: string } = {}) {
     return apiClient.post<CartQuoteBreakdown>(`${BASE}/cart/quote`, {
       redeemPoints: opts.redeemPoints ?? 0,
+      ...(opts.couponCode ? { couponCode: opts.couponCode } : {}),
+      ...(opts.vendorId ? { vendorId: opts.vendorId } : {}),
     });
   },
 
   // Orders
-  createOrderFromCart(opts: { redeemPoints?: number; vendorId?: string } = {}) {
+  createOrderFromCart(
+    opts: {
+      redeemPoints?: number;
+      vendorId?: string;
+      couponCode?: string;
+      addressId?: string;
+      shippingAddress?: Record<string, unknown>;
+      paymentMode?: string;
+    } = {},
+  ) {
     return apiClient.post<Order>(`${BASE}/orders/from-cart`, {
       ...(opts.redeemPoints != null ? { redeemPoints: opts.redeemPoints } : {}),
       ...(opts.vendorId ? { vendorId: opts.vendorId } : {}),
+      ...(opts.couponCode ? { couponCode: opts.couponCode } : {}),
+      ...(opts.addressId ? { addressId: opts.addressId } : {}),
+      ...(opts.shippingAddress ? { shippingAddress: opts.shippingAddress } : {}),
+      ...(opts.paymentMode ? { paymentMode: opts.paymentMode } : {}),
     });
   },
 

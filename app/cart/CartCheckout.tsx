@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import {
   ChevronLeft, ChevronRight, ShoppingBag, Trash2, Bookmark,
-  Shield, Check, Eye, Loader2,
+  Check, Eye, Loader2,
 } from "lucide-react";
 import { useCart } from "@/providers/CartContext";
 import { useAuth } from "@/providers/AuthContext";
@@ -13,6 +13,84 @@ import { paymentsApi } from "@/lib/api/payments";
 import type { ApiError } from "@/lib/api/client";
 import { useAppLoading } from "@/providers/AppLoadingProvider";
 import { resolveMediaUrl } from "@/lib/media";
+
+type RazorpayHandlerPayload = {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+type RazorpayOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  order_id: string;
+  name?: string;
+  description?: string;
+  handler: (response: RazorpayHandlerPayload) => void;
+  modal?: { ondismiss?: () => void };
+  theme?: { color?: string };
+};
+type RazorpayInstance = { open: () => void };
+type RazorpayCtor = new (opts: RazorpayOptions) => RazorpayInstance;
+
+declare global {
+  interface Window {
+    Razorpay?: RazorpayCtor;
+  }
+}
+
+const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+
+function loadRazorpay(): Promise<RazorpayCtor> {
+  if (typeof window === "undefined") return Promise.reject(new Error("no window"));
+  if (window.Razorpay) return Promise.resolve(window.Razorpay);
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${RAZORPAY_SCRIPT_SRC}"]`);
+    if (existing) {
+      existing.addEventListener("load", () => {
+        if (window.Razorpay) resolve(window.Razorpay);
+        else reject(new Error("Razorpay SDK failed to load"));
+      });
+      existing.addEventListener("error", () => reject(new Error("Razorpay SDK failed to load")));
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = RAZORPAY_SCRIPT_SRC;
+    script.async = true;
+    script.onload = () => {
+      if (window.Razorpay) resolve(window.Razorpay);
+      else reject(new Error("Razorpay SDK failed to load"));
+    };
+    script.onerror = () => reject(new Error("Razorpay SDK failed to load"));
+    document.body.appendChild(script);
+  });
+}
+
+function shippingSnapshotFromAddress(address: {
+  id: string | number;
+  label?: string;
+  fullName?: string;
+  phone?: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country?: string;
+}) {
+  return {
+    id: String(address.id),
+    label: address.label || null,
+    fullName: address.fullName || null,
+    phone: address.phone || null,
+    line1: address.line1,
+    line2: address.line2 || null,
+    city: address.city,
+    state: address.state,
+    pincode: address.pincode,
+    country: address.country || "IN",
+  };
+}
 
 function messageFromApiError(e: unknown, fallback: string): string {
   if (typeof e === "object" && e !== null && "message" in e) {
@@ -167,10 +245,10 @@ export default function CartCheckout({
   const [redeemInput, setRedeemInput] = useState<string>("");
   const [redeemApplied, setRedeemApplied] = useState<boolean>(false);
   const [redeemPoints, setRedeemPoints] = useState<number>(0);
-  const [payMethod, setPayMethod]     = useState<string>("card");
-  const [cardNum, setCardNum]         = useState<string>("");
-  const [cardExp, setCardExp]         = useState<string>("");
-  const [cardCvv, setCardCvv]         = useState<string>("");
+  const [couponInput, setCouponInput] = useState<string>("");
+  const [couponCode, setCouponCode] = useState<string>("");
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [payMethod, setPayMethod]     = useState<string>("cod");
   const [showAddressModal, setShowAddressModal] = useState<boolean>(false);
   const currentAddress = selectedAddress ? formatAddress(selectedAddress) : address || "No saved address selected";
   const items: DisplayItem[] = useMemo(() => cartItems.map(i => ({
@@ -196,7 +274,7 @@ export default function CartCheckout({
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [quoteLoading, setQuoteLoading] = useState<boolean>(false);
 
-  const refreshQuote = useCallback(async (pts: number) => {
+  const refreshQuote = useCallback(async (pts: number, coupon?: string) => {
     if (cartItems.length === 0) {
       setQuote(null);
       setQuoteError(null);
@@ -205,7 +283,6 @@ export default function CartCheckout({
     setQuoteLoading(true);
     setQuoteError(null);
     try {
-      // Sync the cart to server first so the quote sees current contents.
       await commerceApi.updateCart(
         cartItems.map((i) => ({
           productId: i.productId ?? i.id,
@@ -224,8 +301,15 @@ export default function CartCheckout({
           },
         })),
       );
-      const q = await commerceApi.quoteCart({ redeemPoints: pts });
+      const q = await commerceApi.quoteCart({
+        redeemPoints: pts,
+        ...(coupon ? { couponCode: coupon } : {}),
+      });
       setQuote(q);
+      if (q.warnings?.length) {
+        const couponWarn = q.warnings.find((w) => /coupon/i.test(w));
+        if (couponWarn) setCouponError(couponWarn);
+      }
     } catch (e) {
       setQuoteError(messageFromApiError(e, "Failed to fetch pricing."));
     } finally {
@@ -234,14 +318,15 @@ export default function CartCheckout({
   }, [cartItems]);
 
   useEffect(() => {
-    refreshQuote(redeemApplied ? redeemPoints : 0);
-  }, [refreshQuote, redeemApplied, redeemPoints]);
+    refreshQuote(redeemApplied ? redeemPoints : 0, couponCode || undefined);
+  }, [refreshQuote, redeemApplied, redeemPoints, couponCode]);
 
   const platformFee     = quote ? Number(quote.platformFee) : 0;
   const gstOnFee        = quote ? Number(quote.gstOnPlatformFee) : 0;
   const deliveryFee     = quote ? Number(quote.deliveryFee) : 0;
   const surgeCost       = quote ? Number(quote.surgeCost) : 0;
   const redeemSave      = quote ? Number(quote.pointsRedeemedValue) : 0;
+  const couponDiscount  = quote ? Number(quote.discount) : 0;
   const total           = quote ? Number(quote.grandTotal) : itemTotal;
   const walletBalance   = quote ? Number(quote.walletBalanceBefore) : 0;
   const maxRedeemValue  = quote ? Number(quote.maxRedeemableValue) : 0;
@@ -264,7 +349,15 @@ export default function CartCheckout({
           window.dispatchEvent(new Event("p4u-open-auth"));
           return;
         }
-        // Replace server cart with current UI cart (PUT), then create order from that cart
+        if (!selectedAddress || !selectedAddressId) {
+          setOrderError("Select a delivery address before placing the order.");
+          setShowAddressModal(true);
+          return;
+        }
+        if (!meetsMinCart) {
+          setOrderError(`Cart subtotal is below the minimum of ${formatPrice(minCartValue)}.`);
+          return;
+        }
         if (cartItems.length > 0) {
           await commerceApi.updateCart(
             cartItems.map((i) => ({
@@ -276,58 +369,97 @@ export default function CartCheckout({
                 productName: i.name,
                 vendorName: i.vendor,
                 ...((i.imageUrl || i.image)
-              ? {
-                  productImage:
-                    resolveMediaUrl(String(i.imageUrl || i.image || "").trim()) || i.imageUrl || i.image,
-                }
-              : {}),
+                  ? {
+                      productImage:
+                        resolveMediaUrl(String(i.imageUrl || i.image || "").trim()) || i.imageUrl || i.image,
+                    }
+                  : {}),
               },
             })),
           );
         }
 
+        const paymentMode = payMethod === "cod" ? "cod" : "razorpay";
         const order = await commerceApi.createOrderFromCart({
           redeemPoints: redeemApplied ? redeemPoints : 0,
+          couponCode: couponCode || undefined,
+          addressId: String(selectedAddressId),
+          shippingAddress: shippingSnapshotFromAddress(selectedAddress),
+          paymentMode,
         });
 
-        // For COD, skip payment processing — order is already created
-        if (payMethod !== "cod") {
-          const intent = await paymentsApi.createIntent({
-            orderId: order.id,
-            amount: total,
-            metadata: { orderType: "product", productOrderId: String(order.id) },
-          });
-
-          // Poll for payment status
-          let attempts = 0;
-          const maxAttempts = 10;
-          const pollPayment = async (): Promise<boolean> => {
-            attempts++;
-            try {
-              const status = await paymentsApi.getIntent(intent.id);
-              if (status.status === "succeeded" || status.status === "completed") return true;
-              if (status.status === "failed" || status.status === "cancelled") return false;
-            } catch {
-              // continue polling
-            }
-            if (attempts < maxAttempts) {
-              await new Promise((r) => setTimeout(r, 2000));
-              return pollPayment();
-            }
-            return true;
-          };
-
-          const paid = await pollPayment();
-          if (!paid) {
-            setOrderError("Payment was not completed. Please try again.");
-            return;
-          }
+        if (paymentMode === "cod") {
+          setPlacedAmount(total);
+          clearCart();
+          setStep(2);
+          scrollToTop();
+          return;
         }
 
-        setPlacedAmount(total);
-        clearCart();
-        setStep(2);
-        scrollToTop();
+        const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+        if (!razorpayKey) {
+          setOrderError("Payment is not configured. Missing NEXT_PUBLIC_RAZORPAY_KEY_ID.");
+          return;
+        }
+
+        const intent = await paymentsApi.createIntent({
+          orderId: order.id,
+          amount: total,
+          metadata: {
+            orderType: "product",
+            domain: "product",
+            productOrderId: String(order.id),
+            orderRef: order.orderRef || order.id,
+          },
+        });
+        if (!intent.providerRef) {
+          throw new Error("Payment provider did not return an order reference.");
+        }
+
+        const Rzp = await loadRazorpay();
+        const amountSubunits = Math.round(Number(total) * 100);
+        await new Promise<void>((resolve, reject) => {
+          const rzp = new Rzp({
+            key: razorpayKey,
+            amount: amountSubunits,
+            currency: intent.currency || "INR",
+            order_id: intent.providerRef as string,
+            name: "Planext4u",
+            description: `Order ${order.orderRef || order.id}`,
+            handler: async (resp) => {
+              try {
+                const result = await paymentsApi.verify({
+                  razorpay_order_id: resp.razorpay_order_id,
+                  razorpay_payment_id: resp.razorpay_payment_id,
+                  razorpay_signature: resp.razorpay_signature,
+                });
+                if (!result.verified) {
+                  setOrderError("Payment signature could not be verified.");
+                  reject(new Error("Payment not verified"));
+                  return;
+                }
+                setPlacedAmount(total);
+                clearCart();
+                setStep(2);
+                scrollToTop();
+                resolve();
+              } catch (e) {
+                setOrderError(messageFromApiError(e, "Payment verification failed."));
+                reject(e instanceof Error ? e : new Error("Payment verification failed"));
+              }
+            },
+            modal: {
+              ondismiss: () => {
+                setOrderError(
+                  "Payment was cancelled. Your order is created and pending payment — you can retry from My Orders.",
+                );
+                resolve();
+              },
+            },
+            theme: { color: "#009999" },
+          });
+          rzp.open();
+        });
       });
     } catch (e: unknown) {
       if (isUnauthorizedError(e)) {
@@ -418,9 +550,57 @@ export default function CartCheckout({
     if (deliveryFee > 0) breakdownRows.push({ label: "Delivery Fee", val: formatPrice(deliveryFee), color: "#374151" });
     if (surgeCost > 0) breakdownRows.push({ label: "Surge Cost", val: formatPrice(surgeCost), color: "#b45309" });
     if (redeemApplied && redeemSave > 0) breakdownRows.push({ label: "Redeem Points", val: `-${formatPrice(redeemSave)}`, color: "#059669" });
+    if (couponDiscount > 0) breakdownRows.push({ label: couponCode ? `Coupon (${couponCode})` : "Coupon", val: `-${formatPrice(couponDiscount)}`, color: "#059669" });
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: 16 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "#1f2937", marginBottom: 12 }}>Coupon</p>
+          <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+            <input
+              value={couponInput}
+              onChange={e => setCouponInput(e.target.value)}
+              placeholder="Enter coupon code"
+              style={{
+                flex: 1, border: "1px solid #e5e7eb", borderRadius: 8,
+                padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", minWidth: 0,
+              }}
+            />
+            <PrimaryBtn
+              onClick={async () => {
+                const code = couponInput.trim();
+                setCouponError(null);
+                if (!code) {
+                  setCouponCode("");
+                  return;
+                }
+                try {
+                  const validation = await commerceApi.validateCoupon(code, itemTotal);
+                  if (!validation.valid) {
+                    setCouponError(validation.message || "Invalid coupon");
+                    setCouponCode("");
+                    return;
+                  }
+                  setCouponCode(code);
+                  await refreshQuote(redeemApplied ? redeemPoints : 0, code);
+                } catch (e) {
+                  setCouponError(messageFromApiError(e, "Unable to validate coupon"));
+                  setCouponCode("");
+                }
+              }}
+              style={{ padding: "8px 14px", fontSize: 12, borderRadius: 8, flexShrink: 0 }}>
+              Apply
+            </PrimaryBtn>
+          </div>
+          {couponCode && couponDiscount > 0 && (
+            <p style={{ fontSize: 11, color: "#059669", margin: 0 }}>
+              Applied {couponCode}: −{formatPrice(couponDiscount)}
+            </p>
+          )}
+          {couponError && (
+            <p style={{ fontSize: 11, color: "#dc2626", margin: "4px 0 0" }}>{couponError}</p>
+          )}
+        </div>
         {showRedeem && (
           <div style={{ background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: 16 }}>
             <p style={{ fontSize: 13, fontWeight: 700, color: "#1f2937", marginBottom: 12 }}>Redeem Points</p>
@@ -644,14 +824,12 @@ export default function CartCheckout({
   function PaymentStep() {
     const methods: PaymentMethod[] = [
       {
-        id: "razorpay", label: "Razorpay",
-        sub: "You will be redirected to the Razorpay website after submitting your order.",
-        right: <span style={{ fontSize: 14, fontWeight: 900, color: "#2d6df6", fontFamily: "sans-serif" }}>✦Razorpay</span>,
+        id: "razorpay",
+        label: "Pay online (Razorpay)",
+        sub: "UPI, cards, and wallets via Razorpay checkout.",
+        right: <span style={{ fontSize: 14, fontWeight: 900, color: "#2d6df6", fontFamily: "sans-serif" }}>Razorpay</span>,
       },
-      { id: "card",  label: "Pay with Credit Card", cardIcons: true },
-      { id: "bank",  label: "Direct Bank Transfer",  sub: "Make payment directly through bank account." },
-      { id: "other", label: "Other Payment Methods", sub: "Make payment through Gpay, Phonepay, Paytm etc.", otherIcons: true },
-      { id: "cod",   label: "Cash on Delivery" },
+      { id: "cod", label: "Cash on Delivery" },
     ];
 
     return (
@@ -679,109 +857,36 @@ export default function CartCheckout({
                     </div>
                     <span style={{ fontSize: 12, fontWeight: 600, color: "#1f2937", flex: 1 }}>{pm.label}</span>
                     {pm.right}
-                    {pm.cardIcons && (
-                      <div style={{ display: "flex", gap: 4 }}>
-                        {([ ["#1a1f71","VISA"], ["#f97316","DISC"], ["#eb001b","MC"], ["#ff5f00","MS"] ] as [string,string][]).map(([bg, t], i) => (
-                          <div key={i} style={{ width: 30, height: 18, borderRadius: 4, background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <span style={{ fontSize: 6, fontWeight: 900, color: "white" }}>{t}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {pm.otherIcons && (
-                      <div style={{ display: "flex", gap: 4 }}>
-                        {([ ["#5f259f","P"], ["#00b9f1","N"], ["#4285f4","G"] ] as [string,string][]).map(([bg, t], i) => (
-                          <div key={i} style={{ width: 22, height: 22, borderRadius: "50%", background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <span style={{ fontSize: 8, fontWeight: 900, color: "white" }}>{t}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
-                  {pm.sub && payMethod !== pm.id && (
-                    <p style={{ fontSize: 10, color: "#9ca3af", marginTop: 4, marginLeft: 26 }}>{pm.sub}</p>
-                  )}
-                  {pm.id === "card" && payMethod === "card" && (
-                    <div style={{ marginTop: 12, marginLeft: 26, display: "flex", flexDirection: "column", gap: 10 }}>
-                      <div>
-                        <p style={{ fontSize: 9, color: "#9ca3af", marginBottom: 4 }}>Card number</p>
-                        <div style={{ position: "relative" }}>
-                          <input value={cardNum} onChange={e => setCardNum(e.target.value)} placeholder="1234 5678 9012 3456"
-                            style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 36px 8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
-                          {cardNum.length >= 16 && (
-                            <div style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 20, height: 20, borderRadius: "50%", background: BTN_GRAD, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <Check size={10} style={{ color: "white" }} />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <div style={{ flex: 1, minWidth: 120 }}>
-                          <p style={{ fontSize: 9, color: "#9ca3af", marginBottom: 4 }}>Expiration Date</p>
-                          <input value={cardExp} onChange={e => setCardExp(e.target.value)} placeholder="MM/YY"
-                            style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 100 }}>
-                          <p style={{ fontSize: 9, color: "#9ca3af", marginBottom: 4 }}>Security Code</p>
-                          <input value={cardCvv} onChange={e => setCardCvv(e.target.value)} placeholder="•••" type="password"
-                            style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
-                        </div>
-                      </div>
-                    </div>
+                  {pm.sub && (
+                    <p style={{ margin: "6px 0 0 26px", fontSize: 11, color: "#6b7280" }}>{pm.sub}</p>
                   )}
                 </div>
               ))}
             </div>
-
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 14 }}>
-              <div style={{ width: 24, height: 24, borderRadius: "50%", border: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Shield size={12} style={{ color: "#9ca3af" }} />
-              </div>
-              <p style={{ fontSize: 10, color: "#9ca3af", margin: 0 }}>
-                We protect your payment information using encryption to provide bank-level security.
-              </p>
-            </div>
-
-            {orderError && (
-              <p style={{ color: "#dc2626", fontSize: 12, marginTop: 10 }}>{orderError}</p>
-            )}
-            <PrimaryBtn onClick={placeOrder} disabled={placing} style={{ width: "100%", marginTop: 14, padding: "12px 0", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              {placing ? <><Loader2 size={16} className="animate-spin" /> Placing Order...</> : payMethod === "cod" ? <>Place Order — {formatPrice(total)}</> : <>Pay {formatPrice(total)}</>}
-            </PrimaryBtn>
           </div>
         </div>
-
         <div className="sidebar-col">
-          <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 16 }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#1f2937", marginBottom: 14 }}>Payment summary</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {([
-                { label: "Item total",   val: formatPrice(itemTotal),    dash: true },
-                { label: "Platform Fee", val: formatPrice(platformFee), dash: true },
-                ...(gstOnFee > 0 ? [{ label: `GST (${quote?.gstOnPlatformFeePercent ?? 18}%)`, val: formatPrice(gstOnFee), dash: true }] : []),
-                ...(deliveryFee > 0 ? [{ label: "Delivery", val: formatPrice(deliveryFee), dash: true }] : []),
-                ...(surgeCost > 0 ? [{ label: "Surge", val: formatPrice(surgeCost), dash: true }] : []),
-                ...(redeemSave > 0 ? [{ label: "Points Redeemed", val: `-${formatPrice(redeemSave)}`, dash: true }] : []),
-              ] as { label: string; val: string; dash: boolean }[]).map(({ label, val, dash }) => (
-                <div key={label} style={{
-                  display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b7280",
-                  paddingBottom: 10, borderBottom: dash ? "1px dashed #e5e7eb" : "none",
-                }}>
-                  <span>{label}</span>
-                  <span style={{ fontWeight: 600, color: "#374151" }}>{val}</span>
-                </div>
-              ))}
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#111827" }}>
-                <span>Total Amount</span>
-                <span>{formatPrice(total)}</span>
-              </div>
-            </div>
-          </div>
+          <Sidebar showRedeem={false} />
+          {orderError && (
+            <p style={{ color: "#dc2626", fontSize: 12, marginTop: 8 }}>{orderError}</p>
+          )}
+          <button
+            onClick={placeOrder}
+            disabled={placing || !items.length || addressesLoading}
+            style={{
+              marginTop: 12, width: "100%", border: "none", borderRadius: 10, padding: "12px 16px",
+              background: BTN_GRAD, color: "white", fontWeight: 700, fontSize: 13, cursor: placing ? "wait" : "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: placing ? 0.7 : 1,
+            }}
+          >
+            {placing ? <><Loader2 size={16} className="animate-spin" /> Placing Order...</> : payMethod === "cod" ? <>Place Order — {formatPrice(total)}</> : <>Pay {formatPrice(total)}</>}
+          </button>
         </div>
       </div>
     );
   }
- 
+
   function SuccessStep() {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>

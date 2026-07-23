@@ -387,6 +387,13 @@ export default function Header({ onCartOpen }: HeaderProps) {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => setIsSearchOpen(true)}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter") return;
+                      const q = searchQuery.trim();
+                      if (!q) return;
+                      setIsSearchOpen(false);
+                      router.push(`/shop?q=${encodeURIComponent(q)}`);
+                    }}
                     className="bg-transparent outline-none text-white flex-1 text-sm placeholder:text-white/70 w-full min-w-0"
                   />
                   {searchQuery && (
@@ -403,7 +410,15 @@ export default function Header({ onCartOpen }: HeaderProps) {
                     </div>
                     <ul className="pb-2">
                       {recentSearches.map((item, i) => (
-                        <li key={i} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 cursor-pointer group">
+                        <li
+                          key={i}
+                          className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 cursor-pointer group"
+                          onClick={() => {
+                            setSearchQuery(item);
+                            setIsSearchOpen(false);
+                            router.push(`/shop?q=${encodeURIComponent(item)}`);
+                          }}
+                        >
                           <div className="flex items-center gap-3"><Clock className="w-4 h-4 text-gray-400" /><span className="text-sm text-gray-600">{item}</span></div>
                           <button type="button" className="text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3.5 h-3.5" /></button>
                         </li>

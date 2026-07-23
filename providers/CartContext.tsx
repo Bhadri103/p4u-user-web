@@ -25,7 +25,7 @@ export interface CartItem {
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (item: Omit<CartItem, "qty">) => void;
+  addToCart: (item: Omit<CartItem, "qty"> & { qty?: number }) => void;
   removeFromCart: (id: string | number) => void;
   updateQty: (id: string | number, qty: number) => void;
   clearCart: () => void;
@@ -133,13 +133,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     if (localItems.length) {
       commerceApi
-        .updateCart(linesFromLocal(localItems))
+        .mergeCart(linesFromLocal(localItems))
         .then((serverCart) => {
           setSyncError(null);
           setItems(mapServerItems(serverCart));
         })
         .catch(() => {
-          setSyncError("Failed to sync cart with server");
+          // Fallback: replace cart if merge fails
+          commerceApi
+            .updateCart(linesFromLocal(localItems))
+            .then((serverCart) => {
+              setSyncError(null);
+              setItems(mapServerItems(serverCart));
+            })
+            .catch(() => setSyncError("Failed to sync cart with server"));
         })
         .finally(() => setSyncing(false));
     } else {
@@ -165,7 +172,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const addToCart = useCallback((newItem: Omit<CartItem, "qty">) => {
+  const addToCart = useCallback((newItem: Omit<CartItem, "qty"> & { qty?: number }) => {
     if (typeof window !== "undefined" && !localStorage.getItem("p4u_token")) {
       setPostLoginAction({ type: "addToCart", item: newItem });
       window.dispatchEvent(new CustomEvent("p4u-open-auth"));
@@ -173,6 +180,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
     const pid = newItem.productId ?? newItem.id;
     const vid = newItem.variationId ?? null;
+    const addQty = Math.max(1, Number(newItem.qty) || 1);
     setItems((prev) => {
       const existing = prev.find(
         (i) =>
@@ -183,14 +191,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return prev.map((i) =>
           String(i.productId ?? i.id) === String(pid) &&
           String(i.variationId ?? "") === String(vid ?? "")
-            ? { ...i, qty: i.qty + 1 }
+            ? { ...i, qty: i.qty + addQty }
             : i,
         );
       }
-      return [...prev, { ...newItem, productId: pid, variationId: vid, qty: 1 }];
+      return [...prev, { ...newItem, productId: pid, variationId: vid, qty: addQty }];
     });
     syncToServer(() =>
-      commerceApi.addCartItem(pid, 1, newItem.price, newItem.vendorId || null, {
+      commerceApi.addCartItem(pid, addQty, newItem.price, newItem.vendorId || null, {
         productName: newItem.name,
         vendorName: newItem.vendor,
         ...((newItem.imageUrl || newItem.image)

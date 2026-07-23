@@ -7,7 +7,7 @@ import {
   LayoutGrid, List as ListIcon, ShoppingCart, Zap, Heart,
   Package, Images, Loader2, Tag,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { catalogApi, type Category } from "@/lib/api/catalog";
 import { resolveCatalogUnitPrice } from "@/lib/catalog/resolvePrice";
 import { pickCategoryImage, pickProductImage, resolveMediaUrl, alternateUploadUrl } from "@/lib/media";
@@ -24,6 +24,7 @@ type ShopItem = {
   title: string;
   image: string;
   price: number;
+  originalPrice: number;
   vendor: string;
   vendorId: string;
   rating: number;
@@ -305,6 +306,8 @@ function FiltersDrawer({
 
 export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) => void }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchQ = (searchParams.get("q") || "").trim();
   const { addToCart, clearCart } = useCart();
 
   const [rootCategories, setRootCategories] = useState<Category[]>([]);
@@ -336,10 +339,15 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
         title: p.name || "Product",
         image: thumb || SHOP_CARD_PLACEHOLDER,
         price: unit,
+        originalPrice: Number(
+          (p as { mrp?: number | string; compareAtPrice?: number | string }).mrp ??
+            (p as { compareAtPrice?: number | string }).compareAtPrice ??
+            unit,
+        ) || unit,
         vendor: (p as { vendorBusinessName?: string | null }).vendorBusinessName?.trim() || "Vendor",
         vendorId: String(p.vendorId ?? ""),
-        rating: 0,
-        reviews: 0,
+        rating: Number((p as { rating?: number }).rating ?? 0) || 0,
+        reviews: Number((p as { reviewCount?: number; reviews?: number }).reviewCount ?? (p as { reviews?: number }).reviews ?? 0) || 0,
         imageCount: imageCount || 1,
       };
     });
@@ -371,35 +379,49 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
     }).catch(() => setSubcategories([]));
   }, [parentCategoryId]);
 
-  // Products (first page)
+  // Products (first page) — browse or catalog search
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setHasMore(false);
-    const params: { limit: number; offset: number; categoryId?: string; subcategoryId?: string } = {
-      limit: PAGE_SIZE,
-      offset: 0,
-    };
-    if (subcategoryId.trim()) params.subcategoryId = subcategoryId.trim();
-    else if (parentCategoryId.trim()) params.categoryId = parentCategoryId.trim();
 
-    catalogApi.browseProducts(params).then((res) => {
-      if (cancelled) return;
-      const rows = res.data ?? [];
-      const totalCount = typeof res.total === "number" ? res.total : rows.length;
-      setTotal(totalCount);
-      setItems(mapProductRows(rows));
-      setHasMore(rows.length >= PAGE_SIZE);
-    }).catch(() => {
-      if (cancelled) return;
-      setItems([]);
-      setTotal(0);
-      setHasMore(false);
-    }).finally(() => {
-      if (!cancelled) setLoading(false);
-    });
+    const run = async () => {
+      try {
+        if (searchQ) {
+          const res = await catalogApi.search(searchQ, { limit: PAGE_SIZE, offset: 0 });
+          if (cancelled) return;
+          const rows = (res.products ?? []) as Awaited<ReturnType<typeof catalogApi.browseProducts>>["data"];
+          const mapped = mapProductRows(rows);
+          setItems(mapped);
+          setTotal(mapped.length);
+          setHasMore(false);
+          return;
+        }
+        const params: { limit: number; offset: number; categoryId?: string; subcategoryId?: string } = {
+          limit: PAGE_SIZE,
+          offset: 0,
+        };
+        if (subcategoryId.trim()) params.subcategoryId = subcategoryId.trim();
+        else if (parentCategoryId.trim()) params.categoryId = parentCategoryId.trim();
+        const res = await catalogApi.browseProducts(params);
+        if (cancelled) return;
+        const rows = res.data ?? [];
+        const totalCount = typeof res.total === "number" ? res.total : rows.length;
+        setTotal(totalCount);
+        setItems(mapProductRows(rows));
+        setHasMore(rows.length >= PAGE_SIZE);
+      } catch {
+        if (cancelled) return;
+        setItems([]);
+        setTotal(0);
+        setHasMore(false);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void run();
     return () => { cancelled = true; };
-  }, [parentCategoryId, subcategoryId]);
+  }, [parentCategoryId, subcategoryId, searchQ]);
 
   async function loadMore() {
     if (loadingMore || !hasMore) return;
@@ -430,7 +452,8 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
 
   const filtered = useMemo(() => {
     let data = [...items];
-    if (ratingFilter) data = data.filter((s) => s.rating >= ratingFilter);
+    if (offersOnly) data = data.filter((s) => s.originalPrice > s.price);
+    if (ratingFilter) data = data.filter((s) => s.rating > 0 && s.rating >= ratingFilter);
     if (sortBy === "low") data.sort((a, b) => a.price - b.price);
     else if (sortBy === "high") data.sort((a, b) => b.price - a.price);
     else if (sortBy === "newest") data.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));

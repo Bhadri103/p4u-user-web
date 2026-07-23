@@ -379,7 +379,8 @@ export default function ProductDetailPage({ product: rawProduct, onBack }) {
       vendor: product.vendor || "Seller",
       vendorId: product.vendorId || "",
       color: attrLabel,
-      delivery: product.delivery || "Delivery in 30 Mins",
+      delivery: product.delivery || "Standard delivery",
+      qty,
     };
   }
 
@@ -522,8 +523,15 @@ export default function ProductDetailPage({ product: rawProduct, onBack }) {
                 </div>
               )}
 
-              {/* Cart actions */}
-              <div style={{ display: "flex", gap: 10, width: "100%", marginTop: 4 }}>
+              {/* Qty + Cart actions */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", marginTop: 4 }}>
+                <div style={{ display: "flex", alignItems: "center", border: "1px solid #e0e0e0", borderRadius: 2, overflow: "hidden" }}>
+                  <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    style={{ width: 36, height: 48, border: "none", background: "#f5f5f5", cursor: "pointer", fontSize: 18, fontWeight: 700 }}>−</button>
+                  <span style={{ width: 40, textAlign: "center", fontWeight: 700 }}>{qty}</span>
+                  <button type="button" onClick={() => setQty((q) => Math.min(20, q + 1))}
+                    style={{ width: 36, height: 48, border: "none", background: "#f5f5f5", cursor: "pointer", fontSize: 18, fontWeight: 700 }}>+</button>
+                </div>
                 <button
                   onClick={handleAddToCart}
                   style={{
