@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useCart } from "@/providers/CartContext";
 import { useAuth } from "@/providers/AuthContext";
+import { formatAddress, useAddresses } from "@/providers/AddressContext";
 import { commerceApi, type CartQuoteBreakdown } from "@/lib/api/commerce";
 import { paymentsApi } from "@/lib/api/payments";
 import type { ApiError } from "@/lib/api/client";
@@ -146,12 +147,13 @@ function AddressBar({ address, onChangeAddress }: { address: string; onChangeAdd
 } 
 export default function CartCheckout({
   onBack,
-  address = "P4U Complex - 605001",
+  address = "",
 }: {
   onBack?: () => void;
   address?: string;
 }) {
   const { logout } = useAuth();
+  const { addresses, selectedAddress, selectedAddressId, isLoading: addressesLoading, error: addressError, selectAddress } = useAddresses();
   const pageRef = useRef<HTMLDivElement>(null);
   const { runWithLoading } = useAppLoading();
   const { items: cartItems, removeFromCart, updateQty, clearCart } = useCart();
@@ -169,9 +171,8 @@ export default function CartCheckout({
   const [cardNum, setCardNum]         = useState<string>("");
   const [cardExp, setCardExp]         = useState<string>("");
   const [cardCvv, setCardCvv]         = useState<string>("");
-  const [currentAddress, setCurrentAddress] = useState<string>(address);
   const [showAddressModal, setShowAddressModal] = useState<boolean>(false);
-  const [addressInput, setAddressInput] = useState<string>(""); 
+  const currentAddress = selectedAddress ? formatAddress(selectedAddress) : address || "No saved address selected";
   const items: DisplayItem[] = useMemo(() => cartItems.map(i => ({
     id:            i.id,
     name:          i.name,
@@ -868,51 +869,37 @@ export default function CartCheckout({
               </button>
             </div> 
             <p style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Saved Addresses</p>
-            {[
-              "P4U Complex - 605001",
-              "SF No.250/2 JJ Nagar, Coimbatore - 641016",
-            ].map((addr, i) => (
-              <div
-                key={i}
-                onClick={() => { setCurrentAddress(addr); setShowAddressModal(false); }}
-                style={{
-                  padding: "10px 14px", borderRadius: 10, marginBottom: 8, cursor: "pointer",
-                  border: `1px solid ${currentAddress === addr ? PRIMARY_MID : "#e5e7eb"}`,
-                  background: currentAddress === addr ? "#f0fdf4" : "white",
-                  fontSize: 12, color: "#374151", transition: "all 0.15s",
-                }}
-                onMouseEnter={e => { if (currentAddress !== addr) e.currentTarget.style.borderColor = TEAL_ACCENT; }}
-                onMouseLeave={e => { if (currentAddress !== addr) e.currentTarget.style.borderColor = "#e5e7eb"; }}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span>{addr}</span>
-                  {currentAddress === addr && <Check size={13} style={{ color: PRIMARY_MID, flexShrink: 0 }} />}
-                </div>
-              </div>
-            ))}
- 
-            <p style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", margin: "14px 0 8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Enter New Address</p>
-            <input
-              value={addressInput}
-              onChange={e => setAddressInput(e.target.value)}
-              placeholder="Type your delivery address..."
-              style={{
-                width: "100%", border: "1px solid #e5e7eb", borderRadius: 10,
-                padding: "10px 14px", fontSize: 12, outline: "none",
-                fontFamily: "inherit", boxSizing: "border-box", marginBottom: 12,
-              }}
-            />
+            {addressesLoading ? (
+              <p style={{ fontSize: 12, color: "#6b7280", padding: "12px 0" }}>Loading saved addresses...</p>
+            ) : addressError ? (
+              <p style={{ fontSize: 12, color: "#b91c1c", padding: "12px 0" }}>{addressError}</p>
+            ) : addresses.length ? addresses.map((savedAddress) => {
+              const active = String(savedAddress.id) === selectedAddressId;
+              return (
+                <button
+                  key={String(savedAddress.id)}
+                  type="button"
+                  onClick={() => { selectAddress(savedAddress.id); setShowAddressModal(false); }}
+                  style={{
+                    display: "block", width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 8, cursor: "pointer",
+                    border: `1px solid ${active ? PRIMARY_MID : "#e5e7eb"}`,
+                    background: active ? "#f0fdfa" : "white", fontSize: 12, color: "#374151", textAlign: "left",
+                  }}
+                >
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <span><strong>{savedAddress.label || "Address"}</strong><br />{formatAddress(savedAddress)}</span>
+                    {active && <Check size={13} style={{ color: PRIMARY_MID, flexShrink: 0 }} />}
+                  </span>
+                </button>
+              );
+            }) : (
+              <p style={{ fontSize: 12, color: "#6b7280", padding: "12px 0" }}>No saved addresses yet.</p>
+            )}
+
             <PrimaryBtn
-              disabled={!addressInput.trim()}
-              onClick={() => {
-                if (addressInput.trim()) {
-                  setCurrentAddress(addressInput.trim());
-                  setAddressInput("");
-                  setShowAddressModal(false);
-                }
-              }}
-              style={{ width: "100%", padding: "10px 0", fontSize: 13 }}>
-              Save Address
+              onClick={() => { window.location.assign("/saved-addresses"); }}
+              style={{ width: "100%", padding: "10px 0", marginTop: 10, fontSize: 13 }}>
+              Manage Addresses
             </PrimaryBtn>
           </div>
         </div>

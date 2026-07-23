@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthContext";
 import { commerceApi, type AvailableSlot } from "@/lib/api/commerce";
-import { profileApi, type Address } from "@/lib/api/profile";
+import { formatAddress, useAddresses } from "@/providers/AddressContext";
 import type { ApiError } from "@/lib/api/client";
 import { TEAL_GRAD } from "@/app/service/serviceData";
 
@@ -44,12 +44,12 @@ export default function ServiceBookingModal({
 }: ServiceBookingModalProps) {
   const router = useRouter();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
+  const { addresses, selectedAddress, isLoading: addressesLoading, error: addressError, selectAddress } = useAddresses();
 
   const [date, setDate] = useState(todayYmd());
   const [slots, setSlots] = useState<AvailableSlot[]>(FALLBACK_SLOTS);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotValue, setSlotValue] = useState("");
-  const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressId, setAddressId] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -72,24 +72,9 @@ export default function ServiceBookingModal({
   }, [open, resetForm]);
 
   useEffect(() => {
-    if (!open || !isLoggedIn || !vendorId.trim()) return;
-    let cancelled = false;
-    profileApi
-      .getAddresses()
-      .then((list) => {
-        if (cancelled) return;
-        setAddresses(list);
-        const def = list.find((a) => a.isDefault) ?? list[0];
-        if (def) setAddressId(String(def.id));
-        else setAddressId("");
-      })
-      .catch(() => {
-        if (!cancelled) setAddresses([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, isLoggedIn, vendorId]);
+    if (!open || !isLoggedIn) return;
+    setAddressId(selectedAddress ? String(selectedAddress.id) : "");
+  }, [open, isLoggedIn, selectedAddress]);
 
   useEffect(() => {
     if (!open || !isLoggedIn || !vendorId.trim() || !date) return;
@@ -320,7 +305,10 @@ export default function ServiceBookingModal({
             </label>
             <select
               value={addressId}
-              onChange={(e) => setAddressId(e.target.value)}
+              onChange={(e) => {
+                setAddressId(e.target.value);
+                if (e.target.value) selectAddress(e.target.value);
+              }}
               style={{
                 width: "100%",
                 padding: "10px 12px",
@@ -335,11 +323,15 @@ export default function ServiceBookingModal({
               <option value="">No saved address</option>
               {addresses.map((a) => (
                 <option key={String(a.id)} value={String(a.id)}>
-                  {(a.label ?? "Address") + ": " + a.line1 + ", " + a.city}
+                  {(a.label ?? "Address") + ": " + formatAddress(a)}
                 </option>
               ))}
             </select>
-            {addresses.length === 0 ? (
+            {addressesLoading ? (
+              <p style={{ fontSize: 11, color: "#6b7280", marginTop: -10, marginBottom: 14 }}>Loading saved addresses...</p>
+            ) : addressError ? (
+              <p style={{ fontSize: 11, color: "#b91c1c", marginTop: -10, marginBottom: 14 }}>{addressError}</p>
+            ) : addresses.length === 0 ? (
               <p style={{ fontSize: 11, color: "#9ca3af", marginTop: -10, marginBottom: 14 }}>
                 Add addresses under Profile to attach them to bookings.
               </p>

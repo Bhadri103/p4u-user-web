@@ -16,7 +16,7 @@ import { profileApi } from "@/lib/api/profile";
 
 const SHOP_CARD_PLACEHOLDER = "https://placehold.co/600x400/f3f4f6/64748b?text=P4U";
 const TEAL = "#009999";
-const BUY_GRADIENT = "linear-gradient(90deg,#0AA79E 0%,#12b3a6 45%,#F5A623 100%)";
+const BUY_GRADIENT = "linear-gradient(135deg,#009E97 0%,#007A75 100%)";
 const PAGE_SIZE = 24;
 
 type ShopItem = {
@@ -56,14 +56,15 @@ function CircleThumb({
       type="button"
       onClick={onClick}
       title={label}
-      className="group flex shrink-0 flex-col items-center gap-1.5 bg-transparent p-0 text-center outline-none"
-      style={{ width: size + 14 }}
+      aria-pressed={active}
+      className="group relative flex shrink-0 flex-col items-center gap-2 bg-transparent px-1 pb-3 pt-1 text-center outline-none"
+      style={{ width: size + 28 }}
     >
       <span
-        className={`flex items-center justify-center overflow-hidden rounded-full border-2 bg-white transition-all ${
+        className={`flex items-center justify-center overflow-hidden rounded-[18px] border bg-white transition-all ${
           active
-            ? "border-[#009999] shadow-[0_6px_16px_rgba(0,153,153,0.18)]"
-            : "border-slate-200 group-hover:border-[#7fd0ce]"
+            ? "border-[#009E97] shadow-[0_7px_18px_rgba(0,158,151,0.18)]"
+            : "border-white/80 shadow-sm group-hover:border-[#8bd7d3]"
         }`}
         style={{ height: size, width: size }}
       >
@@ -71,18 +72,15 @@ function CircleThumb({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={image} alt="" className="h-full w-full object-cover" />
         ) : (
-          <span className={`flex h-full w-full items-center justify-center ${isAll ? "bg-[#f3efe7] text-[#b3794a]" : "bg-slate-100 text-slate-400"}`}>
+          <span className={`flex h-full w-full items-center justify-center ${isAll ? "bg-white text-[#007A75]" : "bg-[#edf8f7] text-[#5f8583]"}`}>
             <Package className="h-6 w-6" />
           </span>
         )}
       </span>
-      <span
-        className={`block w-full truncate text-[11px] leading-tight ${
-          active ? "font-semibold text-[#009999]" : "font-medium text-slate-600"
-        }`}
-      >
+      <span className={`block w-full truncate text-[12px] leading-tight ${active ? "font-black text-slate-950" : "font-bold text-slate-700"}`}>
         {label}
       </span>
+      <span className={`absolute inset-x-3 bottom-0 h-1 rounded-t-full bg-[#007A75] transition-opacity ${active ? "opacity-100" : "opacity-0"}`} />
     </button>
   );
 }
@@ -97,33 +95,34 @@ function CircleRail({
   const scrollBy = (dir: 1 | -1) => scroller.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
   return (
     <div className="relative">
-      <div ref={scroller} className="shop-category-rail flex gap-4 overflow-x-auto pb-1 pr-12">
+      <div ref={scroller} className="shop-category-rail flex gap-1 overflow-x-auto pb-0 pr-10 sm:gap-3">
         {showAll && (
           <CircleThumb label={allLabel} image={null} active={!selectedId} isAll size={size} onClick={() => onSelect("")} />
         )}
-        {categories.map((c) => (
+        {categories.map((category) => (
           <CircleThumb
-            key={c.id}
-            label={c.name}
-            image={pickCategoryImage(c)}
-            active={selectedId === c.id}
+            key={category.id}
+            label={category.name}
+            image={pickCategoryImage(category)}
+            active={selectedId === category.id}
             size={size}
-            onClick={() => onSelect(c.id)}
+            onClick={() => onSelect(category.id)}
           />
         ))}
       </div>
-      <button
-        type="button"
-        onClick={() => scrollBy(1)}
-        className="absolute right-0 top-[calc(50%-14px)] flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-md"
-        aria-label="Scroll categories"
-      >
-        <ChevronRight className="h-5 w-5" />
-      </button>
+      {categories.length > 4 && (
+        <button
+          type="button"
+          onClick={() => scrollBy(1)}
+          className="absolute right-0 top-[38%] hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-teal-100 bg-white text-teal-700 shadow-md sm:flex"
+          aria-label="Scroll categories"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      )}
     </div>
   );
 }
-
 /* ------------------------------------------------------------------ */
 /*  Product card                                                       */
 /* ------------------------------------------------------------------ */
@@ -144,13 +143,13 @@ function ProductCard({
   }, [initial]);
 
   const ImageBox = (
-    <div className={`relative overflow-hidden bg-gray-100 ${view === "list" ? "h-full w-full" : "aspect-[4/3]"}`}>
+    <div className={`relative overflow-hidden rounded-[20px] bg-[#edf8f7] ${view === "list" ? "h-full w-full" : "aspect-square"}`}>
       <Image
         src={src}
         alt={item.title}
         fill
-        className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+        className="object-contain p-3 transition-transform duration-500 group-hover:scale-[1.04]"
+        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
         loading="lazy"
         onError={() => {
           if (!triedAlt) {
@@ -166,14 +165,14 @@ function ProductCard({
       />
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); onWish(); }}
-        className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur transition hover:bg-white"
+        onClick={(event) => { event.stopPropagation(); onWish(); }}
+        className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 shadow-sm backdrop-blur transition hover:scale-105"
         aria-label="Wishlist"
       >
-        <Heart className={`h-4 w-4 ${wished ? "fill-rose-500 text-rose-500" : "text-slate-500"}`} />
+        <Heart className={`h-4 w-4 ${wished ? "fill-rose-500 text-rose-500" : "text-slate-600"}`} />
       </button>
       {item.imageCount > 1 && (
-        <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+        <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-slate-950/65 px-2 py-1 text-[9px] font-bold text-white">
           <Images className="h-3 w-3" /> {item.imageCount}
         </span>
       )}
@@ -181,31 +180,36 @@ function ProductCard({
   );
 
   const Details = (
-    <div className="flex flex-1 flex-col p-3.5">
-      <p className="truncate text-[11px] font-medium" style={{ color: TEAL }}>{item.vendor}</p>
-      <h3 className="mt-0.5 line-clamp-2 text-[15px] font-semibold leading-snug text-gray-900">{item.title}</h3>
-      <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
-        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-        <span className="font-semibold text-gray-700">{item.rating}</span>
-        <span>({item.reviews})</span>
+    <div className="flex flex-1 flex-col px-1 pb-1 pt-3 sm:px-2">
+      <p className="truncate text-[10px] font-black uppercase tracking-[0.08em] text-[#007A75]">{item.vendor}</p>
+      <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] text-[14px] font-black leading-[1.25rem] text-slate-950 sm:text-[15px]">{item.title}</h3>
+      {item.rating > 0 ? (
+        <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-500">
+          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+          <span className="font-bold text-slate-700">{item.rating}</span>
+          <span>({item.reviews})</span>
+        </div>
+      ) : (
+        <p className="mt-1 text-[11px] font-medium text-slate-400">Available from this seller</p>
+      )}
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <p className="inline-flex rounded-lg bg-[#007A75] px-2 py-1 text-[15px] font-black text-white">{formatInr(item.price)}</p>
       </div>
-      <p className="mt-1.5 text-[17px] font-bold text-gray-900">{formatInr(item.price)}</p>
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onCart(); }}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-full border py-2 text-sm font-semibold transition hover:bg-[#009999]/5"
-          style={{ borderColor: TEAL, color: TEAL }}
+          onClick={(event) => { event.stopPropagation(); onCart(); }}
+          className="flex min-h-10 items-center justify-center gap-1 rounded-xl border-2 border-[#009E97] bg-white px-2 text-xs font-black text-[#007A75] transition hover:bg-[#e8f7f6] sm:text-sm"
         >
-          <ShoppingCart className="h-4 w-4" /> Cart
+          <ShoppingCart className="h-4 w-4" /> Add
         </button>
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onBuy(); }}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+          onClick={(event) => { event.stopPropagation(); onBuy(); }}
+          className="flex min-h-10 items-center justify-center gap-1 rounded-xl px-2 text-xs font-black text-white shadow-sm transition hover:opacity-95 sm:text-sm"
           style={{ background: BUY_GRADIENT }}
         >
-          <Zap className="h-4 w-4 fill-white" /> Buy
+          <Zap className="h-4 w-4 fill-white" /> Buy now
         </button>
       </div>
     </div>
@@ -215,25 +219,24 @@ function ProductCard({
     return (
       <div
         onClick={onOpen}
-        className="group flex cursor-pointer overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"
+        className="group flex cursor-pointer overflow-hidden rounded-[24px] border border-teal-100 bg-white p-3 shadow-[0_8px_25px_rgba(15,118,110,0.08)] transition hover:border-teal-200 hover:shadow-md"
       >
-        <div className="relative h-auto w-40 shrink-0 sm:w-52">{ImageBox}</div>
+        <div className="relative min-h-44 w-36 shrink-0 sm:w-48">{ImageBox}</div>
         {Details}
       </div>
     );
   }
 
   return (
-    <div
+    <article
       onClick={onOpen}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      className="group flex cursor-pointer flex-col rounded-[24px] bg-white p-2 transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(15,118,110,0.12)] sm:p-3"
     >
       {ImageBox}
       {Details}
-    </div>
+    </article>
   );
 }
-
 /* ------------------------------------------------------------------ */
 /*  Filters drawer                                                     */
 /* ------------------------------------------------------------------ */
@@ -479,97 +482,140 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
   }
 
   return (
-    <div className="min-h-screen bg-[#f7fafc] font-sans">
-      <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-8">
-        {/* Header row */}
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">{title}</h1>
-            <p className="mt-1 text-sm text-gray-400">Showing results near your selected location</p>
-          </div>
-          <span className="shrink-0 pt-1 text-sm text-gray-500">{total} products</span>
-        </div>
-
-        {/* Toolbar */}
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setFiltersOpen(true)}
-              className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:border-gray-300"
-            >
-              <SlidersHorizontal className="h-4 w-4" /> Filters
-              {(offersOnly || ratingFilter) && <span className="ml-0.5 h-2 w-2 rounded-full" style={{ background: TEAL }} />}
-            </button>
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none rounded-full border border-gray-200 bg-white py-2.5 pl-4 pr-9 text-sm font-medium text-gray-700 shadow-sm outline-none hover:border-gray-300"
-              >
-                {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-              <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rotate-90 text-gray-400" />
+    <div className="min-h-screen bg-[#f7fbfb] font-sans text-slate-950">
+      <section className="overflow-hidden bg-gradient-to-b from-[#ccefed] via-[#e9f8f7] to-[#f7fbfb]">
+        <div className="mx-auto max-w-[1400px] px-3 pb-5 pt-4 sm:px-5 md:px-8 md:pb-8 md:pt-6">
+          <div className="relative overflow-hidden rounded-[30px] bg-gradient-to-br from-[#009E97] via-[#008B85] to-[#006C68] px-5 py-6 text-white shadow-[0_18px_45px_rgba(0,122,117,0.22)] sm:px-8 sm:py-8 md:min-h-[210px] md:px-10 md:py-10">
+            <div className="relative z-10 max-w-2xl">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] backdrop-blur">
+                <Zap className="h-3.5 w-3.5 fill-white" /> P4U marketplace
+              </span>
+              <h1 className="mt-4 max-w-xl text-3xl font-black leading-[1.05] tracking-tight text-white sm:text-4xl md:text-5xl">
+                Everything you need, easy to discover
+              </h1>
+              <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-white/85 sm:text-base">
+                Browse {total} products from local vendors with secure P4U checkout.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2 text-[11px] font-bold sm:text-xs">
+                <span className="rounded-full bg-white px-3 py-2 text-[#006C68]">Verified sellers</span>
+                <span className="rounded-full bg-white/15 px-3 py-2 text-white ring-1 ring-white/25">Secure checkout</span>
+                <span className="rounded-full bg-white/15 px-3 py-2 text-white ring-1 ring-white/25">Easy ordering</span>
+              </div>
+            </div>
+            <div className="absolute -bottom-14 -right-10 h-48 w-48 rounded-full bg-white/10 sm:h-64 sm:w-64" />
+            <div className="absolute right-8 top-1/2 hidden -translate-y-1/2 rounded-[30px] border border-white/20 bg-white/15 p-8 backdrop-blur md:block">
+              <Package className="h-20 w-20 text-white" strokeWidth={1.4} />
             </div>
           </div>
-          <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setView("grid")}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg ${view === "grid" ? "bg-[#009999]/10 text-[#009999]" : "text-gray-400"}`}
-              aria-label="Grid view"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("list")}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg ${view === "list" ? "bg-[#009999]/10 text-[#009999]" : "text-gray-400"}`}
-              aria-label="List view"
-            >
-              <ListIcon className="h-4 w-4" />
-            </button>
+
+          <div className="mt-4 rounded-[28px] border border-white/80 bg-white/90 p-3 shadow-[0_12px_35px_rgba(15,118,110,0.10)] backdrop-blur sm:p-5">
+            <div className="mb-2 flex items-center justify-between px-1 sm:mb-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#007A75]">Browse quickly</p>
+                <h2 className="text-lg font-black text-slate-950 sm:text-xl">Shop by category</h2>
+              </div>
+              <span className="rounded-full bg-[#e1f5f3] px-3 py-1.5 text-[11px] font-black text-[#007A75]">{rootCategories.length} categories</span>
+            </div>
+            <CircleRail
+              categories={rootCategories}
+              selectedId={parentCategoryId}
+              onSelect={(id) => { setParentCategoryId(id); setSubcategoryId(""); }}
+            />
+          </div>
+        </div>
+      </section>
+
+      <main className="mx-auto max-w-[1400px] px-3 pb-12 sm:px-5 md:px-8">
+        <div className="mb-5 flex gap-3 overflow-x-auto rounded-2xl border border-teal-100 bg-white p-3 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-[260px] flex-1 items-center gap-3 rounded-xl bg-[#e8f7f6] px-4 py-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#007A75] shadow-sm"><Tag className="h-5 w-5" /></span>
+            <div>
+              <p className="text-sm font-black text-slate-950">Coupons & offers</p>
+              <p className="text-xs font-medium text-slate-500">Available vendor offers remain visible during checkout</p>
+            </div>
+          </div>
+          <div className="flex min-w-[250px] flex-1 items-center gap-3 rounded-xl bg-[#f0f8f8] px-4 py-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#007A75] shadow-sm"><ShoppingCart className="h-5 w-5" /></span>
+            <div>
+              <p className="text-sm font-black text-slate-950">Your shopping cart</p>
+              <p className="text-xs font-medium text-slate-500">Add products or use Buy Now whenever you are ready</p>
+            </div>
           </div>
         </div>
 
-        {/* Category circle rail */}
-        <CircleRail
-          categories={rootCategories}
-          selectedId={parentCategoryId}
-          onSelect={(id) => { setParentCategoryId(id); setSubcategoryId(""); }}
-        />
-
-        {/* Subcategories */}
         {showSubRail && (
-          <div className="mt-6">
+          <section className="mb-6 rounded-[24px] bg-white p-4 shadow-[0_8px_24px_rgba(15,118,110,0.08)] sm:p-5">
             {showShopHeading && (
-              <h2 className="mb-4 text-xl font-bold text-gray-900">Shop {parentCat?.name}</h2>
+              <h2 className="mb-3 text-lg font-black text-slate-950">Shop {parentCat?.name}</h2>
             )}
             <CircleRail
               categories={subcategories}
               selectedId={subcategoryId}
               showAll={false}
-              size={58}
+              size={56}
               onSelect={(id) => setSubcategoryId(id)}
             />
+          </section>
+        )}
+
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#007A75]">Curated marketplace</p>
+            <h2 className="text-2xl font-black tracking-tight text-slate-950">
+              {showAllProductsHeading ? "All products" : title}
+            </h2>
+            <p className="mt-1 text-sm font-medium text-slate-500">{total} products near your selected location</p>
           </div>
-        )}
 
-        {/* Grid heading */}
-        {showAllProductsHeading && (
-          <h2 className="mb-4 mt-8 text-xl font-bold text-gray-900">All products</h2>
-        )}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(true)}
+              className="flex min-h-10 items-center gap-2 rounded-xl border border-teal-100 bg-white px-3.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-teal-300"
+            >
+              <SlidersHorizontal className="h-4 w-4 text-[#007A75]" /> Filters
+              {(offersOnly || ratingFilter) && <span className="h-2 w-2 rounded-full bg-[#009E97]" />}
+            </button>
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value)}
+                className="min-h-10 appearance-none rounded-xl border border-teal-100 bg-white py-2 pl-3.5 pr-9 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-teal-300"
+              >
+                {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rotate-90 text-slate-400" />
+            </div>
+            <div className="flex min-h-10 items-center gap-1 rounded-xl border border-teal-100 bg-white p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setView("grid")}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg ${view === "grid" ? "bg-[#e1f5f3] text-[#007A75]" : "text-slate-400"}`}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg ${view === "list" ? "bg-[#e1f5f3] text-[#007A75]" : "text-slate-400"}`}
+                aria-label="List view"
+              >
+                <ListIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
 
-        {/* Products */}
-        <div className={showAllProductsHeading ? "" : "mt-8"}>
+        <section>
           {loading ? (
-            <div className="flex justify-center py-24"><Loader2 className="h-8 w-8 animate-spin text-teal-600" /></div>
+            <div className="flex justify-center rounded-[28px] bg-white py-24"><Loader2 className="h-8 w-8 animate-spin text-[#009E97]" /></div>
           ) : filtered.length === 0 ? (
-            <div className="rounded-2xl bg-white py-24 text-center text-gray-400 shadow-sm">
+            <div className="rounded-[28px] bg-white py-24 text-center text-slate-400 shadow-sm">
               No products found. Pick a category or adjust filters.
             </div>
           ) : view === "grid" ? (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {filtered.map((item) => (
                 <ProductCard
                   key={item.id}
@@ -600,20 +646,20 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
             </div>
           )}
           {hasMore && (
-            <div className="mt-8 flex justify-center">
+            <div className="mt-9 flex justify-center">
               <button
                 type="button"
                 onClick={() => void loadMore()}
                 disabled={loadingMore}
-                className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:border-gray-300 disabled:opacity-60"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border-2 border-[#009E97] bg-white px-6 text-sm font-black text-[#007A75] transition hover:bg-[#e8f7f6] disabled:opacity-60"
               >
                 {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {loadingMore ? "Loading…" : "Load more products"}
+                {loadingMore ? "Loadingâ€¦" : "Load more products"}
               </button>
             </div>
           )}
-        </div>
-      </div>
+        </section>
+      </main>
 
       <FiltersDrawer
         open={filtersOpen}

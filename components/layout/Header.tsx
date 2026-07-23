@@ -6,6 +6,7 @@ import { useCart } from "@/providers/CartContext";
 import { takePostLoginAction } from "@/lib/postLoginAction";
 import { useAuth } from "@/providers/AuthContext";
 import { profileApi } from "@/lib/api/profile";
+import { formatAddress, formatAddressLabel, useAddresses } from "@/providers/AddressContext";
 import AuthModal from "@/components/auth/Authmodal";
 import {
   MapPin, Search, ShoppingCart, User, ChevronDown, Menu, X,
@@ -34,7 +35,17 @@ export default function Header({ onCartOpen }: HeaderProps) {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [wishlistCount, setWishlistCount] = useState(0);
   const [locationSearch, setLocationSearch] = useState("");
+  const [locationStatus, setLocationStatus] = useState("");
   const { isLoggedIn, loggedPhone, displayName, isLoading, login, logout: authLogout } = useAuth();
+  const {
+    addresses,
+    selectedAddress,
+    selectedAddressId,
+    isLoading: addressesLoading,
+    error: addressError,
+    selectAddress,
+    refreshAddresses,
+  } = useAddresses();
   const [searchQuery, setSearchQuery] = useState("");
 
   const searchRef = useRef<HTMLDivElement>(null);
@@ -56,16 +67,40 @@ export default function Header({ onCartOpen }: HeaderProps) {
 
   const recentSearches = ["Mobiles", "Laptops", "Headphones", "Watches", "Tablets"];
 
-  const savedAddresses = [
-    {
-      tag: "P4U", tagType: "home",
-      address: "SF NO.250/2 JJ NAGAR,SITE NO.15, NAGAHAMANCKEN PALAYAM ROAD, PATTANAM POST - COIMBATORE - 641016",
-    },
-    {
-      tag: "P4U", tagType: "home",
-      address: "SF NO.250/2 JJ NAGAR,SITE NO.15, NAGAHAMANCKEN PALAYAM ROAD, PATTANAM POST - COIMBATORE - 641016",
-    },
-  ];
+  const selectedAddressText = addressesLoading
+    ? "Loading address..."
+    : selectedAddress
+      ? formatAddressLabel(selectedAddress)
+      : isLoggedIn
+        ? "Set your address"
+        : "Login to add address";
+  const normalizedLocationSearch = locationSearch.trim().toLowerCase();
+  const visibleAddresses = normalizedLocationSearch
+    ? addresses.filter((address) =>
+        [address.label, address.fullName, formatAddress(address)]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedLocationSearch),
+      )
+    : addresses;
+
+  const enableCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus("Location is not supported by this browser.");
+      return;
+    }
+    setLocationStatus("Detecting your location...");
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        localStorage.setItem("p4u_customer_latitude", String(coords.latitude));
+        localStorage.setItem("p4u_customer_longitude", String(coords.longitude));
+        setLocationStatus("Current location enabled. Your selected saved address remains active.");
+      },
+      () => setLocationStatus("Location permission was denied or unavailable."),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
 
   const loginMenuItems = [
     { icon: User,    label: "My Profile",     href: "/profile"       },
@@ -263,23 +298,54 @@ export default function Header({ onCartOpen }: HeaderProps) {
                     <p className="text-xs text-gray-500 mt-0.5">Enable your current location for better services</p>
                   </div>
                 </div>
-                <button className="text-white text-xs font-medium px-3 py-1.5 flex-shrink-0" style={{ borderRadius: "6px", background: "linear-gradient(135deg, rgba(14,34,31,0.8) 0%, rgba(14,34,31,1) 100%)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>Enable</button>
+                <button type="button" onClick={enableCurrentLocation} className="text-white text-xs font-medium px-3 py-1.5 flex-shrink-0" style={{ borderRadius: "6px", background: "linear-gradient(135deg, rgba(14,34,31,0.8) 0%, rgba(14,34,31,1) 100%)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>Enable</button>
               </div>
             </div>
             <div className="px-5 pb-5">
               <p className="text-sm font-semibold text-gray-700 mb-3">Saved Address</p>
-              <div className="space-y-3">
-                {savedAddresses.map((addr, i) => (
-                  <div key={i} className="p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-all" onClick={() => setIsLocationModalOpen(false)}>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: "#0E221F", color: "white" }}>{addr.tag}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: "#dcfce7", color: "#166534" }}>Home</span>
-                    </div>
-                    <p className="text-xs text-gray-600 leading-relaxed">{addr.address}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+              {locationStatus && <p className="mb-3 text-xs text-gray-500" role="status">{locationStatus}</p>}
+              {addressesLoading ? (
+                <div className="rounded-lg border border-gray-200 px-3 py-5 text-center text-sm text-gray-500">Loading saved addresses...</div>
+              ) : addressError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  <p>{addressError}</p>
+                  <button type="button" onClick={() => void refreshAddresses()} className="mt-2 font-semibold underline">Try again</button>
+                </div>
+              ) : visibleAddresses.length ? (
+                <div className="space-y-3">
+                  {visibleAddresses.map((address) => {
+                    const active = String(address.id) === selectedAddressId;
+                    return (
+                      <button
+                        key={String(address.id)}
+                        type="button"
+                        className={`block w-full rounded-lg border p-3 text-left transition-all ${active ? "border-teal-500 bg-teal-50" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"}`}
+                        onClick={() => {
+                          selectAddress(address.id);
+                          setIsLocationModalOpen(false);
+                        }}
+                      >
+                        <div className="mb-1.5 flex items-center gap-2">
+                          <span className="rounded px-2 py-0.5 text-xs font-bold text-white" style={{ backgroundColor: "#0E221F" }}>P4U</span>
+                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{address.label || "Address"}</span>
+                          {address.isDefault && <span className="text-[10px] font-semibold uppercase tracking-wide text-teal-700">Default</span>}
+                          {active && <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-teal-700">Selected</span>}
+                        </div>
+                        <p className="text-xs leading-relaxed text-gray-600">{formatAddress(address)}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-gray-300 px-4 py-5 text-center text-sm text-gray-500">
+                  {normalizedLocationSearch ? "No saved address matches your search." : isLoggedIn ? "No saved addresses yet." : "Login to view and manage your saved addresses."}
+                </div>
+              )}
+              {isLoggedIn && (
+                <Link href="/saved-addresses" onClick={() => setIsLocationModalOpen(false)} className="mt-3 block text-center text-sm font-semibold text-teal-700 hover:text-teal-800">
+                  Manage saved addresses
+                </Link>
+              )}            </div>
           </div>
         </div>
       )}
@@ -303,7 +369,7 @@ export default function Header({ onCartOpen }: HeaderProps) {
                 className="flex items-center gap-2 rounded-full border border-[#7dd3a8] bg-[#7dd3a8]/20 px-3 xl:px-4 py-2 w-40 xl:w-52 flex-shrink-0 hover:bg-[#7dd3a8]/30 transition-colors"
               >
                 <MapPin className="w-4 h-4 text-[#fde047] flex-shrink-0" strokeWidth={2.2} fill="#fde047" />
-                <span className="text-white text-xs xl:text-sm truncate font-medium">Asramam, Tamil ...</span>
+                <span className="text-white text-xs xl:text-sm truncate font-medium" title={selectedAddress ? formatAddress(selectedAddress) : selectedAddressText}>{selectedAddressText}</span>
               </button>
 
               <div className="flex-1 min-w-0 relative" ref={searchRef}>
@@ -448,6 +514,18 @@ export default function Header({ onCartOpen }: HeaderProps) {
               </div>
             </div>
           </div>
+          <div className="px-3 pb-2.5 sm:px-4">
+            <button
+              type="button"
+              onClick={() => setIsLocationModalOpen(true)}
+              className="flex w-full min-w-0 items-center gap-2 rounded-full border border-[#7dd3a8] bg-[#7dd3a8]/20 px-3 py-2 text-left hover:bg-[#7dd3a8]/30"
+              aria-label="Select delivery or service address"
+            >
+              <MapPin className="h-4 w-4 flex-shrink-0 text-[#fde047]" strokeWidth={2.2} fill="#fde047" />
+              <span className="truncate text-xs font-medium text-white" title={selectedAddress ? formatAddress(selectedAddress) : selectedAddressText}>{selectedAddressText}</span>
+              <ChevronRight className="ml-auto h-4 w-4 flex-shrink-0 text-white/80" />
+            </button>
+          </div>
           {isMobileMenuOpen && (
             <div className="bg-white border-t border-white/20 shadow-lg">
               <nav className="flex flex-col px-4 py-3 space-y-2">
@@ -460,7 +538,7 @@ export default function Header({ onCartOpen }: HeaderProps) {
                   Become a Seller
                 </button>
                 <button type="button" className="text-left text-sm w-full py-3 px-4 rounded-xl border border-gray-200 flex items-center justify-between" onClick={() => setIsLocationModalOpen(true)}>
-                  <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-[#0a9a9a]" strokeWidth={2} /><span>Asramam, Tamil ...</span></div>
+                  <div className="flex min-w-0 items-center gap-2"><MapPin className="w-4 h-4 flex-shrink-0 text-[#0a9a9a]" strokeWidth={2} /><span className="truncate">{selectedAddressText}</span></div>
                   <ChevronRight className="w-4 h-4" strokeWidth={2} />
                 </button>
               </nav>
@@ -477,9 +555,6 @@ export default function Header({ onCartOpen }: HeaderProps) {
                   <Image src={logo} alt="P4U" fill className="object-contain p-2" priority />
                 </div>
               </Link>
-              <button type="button" className="p-2 text-white" onClick={() => setIsLocationModalOpen(true)}>
-                <MapPin className="w-5 h-5" strokeWidth={2} />
-              </button>
               <div className="flex-[8] relative" ref={searchRef}>
                 <div className="flex items-center gap-2 rounded-full px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.18)" }}>
                   <Search className="text-white/80 w-4 h-4 flex-shrink-0" strokeWidth={2} />
@@ -506,6 +581,18 @@ export default function Header({ onCartOpen }: HeaderProps) {
                 </button>
               </div>
             </div>
+          </div>
+          <div className="px-3 pb-2.5 sm:px-4">
+            <button
+              type="button"
+              onClick={() => setIsLocationModalOpen(true)}
+              className="flex w-full min-w-0 items-center gap-2 rounded-full border border-[#7dd3a8] bg-[#7dd3a8]/20 px-3 py-2 text-left hover:bg-[#7dd3a8]/30"
+              aria-label="Select delivery or service address"
+            >
+              <MapPin className="h-4 w-4 flex-shrink-0 text-[#fde047]" strokeWidth={2.2} fill="#fde047" />
+              <span className="truncate text-xs font-medium text-white" title={selectedAddress ? formatAddress(selectedAddress) : selectedAddressText}>{selectedAddressText}</span>
+              <ChevronRight className="ml-auto h-4 w-4 flex-shrink-0 text-white/80" />
+            </button>
           </div>
           {isMobileMenuOpen && (
             <div className="bg-white border-t border-white/20 shadow-lg">
@@ -538,7 +625,7 @@ export default function Header({ onCartOpen }: HeaderProps) {
         </div>
  
         {/* ── Row 2: Category navigation (white) ── */}
-        <nav className="w-full bg-white border-b border-gray-100 relative z-[1001] pointer-events-auto">
+        <nav className="hidden w-full border-b border-gray-100 bg-white md:block relative z-[1001] pointer-events-auto">
           <div className="max-w-[1400px] mx-auto px-4 xl:px-6">
             <div className="hidden min-[1200px]:block py-3">
               <div className="flex items-center justify-between gap-3">

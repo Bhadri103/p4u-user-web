@@ -37,6 +37,12 @@ export default function PropertyWorkspace({
   const [q, setQ] = useState("");
   const [type, setType] = useState("");
   const [propertyType, setPropertyType] = useState("");
+  const [bhk, setBhk] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [ownerOnly, setOwnerOnly] = useState(false);
+  const [sort, setSort] = useState("recommended");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [showPost, setShowPost] = useState(embedPost);
@@ -51,13 +57,30 @@ export default function PropertyWorkspace({
         propertyType: propertyType || undefined,
         limit: 100,
       });
-      setItems(result.items || []);
+      const filtered = (result.items || []).filter((row) => {
+        const price = Number(row.price || 0);
+        const verified = row.is_verified === true || row.verified === true || String(row.verification_status || "").toLowerCase() === "verified";
+        const listedBy = String(row.listed_by || row.posted_by_type || "").toLowerCase();
+        if (minPrice && price < Number(minPrice)) return false;
+        if (maxPrice && price > Number(maxPrice)) return false;
+        if (bhk && String(row.bhk || "") !== bhk) return false;
+        if (verifiedOnly && !verified) return false;
+        if (ownerOnly && listedBy && listedBy !== "owner") return false;
+        return true;
+      });
+      filtered.sort((a, b) => {
+        if (sort === "price-low") return Number(a.price || 0) - Number(b.price || 0);
+        if (sort === "price-high") return Number(b.price || 0) - Number(a.price || 0);
+        if (sort === "newest") return String(b.created_at || b.createdAt || "").localeCompare(String(a.created_at || a.createdAt || ""));
+        return 0;
+      });
+      setItems(filtered);
     } catch (requestError) {
       setError(messageOf(requestError));
     } finally {
       setLoading(false);
     }
-  }, [q, type, propertyType]);
+  }, [q, type, propertyType, bhk, minPrice, maxPrice, verifiedOnly, ownerOnly, sort]);
 
   const loadAccount = useCallback(async () => {
     const [myRows, messageRows, savedRows, rentRows] = await Promise.all([
@@ -73,15 +96,18 @@ export default function PropertyWorkspace({
   }, []);
 
   useEffect(() => {
-    void loadBrowse();
-    void loadAccount().catch((requestError) => setError(messageOf(requestError)));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const timer = window.setTimeout(() => void loadBrowse(), 200);
+    return () => window.clearTimeout(timer);
+  }, [loadBrowse]);
 
+  useEffect(() => {
+    void loadAccount().catch((requestError) => setError(messageOf(requestError)));
+  }, [loadAccount]);
   async function saveCurrentSearch() {
     try {
       await propertiesApi.saveSearch({
         name: q || `${type || "All"} properties`,
-        query: { q, type, propertyType },
+        query: { q, type, propertyType, bhk, minPrice, maxPrice, verifiedOnly, ownerOnly, sort },
         notify: true,
       });
       setSaved(await propertiesApi.savedSearches());
@@ -171,6 +197,18 @@ export default function PropertyWorkspace({
           setType={setType}
           propertyType={propertyType}
           setPropertyType={setPropertyType}
+          bhk={bhk}
+          setBhk={setBhk}
+          minPrice={minPrice}
+          setMinPrice={setMinPrice}
+          maxPrice={maxPrice}
+          setMaxPrice={setMaxPrice}
+          verifiedOnly={verifiedOnly}
+          setVerifiedOnly={setVerifiedOnly}
+          ownerOnly={ownerOnly}
+          setOwnerOnly={setOwnerOnly}
+          sort={sort}
+          setSort={setSort}
           search={loadBrowse}
           saveSearch={saveCurrentSearch}
         />
@@ -219,107 +257,256 @@ function Browse({
   setType,
   propertyType,
   setPropertyType,
+  bhk,
+  setBhk,
+  minPrice,
+  setMinPrice,
+  maxPrice,
+  setMaxPrice,
+  verifiedOnly,
+  setVerifiedOnly,
+  ownerOnly,
+  setOwnerOnly,
+  sort,
+  setSort,
   search,
   saveSearch,
 }: {
   items: PropertyRow[];
   loading: boolean;
   q: string;
-  setQ: (v: string) => void;
+  setQ: (value: string) => void;
   type: string;
-  setType: (v: string) => void;
+  setType: (value: string) => void;
   propertyType: string;
-  setPropertyType: (v: string) => void;
+  setPropertyType: (value: string) => void;
+  bhk: string;
+  setBhk: (value: string) => void;
+  minPrice: string;
+  setMinPrice: (value: string) => void;
+  maxPrice: string;
+  setMaxPrice: (value: string) => void;
+  verifiedOnly: boolean;
+  setVerifiedOnly: (value: boolean) => void;
+  ownerOnly: boolean;
+  setOwnerOnly: (value: boolean) => void;
+  sort: string;
+  setSort: (value: string) => void;
   search: () => Promise<void>;
   saveSearch: () => Promise<void>;
 }) {
+  const activeFilters = [
+    bhk,
+    minPrice,
+    maxPrice,
+    verifiedOnly ? "verified" : "",
+    ownerOnly ? "owner" : "",
+  ].filter(Boolean).length;
+
   return (
     <section className="mt-5">
-      <div className="flex gap-2 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200/70">
-        <input
-          className="min-w-0 flex-1 bg-transparent px-2 text-sm text-slate-700 outline-none placeholder:text-slate-400"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void search();
-          }}
-          placeholder="Search city, locality, property"
-        />
-        <button
-          type="button"
-          onClick={() => void search()}
-          className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white"
-        >
-          Search
-        </button>
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-teal-800 via-teal-700 to-teal-500 p-6 text-white shadow-sm sm:p-8">
+        <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-teal-100">Search smarter</p>
+        <h2 className="mt-2 text-2xl font-black sm:text-3xl">Find the right home, without the guesswork</h2>
+        <p className="mt-2 max-w-2xl text-sm text-teal-50">Filter verified owner and broker listings, compare key details and contact the poster directly.</p>
+
+        <div className="mt-5 inline-flex rounded-xl bg-white/15 p-1">
+          {[
+            ["", "All"],
+            ["sale", "Buy"],
+            ["rent", "Rent"],
+          ].map(([value, label]) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setType(value)}
+              className={`rounded-lg px-5 py-2 text-sm font-extrabold transition ${
+                type === value ? "bg-white text-teal-800 shadow-sm" : "text-white"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 flex gap-2 rounded-2xl bg-white p-2 shadow-lg">
+          <input
+            className="min-w-0 flex-1 bg-transparent px-3 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+            value={q}
+            onChange={(event) => setQ(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") void search();
+            }}
+            placeholder="Search city, locality, landmark or property"
+          />
+          <button
+            type="button"
+            onClick={() => void search()}
+            className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-extrabold text-white hover:bg-teal-700"
+          >
+            Search
+          </button>
+        </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Chip active={type === ""} label="All" onClick={() => { setType(""); void search(); }} />
-        <Chip active={type === "sale"} label="Buy" onClick={() => { setType("sale"); void search(); }} />
-        <Chip active={type === "rent"} label="Rent" onClick={() => { setType("rent"); void search(); }} />
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {[
+            ["", "All types"],
+            ["Apartment", "Apartment"],
+            ["House", "House / Villa"],
+            ["Plot", "Plot"],
+            ["Commercial", "Commercial"],
+          ].map(([value, label]) => (
+            <Chip
+              key={label}
+              active={propertyType === value}
+              label={label}
+              onClick={() => setPropertyType(value)}
+            />
+          ))}
+        </div>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="text-xs font-bold text-slate-500">
+            Bedrooms
+            <select value={bhk} onChange={(event) => setBhk(event.target.value)} className={`${fieldClass} mt-1 w-full`}>
+              <option value="">Any BHK</option>
+              <option value="1">1 BHK</option>
+              <option value="2">2 BHK</option>
+              <option value="3">3 BHK</option>
+              <option value="4">4+ BHK</option>
+            </select>
+          </label>
+          <label className="text-xs font-bold text-slate-500">
+            Minimum price
+            <input type="number" min="0" value={minPrice} onChange={(event) => setMinPrice(event.target.value)} placeholder="No minimum" className={`${fieldClass} mt-1 w-full`} />
+          </label>
+          <label className="text-xs font-bold text-slate-500">
+            Maximum price
+            <input type="number" min="0" value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)} placeholder="No maximum" className={`${fieldClass} mt-1 w-full`} />
+          </label>
+          <label className="text-xs font-bold text-slate-500">
+            Sort by
+            <select value={sort} onChange={(event) => setSort(event.target.value)} className={`${fieldClass} mt-1 w-full`}>
+              <option value="recommended">Recommended</option>
+              <option value="newest">Newest first</option>
+              <option value="price-low">Price: low to high</option>
+              <option value="price-high">Price: high to low</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <label className={`flex cursor-pointer items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-bold ${
+            verifiedOnly ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-600"
+          }`}>
+            <input type="checkbox" checked={verifiedOnly} onChange={(event) => setVerifiedOnly(event.target.checked)} className="accent-teal-600" />
+            Verified only
+          </label>
+          <label className={`flex cursor-pointer items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-bold ${
+            ownerOnly ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-600"
+          }`}>
+            <input type="checkbox" checked={ownerOnly} onChange={(event) => setOwnerOnly(event.target.checked)} className="accent-teal-600" />
+            Listed by owner
+          </label>
+          {activeFilters > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setBhk("");
+                setMinPrice("");
+                setMaxPrice("");
+                setVerifiedOnly(false);
+                setOwnerOnly(false);
+              }}
+              className="text-sm font-bold text-slate-500 hover:text-teal-700"
+            >
+              Clear {activeFilters} filter{activeFilters === 1 ? "" : "s"}
+            </button>
+          )}
+          <button type="button" onClick={() => void saveSearch()} className="ml-auto text-sm font-extrabold text-teal-700 hover:underline">
+            Save search and alerts
+          </button>
+        </div>
       </div>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {["", "Apartment", "House", "Plot", "Commercial"].map((value) => (
-          <Chip
-            key={value || "all-types"}
-            active={propertyType === value}
-            label={value || "All types"}
-            onClick={() => {
-              setPropertyType(value);
-              void search();
-            }}
-          />
-        ))}
-        <button type="button" onClick={() => void saveSearch()} className="text-sm font-semibold text-teal-700 hover:underline">
-          Save search
-        </button>
+
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-black text-slate-800">Properties for you</h2>
+          <p className="text-sm text-slate-500">{loading ? "Updating results..." : `${items.length} matching properties`}</p>
+        </div>
+        <Link href="/find-home/post" className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-extrabold text-white hover:bg-teal-700">
+          Post property
+        </Link>
       </div>
 
       {loading ? (
         <p className="py-16 text-center text-slate-500">Loading properties...</p>
       ) : (
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((row) => (
-            <PropertyCard key={row.id} row={row} />
-          ))}
+        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((row) => <PropertyCard key={row.id} row={row} />)}
         </div>
       )}
-      {!loading && !items.length ? (
-        <p className="py-16 text-center text-slate-500">No approved properties match your search.</p>
-      ) : null}
+      {!loading && !items.length && (
+        <div className="mt-5 rounded-3xl border border-dashed border-slate-300 bg-white py-16 text-center">
+          <p className="font-bold text-slate-700">No approved properties match your search.</p>
+          <p className="mt-1 text-sm text-slate-500">Try a nearby locality or clear some filters.</p>
+        </div>
+      )}
     </section>
   );
 }
-
 function PropertyCard({ row }: { row: PropertyRow }) {
   const cover = coverOf(row);
   const bhk = row.bhk != null && String(row.bhk) !== "0" ? `${row.bhk} BHK` : "";
+  const area = row.area_sqft || row.areaSqft || row.area;
   const place = [row.locality, row.city].filter(Boolean).join(", ");
-  const meta = [bhk, place].filter(Boolean).join(" · ");
+  const verified =
+    row.is_verified === true ||
+    row.verified === true ||
+    String(row.verification_status || "").toLowerCase() === "verified";
+  const listedBy = String(row.listed_by || row.posted_by_type || "");
+  const imageCount = Array.isArray(row.images) ? row.images.length : 0;
+
   return (
-    <article className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70">
-      {cover ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={cover} alt="" className="h-44 w-full object-cover" />
-      ) : (
-        <div className="flex h-44 items-center justify-center bg-[#E8F4F8] text-sm font-semibold text-teal-700">
-          Property photo
+    <article className="group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:shadow-lg">
+      <Link href={`/find-home/${encodeURIComponent(row.id)}`} className="relative block">
+        {cover ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={cover} alt={row.title} className="h-48 w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
+        ) : (
+          <div className="flex h-48 items-center justify-center bg-[#E8F4F8] text-sm font-semibold text-teal-700">
+            Property photo
+          </div>
+        )}
+        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+          {verified && <span className="rounded-full bg-green-600 px-2.5 py-1 text-[10px] font-extrabold text-white">✓ VERIFIED</span>}
+          {listedBy && <span className="rounded-full bg-slate-900/85 px-2.5 py-1 text-[10px] font-extrabold uppercase text-white">{listedBy}</span>}
         </div>
-      )}
+        {imageCount > 1 && <span className="absolute bottom-3 right-3 rounded-full bg-slate-900/80 px-2.5 py-1 text-[10px] font-bold text-white">{imageCount} photos</span>}
+      </Link>
+
       <div className="p-4">
         <div className="flex items-start justify-between gap-2">
-          <h2 className="truncate text-[15px] font-semibold text-slate-700">{row.title}</h2>
-          <span className="shrink-0 rounded-full bg-teal-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-700">
+          <h2 className="line-clamp-2 text-base font-black text-slate-800">{row.title}</h2>
+          <span className="shrink-0 rounded-full bg-teal-50 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-teal-700">
             {row.transaction_type || "sale"}
           </span>
         </div>
-        {meta ? <p className="mt-1.5 text-[13px] text-slate-500">{meta}</p> : null}
-        <p className="mt-3 text-base font-bold text-teal-700">{money(row.price)}</p>
+        <p className="mt-3 text-lg font-black text-teal-700">{money(row.price)}</p>
+        {place && <p className="mt-1.5 line-clamp-1 text-[13px] font-semibold text-slate-500">{place}</p>}
+
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-y border-slate-100 py-3 text-xs font-bold text-slate-600">
+          {bhk && <span>{bhk}</span>}
+          {area && <span>{String(area)} sq.ft.</span>}
+          {row.property_type && <span>{String(row.property_type)}</span>}
+        </div>
+
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Link
             href={`/find-home/${encodeURIComponent(row.id)}`}
-            className="rounded-xl bg-slate-100 py-2 text-center text-sm font-semibold text-slate-700 hover:bg-slate-200"
+            className="rounded-xl bg-slate-100 py-2.5 text-center text-sm font-extrabold text-slate-700 hover:bg-slate-200"
           >
             View details
           </Link>
@@ -327,22 +514,22 @@ function PropertyCard({ row }: { row: PropertyRow }) {
             type="button"
             onClick={() => {
               const text = window.prompt("Message to owner:", "I am interested in this property");
-              if (text)
+              if (text?.trim()) {
                 void propertiesApi
-                  .inquire(row.id, text)
+                  .inquire(row.id, text.trim())
                   .then(() => window.alert("Inquiry sent"))
                   .catch((error) => window.alert(messageOf(error)));
+              }
             }}
-            className="rounded-xl bg-teal-600 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+            className="rounded-xl bg-teal-600 py-2.5 text-sm font-extrabold text-white hover:bg-teal-700"
           >
-            Contact owner
+            Contact
           </button>
         </div>
       </div>
     </article>
   );
 }
-
 function MyListings({
   rows,
   refresh,

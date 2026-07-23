@@ -11,7 +11,7 @@ import SubscriptionNewsletter from '@/components/home/SubscriptionNewsletter';
 import Footer from '@/components/layout/Footer';
 import ClassifiedResale from '@/components/catalog/ClassifiedResale';
 import ReelsVideo from '@/components/catalog/ReelsVideo';
-import { HomeCategoryGrid, HomeCategoryRail, HomeRideActions, HomeServiceCategories } from '@/components/home/HomeCategorySections';
+import { HomeCategoryGrid, HomeCategoryRail, HomeRideActions, HomeServiceCategories, HomeVendorSection } from '@/components/home/HomeCategorySections';
 
 export default function HomePage() {
   return (
@@ -23,6 +23,7 @@ export default function HomePage() {
       <HomeRideActions />
       <BestProducts />
       <HomeCategoryGrid />
+      <HomeVendorSection />
       <BrandSections />
       <PickupSection />
       <TopServicer />

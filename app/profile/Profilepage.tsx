@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/providers/AuthContext";
+import { useAddresses } from "@/providers/AddressContext";
 import AuthGuard from "@/providers/AuthGuard";
 import { useRouter } from "next/navigation";
 import { profileApi, type Address as ProfileAddress, type UserProfile } from "@/lib/api/profile";
@@ -620,6 +621,7 @@ function SimpleRichTextEditor({
 }
 
 function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc: () => void }) {
+  const { addresses, createAddress } = useAddresses();
   const avatarRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: "",
@@ -634,7 +636,6 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const [kycDocuments, setKycDocuments] = useState<UserProfile["kycDocuments"]>({});
   const [occupations, setOccupations] = useState<{ value: string; label: string }[]>([{ value: "", label: "Select occupation" }]);
-  const [addresses, setAddresses] = useState<ProfileAddress[]>([]);
   const [showAddAddress, setShowAddAddress] = useState(false);
   const [addrForm, setAddrForm] = useState<AddressFormState>({ ...EMPTY_ADDRESS_FORM });
   const [addrErrors, setAddrErrors] = useState<Record<string, string>>({});
@@ -649,10 +650,9 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
     setLoadingProfile(true);
     Promise.all([
       profileApi.getMe(),
-      profileApi.getAddresses(),
       authApi.listPublicOccupations(),
     ])
-      .then(([p, addrs, occRes]) => {
+      .then(([p, occRes]) => {
         setForm({
           name: p.name ?? "",
           mobile: p.phone ?? "",
@@ -664,7 +664,6 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
         });
         setAvatarUrl(p.avatar ?? null);
         setKycDocuments(p.kycDocuments ?? {});
-        setAddresses(addrs);
         const occItems = (occRes?.items ?? []).filter((o) => o.isActive !== false);
         setOccupations([
           { value: "", label: "Select occupation" },
@@ -741,8 +740,7 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
     setAddrErrors(e);
     if (Object.keys(e).length) return;
     try {
-      const created = await profileApi.createAddress(formToPayload(f));
-      setAddresses((a) => [created, ...a]);
+      await createAddress(formToPayload(f));
       setAddrForm({ ...EMPTY_ADDRESS_FORM });
       setAddrErrors({});
       setShowAddAddress(false);
@@ -994,6 +992,18 @@ function PageProfile({ setActive }: { setActive: (p: ActivePage) => void }) {
 }
 
 export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
+  const {
+    addresses,
+    selectedAddressId,
+    isLoading: addressesLoading,
+    error: addressLoadError,
+    createAddress,
+    updateAddress,
+    deleteAddress,
+    setDefaultAddress,
+    selectAddress,
+    refreshAddresses,
+  } = useAddresses();
   const [showMap, setShowMap] = useState(false);
   const [editId, setEditId] = useState<string | number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -1001,18 +1011,15 @@ export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
   const [mapErrors, setMapErrors] = useState<Record<string, string>>({});
   const [addrForm, setAddrForm] = useState<AddressFormState>({ ...EMPTY_ADDRESS_FORM });
   const [addrErrors, setAddrErrors] = useState<Record<string, string>>({});
-  const [addresses, setAddresses] = useState<ProfileAddress[]>([]);
   const [completeness, setCompleteness] = useState(0);
+  const [operationError, setOperationError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([profileApi.getAddresses(), profileApi.getMe()])
-      .then(([items, profile]) => {
-        setAddresses(items);
-        setCompleteness(computeProfileCompleteness(profile, items.length));
-      })
+    profileApi.getMe()
+      .then((profile) => setCompleteness(computeProfileCompleteness(profile, addresses.length)))
       .catch(() => {});
-  }, []);
-
+  }, [addresses.length]);
   const applyAddrPatch = (patch: Partial<AddressFormState>) => {
     setAddrForm((f) => ({ ...f, ...patch }));
     setAddrErrors((prev) => {
@@ -1040,68 +1047,93 @@ export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
   const addFromMap = async () => {
     const f = { ...mapForm, phone: mapForm.phone.replace(/\D/g, "") };
     if (!runValidate(f, setMapErrors)) return;
+    setBusyId("create");
+    setOperationError(null);
     try {
-      const created = await profileApi.createAddress(formToPayload(f));
-      setAddresses((a) => [created, ...a]);
-    } catch {
-      /* optional toast */
+      await createAddress(formToPayload(f));
+      setMapForm({ ...EMPTY_ADDRESS_FORM });
+      setMapErrors({});
+      setShowMap(false);
+    } catch (cause) {
+      setOperationError(cause instanceof Error ? cause.message : "Could not save address.");
+    } finally {
+      setBusyId(null);
     }
-    setMapForm({ ...EMPTY_ADDRESS_FORM });
-    setMapErrors({});
-    setShowMap(false);
   };
 
   const saveNewAddr = async () => {
     const f = { ...addrForm, phone: addrForm.phone.replace(/\D/g, "") };
     if (!runValidate(f, setAddrErrors)) return;
+    setBusyId("create");
+    setOperationError(null);
     try {
-      const created = await profileApi.createAddress(formToPayload(f));
-      setAddresses((a) => [created, ...a]);
-    } catch {
-      /* optional toast */
+      await createAddress(formToPayload(f));
+      setAddrForm({ ...EMPTY_ADDRESS_FORM });
+      setAddrErrors({});
+      setShowAddForm(false);
+    } catch (cause) {
+      setOperationError(cause instanceof Error ? cause.message : "Could not save address.");
+    } finally {
+      setBusyId(null);
     }
-    setAddrForm({ ...EMPTY_ADDRESS_FORM });
-    setAddrErrors({});
-    setShowAddForm(false);
   };
 
-  const startEdit = (a: ProfileAddress) => {
-    setEditId(a.id);
-    setAddrForm(profileAddressToForm(a));
+  const startEdit = (address: ProfileAddress) => {
+    setEditId(address.id);
+    setAddrForm(profileAddressToForm(address));
     setAddrErrors({});
+    setOperationError(null);
     setShowAddForm(false);
   };
 
   const saveEdit = async () => {
     const f = { ...addrForm, phone: addrForm.phone.replace(/\D/g, "") };
-    if (!runValidate(f, setAddrErrors)) return;
-    if (editId == null) return;
+    if (!runValidate(f, setAddrErrors) || editId == null) return;
+    setBusyId(String(editId));
+    setOperationError(null);
     try {
-      const updated = await profileApi.updateAddress(editId, formToPayload(f));
-      setAddresses((a) => a.map((x) => (x.id === editId ? updated : x)));
-    } catch {
-      /* optional toast */
+      await updateAddress(editId, formToPayload(f));
+      setEditId(null);
+      setAddrForm({ ...EMPTY_ADDRESS_FORM });
+      setAddrErrors({});
+    } catch (cause) {
+      setOperationError(cause instanceof Error ? cause.message : "Could not update address.");
+    } finally {
+      setBusyId(null);
     }
-    setEditId(null);
-    setAddrForm({ ...EMPTY_ADDRESS_FORM });
-    setAddrErrors({});
   };
 
   const cancelEdit = () => {
     setEditId(null);
     setAddrForm({ ...EMPTY_ADDRESS_FORM });
     setAddrErrors({});
+    setOperationError(null);
   };
 
   const removeAddress = async (id: string | number) => {
+    if (!window.confirm("Delete this saved address?")) return;
+    setBusyId(String(id));
+    setOperationError(null);
     try {
-      await profileApi.deleteAddress(id);
-    } catch {
-      /* still remove locally if needed */
+      await deleteAddress(id);
+    } catch (cause) {
+      setOperationError(cause instanceof Error ? cause.message : "Could not delete address.");
+    } finally {
+      setBusyId(null);
     }
-    setAddresses((a) => a.filter((x) => x.id !== id));
   };
 
+  const makeDefault = async (id: string | number) => {
+    setBusyId(String(id));
+    setOperationError(null);
+    try {
+      await setDefaultAddress(id);
+    } catch (cause) {
+      setOperationError(cause instanceof Error ? cause.message : "Could not set default address.");
+    } finally {
+      setBusyId(null);
+    }
+  };
   const formatAddressLines = (a: ProfileAddress) =>
     [a.line1, a.line2, [a.city, a.state, a.pincode].filter(Boolean).join(", ")].filter(Boolean);
 
@@ -1172,6 +1204,12 @@ export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
           <IcPlus /> Add Address
         </button>
       </div>
+      {(operationError || addressLoadError) && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          <span>{operationError || addressLoadError}</span>
+          {addressLoadError && <button type="button" onClick={() => void refreshAddresses()} className="shrink-0 font-semibold underline">Try again</button>}
+        </div>
+      )}
       <div className="mb-5 hidden flex-wrap gap-3">
         <button
           type="button"
@@ -1231,11 +1269,13 @@ export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
       )}
 
       <div className="space-y-3">
-        {addresses.length === 0 && (
-          <p className="text-sm text-slate-500 py-6 text-center border border-dashed border-slate-200 rounded-xl">
+        {addressesLoading ? (
+          <p className="rounded-xl border border-slate-200 py-6 text-center text-sm text-slate-500">Loading saved addresses...</p>
+        ) : addresses.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-slate-200 py-6 text-center text-sm text-slate-500">
             No saved addresses yet. Add one for faster checkout.
           </p>
-        )}
+        ) : null}
         {addresses.map((a) => (
           <div
             key={a.id}
@@ -1254,6 +1294,9 @@ export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
                     Default
                   </span>
                 )}
+                {String(a.id) === selectedAddressId && (
+                  <span className="rounded-full bg-teal-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">Selected</span>
+                )}
               </div>
               {(a.fullName || a.phone) && (
                 <p className="text-xs text-slate-600 mt-1">
@@ -1266,21 +1309,23 @@ export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
                 </p>
               ))}
             </div>
-            <div className="flex gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => startEdit(a)}
-                className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-all cursor-pointer"
-              >
-                <IcEdit />
-              </button>
-              <button
-                type="button"
-                onClick={() => removeAddress(a.id)}
-                className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all cursor-pointer"
-              >
-                <IcTrash />
-              </button>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <div className="flex flex-wrap justify-end gap-1.5">
+                {String(a.id) !== selectedAddressId && (
+                  <button type="button" disabled={busyId === String(a.id)} onClick={() => selectAddress(a.id)} className="rounded-lg bg-teal-50 px-2.5 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-50">Select</button>
+                )}
+                {!a.isDefault && (
+                  <button type="button" disabled={busyId === String(a.id)} onClick={() => void makeDefault(a.id)} className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50">Set default</button>
+                )}
+              </div>
+              <div className="flex gap-1.5">
+                <button type="button" disabled={busyId === String(a.id)} onClick={() => startEdit(a)} className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-all cursor-pointer disabled:opacity-50" aria-label={`Edit ${a.label || "address"}`}>
+                  <IcEdit />
+                </button>
+                <button type="button" disabled={busyId === String(a.id)} onClick={() => void removeAddress(a.id)} className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50" aria-label={`Delete ${a.label || "address"}`}>
+                  <IcTrash />
+                </button>
+              </div>
             </div>
           </div>
         ))}
