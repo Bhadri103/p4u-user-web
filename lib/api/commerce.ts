@@ -31,10 +31,12 @@ export interface Cart {
 
 export interface Order {
   id: string;
+  orderRef?: string | null;
   status: string;
   totalAmount: number;
   items: OrderItem[];
   createdAt: string;
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface ProductTracking {
