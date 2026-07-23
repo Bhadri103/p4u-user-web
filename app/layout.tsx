@@ -6,7 +6,6 @@ import { AuthProvider } from "@/providers/AuthContext";
 import UserSessionProvider from "@/providers/UserSessionProvider";
 import { AppLoadingProvider } from "@/providers/AppLoadingProvider";
 import GlobalPopupBanner from "@/components/content/GlobalPopupBanner";
-import CustomerModuleDock from "@/components/layout/CustomerModuleDock";
 import { AddressProvider } from "@/providers/AddressContext";
 
 const inter = Inter({ subsets: ['latin'] });
@@ -28,11 +27,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthProvider>
             <AddressProvider>
               <UserSessionProvider>
-              <CartProvider>
-                {children}
-                <CustomerModuleDock />
-                <GlobalPopupBanner />
-              </CartProvider>
+                <CartProvider>
+                  {children}
+                  <GlobalPopupBanner />
+                </CartProvider>
               </UserSessionProvider>
             </AddressProvider>
           </AuthProvider>

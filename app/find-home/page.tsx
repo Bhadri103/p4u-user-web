@@ -8,7 +8,7 @@ import AuthGuard from "@/providers/AuthGuard";
 export default function FindHomePage() {
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-[#F9FAFB]">
+      <div className="min-h-screen bg-slate-50">
         <Header />
         <PropertyWorkspace />
         <Footer />

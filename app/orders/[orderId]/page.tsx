@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ChevronRight, Download, Loader2, Package, RotateCcw, Store, Truck } from "lucide-react";
@@ -42,23 +42,10 @@ function inr(n: number): string {
 
 function getStatusPillClasses(status: string): string {
   const normalized = status.toLowerCase();
-  if (normalized === "cancelled" || normalized === "rejected") return "bg-rose-50 text-rose-600";
-  if (normalized === "delivered" || normalized === "completed") return "bg-emerald-50 text-emerald-700";
-  if (normalized === "created" || normalized === "pending") return "bg-amber-50 text-amber-700";
-  return "bg-slate-100 text-slate-600";
-}
-
-function SectionTitle({ children }: { children: ReactNode }) {
-  return <h2 className="text-[15px] font-semibold tracking-wide text-slate-500 uppercase">{children}</h2>;
-}
-
-function MetaRow({ label, value, valueClass = "text-slate-900 font-medium" }: { label: string; value: ReactNode; valueClass?: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 py-2.5">
-      <span className="text-[14px] text-slate-500">{label}</span>
-      <span className={`text-right text-[14px] ${valueClass}`}>{value}</span>
-    </div>
-  );
+  if (normalized === "cancelled" || normalized === "rejected") return "bg-rose-100 text-rose-600";
+  if (normalized === "delivered" || normalized === "completed") return "bg-emerald-100 text-emerald-700";
+  if (normalized === "created" || normalized === "pending") return "bg-amber-100 text-amber-700";
+  return "bg-slate-100 text-slate-700";
 }
 
 export default function OrderDetailsPage() {
@@ -219,21 +206,15 @@ export default function OrderDetailsPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen flex flex-col bg-[#F9FAFB]">
+      <div className="min-h-screen flex flex-col bg-slate-50">
         <Header />
-        <main className="flex-1 mx-auto w-full max-w-[720px] px-4 py-8">
-          <div className="mb-8 flex items-center justify-between gap-4">
-            <Link
-              href="/orders"
-              className="inline-flex items-center gap-2 rounded-full p-2 text-slate-900 hover:bg-white"
-              aria-label="Back to orders"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span className="text-[15px] font-medium">Orders</span>
+        <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-6">
+          <div className="flex items-center justify-between mb-4">
+            <Link href="/orders" className="inline-flex items-center gap-2 text-sm text-slate-700 hover:text-teal-700 font-medium">
+              <ArrowLeft className="w-4 h-4" /> Back to Orders
             </Link>
             {!loading && !error && lines.length > 0 && (
               <button
-                type="button"
                 onClick={() =>
                   downloadOrderInvoice(
                     {
@@ -252,205 +233,164 @@ export default function OrderDetailsPage() {
                     `Order_Invoice_${String(order?.id || orderId).slice(0, 8)}`,
                   )
                 }
-                className="inline-flex items-center gap-2 text-[14px] font-medium text-teal-700 hover:text-teal-800"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm bg-white hover:bg-slate-100"
               >
-                <Download className="h-4 w-4" /> Invoice
+                <Download className="w-4 h-4" /> Download Invoice
               </button>
             )}
           </div>
 
           {loading && (
             <div className="flex justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
             </div>
           )}
-          {error && <p className="py-10 text-center text-red-500">{error}</p>}
+          {error && <p className="text-center text-red-500 py-10">{error}</p>}
 
           {!loading && !error && (
-            <div className="overflow-hidden rounded-[22px] bg-white shadow-sm ring-1 ring-slate-200/70">
-              {/* Header */}
-              <div className="px-6 pb-6 pt-7 sm:px-8">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <h1 className="text-[24px] font-bold tracking-tight text-slate-950">Order details</h1>
-                    <p className="mt-1.5 text-[14px] text-slate-500">{String(order?.orderRef || order?.id || orderId)}</p>
+            <div className="space-y-4">
+              <div className="rounded-2xl border bg-white p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h1 className="text-3xl font-bold text-slate-900 leading-none">Order Details</h1>
+                    <p className="text-sm text-slate-500 mt-2 font-medium">{String(order?.orderRef || order?.id || orderId)}</p>
                   </div>
-                  <span className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold capitalize ${getStatusPillClasses(orderStatus)}`}>
-                    {orderStatus.replace(/_/g, " ")}
+                  <span className={`text-xs px-3 py-1 rounded-full capitalize font-semibold ${getStatusPillClasses(orderStatus)}`}>
+                    {orderStatus}
                   </span>
                 </div>
               </div>
 
-              <div className="mx-6 border-t border-slate-100 sm:mx-8" />
-
-              {/* Delivery */}
-              <section className="px-6 py-6 sm:px-8">
-                <div className="flex items-center gap-2">
-                  <Truck className="h-4 w-4 text-slate-400" />
-                  <SectionTitle>Delivery & returns</SectionTitle>
+              <div className="rounded-2xl border bg-white p-5">
+                <h2 className="flex items-center gap-2 text-xl font-bold text-slate-900"><Truck className="h-5 w-5" /> Delivery &amp; returns</h2>
+                <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+                  <p>Status: <strong className="capitalize text-slate-900">{String(tracking?.status || orderStatus).replace(/_/g, " ")}</strong></p>
+                  <p>Shipping: <strong className="capitalize text-slate-900">{tracking?.shippingType || "Not dispatched"}</strong></p>
+                  {tracking?.courierName ? <p>Courier: <strong className="text-slate-900">{tracking.courierName}</strong></p> : null}
+                  {tracking?.trackingNumber ? <p>Tracking / AWB: <strong className="text-slate-900">{tracking.trackingNumber}</strong></p> : null}
                 </div>
-                <div className="mt-4 grid gap-x-8 gap-y-1 sm:grid-cols-2">
-                  <MetaRow label="Status" value={<span className="capitalize">{String(tracking?.status || orderStatus).replace(/_/g, " ")}</span>} />
-                  <MetaRow label="Shipping" value={<span className="capitalize">{String(tracking?.shippingType || "Not dispatched").replace(/_/g, " ")}</span>} />
-                  {tracking?.courierName ? <MetaRow label="Courier" value={tracking.courierName} /> : null}
-                  {tracking?.trackingNumber ? <MetaRow label="Tracking / AWB" value={tracking.trackingNumber} /> : null}
-                </div>
-                {tracking?.trackingUrl ? (
-                  <a className="mt-2 inline-block text-[14px] font-medium text-teal-700 hover:underline" href={tracking.trackingUrl} target="_blank" rel="noreferrer">
-                    Track with courier
-                  </a>
-                ) : null}
+                {tracking?.trackingUrl ? <a className="mt-3 inline-block text-sm font-semibold text-teal-700 hover:underline" href={tracking.trackingUrl} target="_blank" rel="noreferrer">Track with courier</a> : null}
                 {Array.isArray(tracking?.history) && tracking.history.length ? (
-                  <ol className="mt-5 space-y-3 border-l border-teal-200/80 pl-4">
-                    {tracking.history.map((entry: any, index: number) => (
-                      <li key={`${entry.at}-${index}`} className="relative text-[13px]">
-                        <span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-teal-500" />
-                        <strong className="capitalize text-slate-800">{String(entry.status).replace(/_/g, " ")}</strong>
-                        <span className="ml-2 text-slate-400">{entry.at ? new Date(entry.at).toLocaleString() : ""}</span>
-                      </li>
-                    ))}
+                  <ol className="mt-4 space-y-2 border-l-2 border-teal-100 pl-4 text-sm">
+                    {tracking.history.map((entry: any, index: number) => <li key={`${entry.at}-${index}`}><strong className="capitalize">{String(entry.status).replace(/_/g, " ")}</strong><span className="ml-2 text-slate-500">{entry.at ? new Date(entry.at).toLocaleString() : ""}</span></li>)}
                   </ol>
                 ) : null}
-                {tracking?.returnRequest ? (
-                  <p className="mt-4 text-[14px] text-amber-800">
-                    Return: <strong className="capitalize">{String(tracking.returnRequest.status || "requested").replace(/_/g, " ")}</strong>
-                    {tracking.returnRequest.refundStatus ? ` · Refund: ${tracking.returnRequest.refundStatus}` : ""}
-                  </p>
-                ) : null}
-                <div className="mt-5 flex flex-wrap gap-3">
-                  {["shipped", "out_for_delivery"].includes(orderStatus.toLowerCase()) ? (
-                    <button
-                      type="button"
-                      disabled={actionBusy}
-                      onClick={() => void confirmDelivery()}
-                      className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
-                    >
-                      <CheckCircle2 className="h-4 w-4" /> Confirm delivery
-                    </button>
-                  ) : null}
-                  {["delivered", "completed"].includes(orderStatus.toLowerCase()) && !tracking?.returnRequest ? (
-                    <button
-                      type="button"
-                      disabled={actionBusy}
-                      onClick={() => void requestReturn()}
-                      className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-[14px] font-semibold text-slate-800 hover:bg-slate-200 disabled:opacity-50"
-                    >
-                      <RotateCcw className="h-4 w-4" /> Request return
-                    </button>
-                  ) : null}
+                {tracking?.returnRequest ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Return status: <strong className="capitalize">{String(tracking.returnRequest.status || "requested").replace(/_/g, " ")}</strong>{tracking.returnRequest.refundStatus ? ` · Refund: ${tracking.returnRequest.refundStatus}` : ""}</p> : null}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {["shipped", "out_for_delivery"].includes(orderStatus.toLowerCase()) ? <button disabled={actionBusy} onClick={() => void confirmDelivery()} className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /> Confirm delivery</button> : null}
+                  {["delivered", "completed"].includes(orderStatus.toLowerCase()) && !tracking?.returnRequest ? <button disabled={actionBusy} onClick={() => void requestReturn()} className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold text-slate-800 disabled:opacity-50"><RotateCcw className="h-4 w-4" /> Request return</button> : null}
                 </div>
-                {actionError ? <p className="mt-3 text-[14px] text-red-600">{actionError}</p> : null}
-              </section>
-
-              <div className="mx-6 border-t border-slate-100 sm:mx-8" />
-
-              {/* Seller */}
-              <section className="px-6 py-5 sm:px-8">
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-3 text-left transition-colors hover:opacity-80"
-                  onClick={() => {
-                    /* seller storefront link reserved */
-                  }}
-                >
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-teal-50 text-teal-700">
-                    <Store className="h-5 w-5" />
+                {actionError ? <p className="mt-3 text-sm text-red-600">{actionError}</p> : null}
+              </div>
+              <div className="rounded-2xl border bg-white p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-700">
+                      <Store className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-teal-700">{vendorLabel}</p>
+                      <p className="text-sm text-slate-500">Tap to view seller products</p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[15px] font-semibold text-slate-900">{vendorLabel}</p>
-                    <p className="text-[13px] text-slate-500">View seller products</p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />
-                </button>
-              </section>
-
-              <div className="mx-6 border-t border-slate-100 sm:mx-8" />
-
-              {/* Items */}
-              <section className="px-6 py-6 sm:px-8">
-                <div className="flex items-center gap-2">
-                  <Package className="h-4 w-4 text-slate-400" />
-                  <SectionTitle>Items ({lines.length})</SectionTitle>
+                  <ChevronRight className="w-5 h-5 text-slate-400" />
                 </div>
-                <ul className="mt-2 divide-y divide-slate-100">
+              </div>
+
+              <div className="rounded-2xl border bg-white p-5">
+                <h2 className="font-bold text-slate-900 mb-4 inline-flex items-center gap-2 text-3xl leading-none">
+                  <Package className="w-5 h-5" /> Items ({lines.length})
+                </h2>
+                <div className="space-y-3">
                   {lines.map((line) => (
-                    <li key={line.id} className="flex items-center justify-between gap-4 py-4">
-                      <div className="flex min-w-0 items-center gap-3.5">
-                        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                    <div key={line.id} className="flex justify-between items-center gap-3 border rounded-xl p-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-14 h-14 rounded-md border bg-slate-50 overflow-hidden shrink-0">
                           {line.productImage ? (
                             <img
                               src={resolveMediaUrl(line.productImage) || line.productImage}
                               alt={line.productName}
-                              className="h-full w-full object-cover"
+                              className="w-full h-full object-cover"
                             />
                           ) : null}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate text-[15px] font-semibold text-slate-900">{line.productName}</p>
-                          <p className="mt-0.5 text-[13px] text-slate-500">
-                            Qty {line.quantity} × {inr(line.unitPrice)}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              downloadOrderInvoice(
-                                {
-                                  id: String(order?.id || orderId),
-                                  createdAt: order?.createdAt,
-                                  status: order?.status,
-                                },
-                                [
-                                  {
-                                    name: line.productName,
-                                    qty: line.quantity,
-                                    unitPrice: line.unitPrice,
-                                    totalPrice: line.lineTotal,
-                                  },
-                                ],
-                                `Item_Invoice_${String(order?.id || orderId).slice(0, 8)}`,
-                              )
-                            }
-                            className="mt-1 text-[12px] font-medium text-teal-700 hover:underline"
-                          >
-                            Item invoice
-                          </button>
+                          <p className="text-sm font-medium text-slate-800 truncate">{line.productName}</p>
+                          <p className="text-xs text-slate-500">Qty: {line.quantity} × {inr(line.unitPrice)}</p>
                         </div>
                       </div>
-                      <p className="shrink-0 text-[15px] font-semibold text-slate-950">{inr(line.lineTotal)}</p>
-                    </li>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-semibold text-slate-900">{inr(line.lineTotal)}</p>
+                        <button
+                          onClick={() =>
+                            downloadOrderInvoice(
+                              {
+                                id: String(order?.id || orderId),
+                                createdAt: order?.createdAt,
+                                status: order?.status,
+                              },
+                              [
+                                {
+                                  name: line.productName,
+                                  qty: line.quantity,
+                                  unitPrice: line.unitPrice,
+                                  totalPrice: line.lineTotal,
+                                },
+                              ],
+                              `Item_Invoice_${String(order?.id || orderId).slice(0, 8)}`,
+                            )
+                          }
+                          className="text-xs text-teal-700 hover:underline mt-1 font-medium"
+                        >
+                          Download Item Invoice
+                        </button>
+                      </div>
+                    </div>
                   ))}
-                </ul>
-              </section>
+                </div>
+              </div>
 
-              <div className="mx-6 border-t border-slate-100 sm:mx-8" />
-
-              {/* Bill */}
-              <section className="px-6 py-6 sm:px-8">
-                <SectionTitle>Bill details</SectionTitle>
-                <div className="mt-3">
-                  <MetaRow label="Item total (MRP)" value={inr(itemTotal)} valueClass="text-slate-800" />
-                  <MetaRow label="Delivery fee" value="FREE" valueClass="font-semibold text-emerald-600" />
-                  <div className="mt-1 border-t border-slate-100 pt-1">
-                    <MetaRow label="Grand total" value={inr(total)} valueClass="text-[16px] font-bold text-slate-950" />
+              <div className="rounded-2xl border bg-white p-5">
+                <h2 className="font-bold text-slate-900 mb-3 text-3xl leading-none">Bill Details</h2>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Item Total (MRP)</span>
+                    <span>{inr(itemTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Delivery Fee</span>
+                    <span className="text-emerald-600 font-semibold">FREE</span>
+                  </div>
+                  <div className="border-t pt-2 flex justify-between font-semibold text-slate-900">
+                    <span>Grand Total</span>
+                    <span>{inr(total)}</span>
                   </div>
                 </div>
-              </section>
+              </div>
 
-              <div className="mx-6 border-t border-slate-100 sm:mx-8" />
-
-              {/* Order info */}
-              <section className="px-6 py-6 sm:px-8">
-                <SectionTitle>Order info</SectionTitle>
-                <div className="mt-3">
-                  <MetaRow label="Order ID" value={String(order?.orderRef || order?.id || orderId)} />
-                  <MetaRow
-                    label="Placed on"
-                    value={order?.createdAt ? new Date(order.createdAt).toLocaleString() : "—"}
-                  />
-                  <MetaRow label="Payment" value="Paid" valueClass="font-semibold text-emerald-600" />
-                  <MetaRow label="Payment ref" value={paymentRef} />
+              <div className="rounded-2xl border bg-white p-5">
+                <h2 className="font-bold text-slate-900 mb-3 text-3xl leading-none">Order Info</h2>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Order ID</span>
+                    <span className="text-slate-900 font-medium">{String(order?.orderRef || order?.id || orderId)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Placed on</span>
+                    <span className="text-slate-900 font-medium">
+                      {order?.createdAt ? new Date(order.createdAt).toLocaleString() : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Payment</span>
+                    <span className="text-emerald-600 font-semibold">Paid</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Payment Ref ID</span>
+                    <span className="text-slate-900 font-medium">{paymentRef}</span>
+                  </div>
                 </div>
-              </section>
+              </div>
             </div>
           )}
         </main>
