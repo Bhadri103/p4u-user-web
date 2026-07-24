@@ -957,7 +957,7 @@ function PostCard({ post: p, onUserClick, myUserId, onDeleted }: { post: PostIte
 
   const handleShare = async () => {
     try {
-      await socialApi.sharePost(p.id);
+      await socialApi.repostPost(p.id);
       setShares((v) => v + 1);
       const url = window.location.href;
       if (navigator.share) {
@@ -2126,7 +2126,7 @@ function ReelCard({
 
   const handleShare = async () => {
     try {
-      await socialApi.sharePost(reel.postId);
+      await socialApi.repostPost(reel.postId);
       setShares((v) => v + 1);
       if (navigator.share) await navigator.share({ title: "P4U Reel", text: reel.caption, url: window.location.href }).catch(() => {});
       else if (navigator.clipboard) await navigator.clipboard.writeText(window.location.href);
@@ -3139,7 +3139,7 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
   const [location, setLocation] = useState("");
   const [tags, setTags] = useState("");
   const [category, setCategory] = useState("");
-  const [audience, setAudience] = useState<"public" | "private">("public");
+  const [audience, setAudience] = useState<"followers" | "public" | "private">("followers");
   const [hideLikeCount, setHideLikeCount] = useState(false);
   const [commentPermission, setCommentPermission] = useState<"everyone" | "followers" | "none">("everyone");
   const [productQuery, setProductQuery] = useState("");
@@ -3161,7 +3161,7 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
   };
   const reset = () => {
     setStep("upload"); setPreview(null); setPendingFile(null); setFilter("Normal");
-    setCaption(""); setLocation(""); setTags(""); setCategory(""); setAudience("public");
+    setCaption(""); setLocation(""); setTags(""); setCategory(""); setAudience(pendingIsVideo ? "public" : "followers");
     setHideLikeCount(false); setCommentPermission("everyone"); setProductQuery("");
     setProductResults([]); setSelectedProducts([]); setShared(false); setError(null); setShowImageEditor(false);
   };
@@ -3223,8 +3223,15 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
       await socialApi.createPost({
         contentText: caption.trim() || undefined,
         mediaUrls: [uploaded.url],
-        postType: uploaded.mediaType,
-        visibility: audience,
+        postType: uploaded.mediaType === "video" ? "reel" : uploaded.mediaType,
+        visibility:
+          uploaded.mediaType === "video"
+            ? audience === "private"
+              ? "private"
+              : "public"
+            : audience === "private"
+              ? "private"
+              : "followers",
         location: location.trim() || undefined,
         tags: tagList.length ? tagList : undefined,
         category,
@@ -3247,7 +3254,11 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
         <Check className="w-8 h-8 text-teal-600" />
       </div>
       <h2 className="text-lg font-semibold text-gray-900">Post Shared!</h2>
-      <p className="text-sm text-gray-500 text-center">Your post has been shared to everyone.</p>
+      <p className="text-sm text-gray-500 text-center">
+        {pendingIsVideo
+          ? "Your reel is public for discovery."
+          : "Your post is visible to your followers."}
+      </p>
       <button onClick={reset} className="text-white font-bold px-6 py-2.5 rounded-xl shadow" style={{ background: TEAL }}>Create another</button>
     </div>
   );
@@ -3433,9 +3444,22 @@ function CreateSection({ onPosted }: { onPosted?: () => void } = {}) {
               <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
                 <Eye className="h-5 w-5 text-slate-500" />
                 <span className="flex-1 text-sm font-semibold text-slate-950">Audience</span>
-                <select value={audience} onChange={(e) => setAudience(e.target.value as "public" | "private")} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none">
-                  <option value="public">Public</option>
-                  <option value="private">Private</option>
+                <select
+                  value={audience}
+                  onChange={(e) => setAudience(e.target.value as "followers" | "public" | "private")}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none"
+                >
+                  {pendingIsVideo ? (
+                    <>
+                      <option value="public">Public (Reels)</option>
+                      <option value="private">Private</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="followers">Followers only</option>
+                      <option value="private">Private</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div className="flex items-center gap-3 border-b border-gray-100 pb-3">
@@ -4123,7 +4147,8 @@ function PrivacyPanel() {
   const messageAllow = settings?.messageAllowFrom ?? "Everyone";
   const commentAllow = settings?.commentsAllowFrom ?? "Everyone";
   const restrictComments = settings?.filterOffensiveComments ?? false;
-  const [hideLikeCounts, setHideLikeCounts] = useState(false);
+  const messageOptions = ["Everyone", "People you follow", "Your followers", "No one"] as const;
+  const commentOptions = ["Everyone", "People you follow", "Your followers", "No one"] as const;
 
   const save = (partial: Parameters<typeof patch>[0]) => {
     void patch(partial).catch(() => {});
@@ -4159,17 +4184,39 @@ function PrivacyPanel() {
         <section>
           <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-500">Interactions</h2>
           <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-100">
-            <div className="flex items-center gap-6 border-b border-slate-100 px-7 py-6">
-              <p className="min-w-0 flex-1 text-lg font-bold text-slate-950">Who can message you</p>
-              <button type="button" onClick={() => save({ messageAllowFrom: messageAllow === "Everyone" ? "People you follow" : "Everyone" })} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-5 py-2.5 text-base text-slate-700">
-                {messageAllow}<ChevronDown className="h-5 w-5" />
-              </button>
+            <div className="border-b border-slate-100 px-7 py-6">
+              <p className="mb-3 text-lg font-bold text-slate-950">Who can message you</p>
+              <div className="space-y-2">
+                {messageOptions.map((opt) => (
+                  <label key={opt} className="flex cursor-pointer items-center gap-3 py-1">
+                    <input
+                      type="radio"
+                      name="messageAllowFrom"
+                      checked={messageAllow === opt}
+                      onChange={() => save({ messageAllowFrom: opt })}
+                      className="h-4 w-4 accent-teal-600"
+                    />
+                    <span className="text-base text-slate-700">{opt}</span>
+                  </label>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-6 px-7 py-6">
-              <p className="min-w-0 flex-1 text-lg font-bold text-slate-950">Who can comment</p>
-              <button type="button" onClick={() => save({ commentsAllowFrom: commentAllow === "Everyone" ? "People you follow" : "Everyone" })} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-5 py-2.5 text-base text-slate-700">
-                {commentAllow}<ChevronDown className="h-5 w-5" />
-              </button>
+            <div className="px-7 py-6">
+              <p className="mb-3 text-lg font-bold text-slate-950">Who can comment</p>
+              <div className="space-y-2">
+                {commentOptions.map((opt) => (
+                  <label key={opt} className="flex cursor-pointer items-center gap-3 py-1">
+                    <input
+                      type="radio"
+                      name="commentsAllowFrom"
+                      checked={commentAllow === opt}
+                      onChange={() => save({ commentsAllowFrom: opt })}
+                      className="h-4 w-4 accent-teal-600"
+                    />
+                    <span className="text-base text-slate-700">{opt}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -4177,13 +4224,6 @@ function PrivacyPanel() {
         <section>
           <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-500">Content</h2>
           <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-100">
-            <div className="flex items-center gap-6 border-b border-slate-100 px-7 py-6">
-              <div className="min-w-0 flex-1">
-                <p className="text-lg font-bold text-slate-950">Hide Like Counts</p>
-                <p className="mt-1 text-base text-slate-500">Others won&apos;t be able to see likes on your posts</p>
-              </div>
-              <Toggle checked={hideLikeCounts} onChange={setHideLikeCounts} />
-            </div>
             <div className="flex items-center gap-6 px-7 py-6">
               <div className="min-w-0 flex-1">
                 <p className="text-lg font-bold text-slate-950">Restrict Comments</p>

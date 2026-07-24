@@ -174,6 +174,65 @@ export default function OrderDetailsPage() {
     commerceApi.getProductTracking(orderId).then(setTracking).catch(() => setTracking(null));
   }, [orderId, order?.status]);
 
+  async function payNow() {
+    setActionBusy(true);
+    setActionError("");
+    try {
+      const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!razorpayKey) {
+        setActionError("Payment is not configured.");
+        return;
+      }
+      const intent = await commerceApi.createOrderPayment(orderId);
+      const providerRef = intent.providerRef || intent.providerOrderId;
+      if (!providerRef) throw new Error("Payment provider did not return an order reference.");
+      const { loadRazorpay } = await import("@/lib/razorpay");
+      const { paymentsApi } = await import("@/lib/api/payments");
+      const Rzp = await loadRazorpay();
+      await new Promise<void>((resolve, reject) => {
+        const rzp = new Rzp({
+          key: razorpayKey,
+          amount: Math.round(Number(intent.amount) * 100),
+          currency: intent.currency || "INR",
+          order_id: providerRef,
+          name: "Planext4u",
+          description: `Order ${order?.orderRef || orderId}`,
+          handler: async (resp: {
+            razorpay_order_id: string;
+            razorpay_payment_id: string;
+            razorpay_signature: string;
+          }) => {
+            try {
+              const result = await paymentsApi.verify({
+                razorpay_order_id: resp.razorpay_order_id,
+                razorpay_payment_id: resp.razorpay_payment_id,
+                razorpay_signature: resp.razorpay_signature,
+              });
+              if (!result.verified) {
+                setActionError("Payment could not be verified.");
+                reject(new Error("not verified"));
+                return;
+              }
+              const fresh = await commerceApi.getOrder(orderId);
+              setOrder(fresh);
+              resolve();
+            } catch (e) {
+              setActionError("Payment verification failed.");
+              reject(e instanceof Error ? e : new Error("verify failed"));
+            }
+          },
+          modal: { ondismiss: () => resolve() },
+          theme: { color: "#009999" },
+        });
+        rzp.open();
+      });
+    } catch (e: any) {
+      setActionError(e?.message || "Unable to start payment");
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
   async function confirmDelivery() {
     setActionBusy(true); setActionError("");
     try {
@@ -428,6 +487,30 @@ export default function OrderDetailsPage() {
                     <span className="text-slate-900 font-medium">{paymentRef}</span>
                   </div>
                 </div>
+                {(() => {
+                  const meta = (order as { metadata?: Record<string, unknown> } | null)?.metadata || {};
+                  const paymentStatus = String(meta.paymentStatus || "").toLowerCase();
+                  const paymentMode = String(meta.paymentMode || "").toLowerCase();
+                  const status = String(order?.status || "").toLowerCase();
+                  const needsPay =
+                    paymentMode !== "cod" &&
+                    paymentStatus !== "cod" &&
+                    paymentStatus !== "paid" &&
+                    status !== "paid" &&
+                    (status === "created" || paymentStatus === "pending" || paymentStatus === "failed");
+                  if (!needsPay) return null;
+                  return (
+                    <button
+                      type="button"
+                      disabled={actionBusy}
+                      onClick={() => void payNow()}
+                      className="mt-4 w-full rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 disabled:opacity-50"
+                    >
+                      {actionBusy ? "Opening…" : "Pay now"}
+                    </button>
+                  );
+                })()}
+                {actionError ? <p className="mt-3 text-sm text-red-600">{actionError}</p> : null}
               </div>
             </div>
           )}

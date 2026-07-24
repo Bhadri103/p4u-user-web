@@ -554,6 +554,15 @@ export const socialApi = {
     return apiClient.post<{ postId: string; sharedBy: string }>(`${BASE}/posts/${postId}/share`);
   },
 
+  /** Creates a real repost on the caller's feed (not just an external share). */
+  repostPost(postId: string | number, caption?: string) {
+    return apiClient
+      .post<Record<string, unknown>>(`${BASE}/posts/${postId}/repost`, {
+        ...(caption ? { caption } : {}),
+      })
+      .then(mapApiPost);
+  },
+
   savePost(postId: string | number) {
     return apiClient.post<void>(`${BASE}/posts/${postId}/save`).then((result) => {
       apiClient.clearGetCache(`${BASE}/posts/saved`);

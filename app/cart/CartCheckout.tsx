@@ -2,9 +2,10 @@
 
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import {
-  ChevronLeft, ChevronRight, ShoppingBag, Trash2, Bookmark,
-  Check, Eye, Loader2,
+  ChevronLeft, ChevronRight, ShoppingBag, Trash2,
+  Check, Eye, Loader2, Clock, Calendar, MapPin, Heart,
 } from "lucide-react";
+import Link from "next/link";
 import { useCart } from "@/providers/CartContext";
 import { useAuth } from "@/providers/AuthContext";
 import { formatAddress, useAddresses } from "@/providers/AddressContext";
@@ -147,27 +148,69 @@ function PrimaryBtn({
   );
 }
  
-function AddressBar({ address, onChangeAddress }: { address: string; onChangeAddress?: () => void }) {
+const SAVED_CART_KEY = "p4u_cart_saved";
+
+type SavedCartLine = {
+  id: string | number;
+  productId?: string | number;
+  name: string;
+  vendor: string;
+  vendorId?: string;
+  price: number;
+  originalPrice: number;
+  image?: string;
+  qty: number;
+};
+
+function loadSavedCart(): SavedCartLine[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(SAVED_CART_KEY);
+    return raw ? (JSON.parse(raw) as SavedCartLine[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistSavedCart(rows: SavedCartLine[]) {
+  try {
+    localStorage.setItem(SAVED_CART_KEY, JSON.stringify(rows));
+  } catch { /* ignore */ }
+}
+
+function AddressBar({
+  address,
+  empty,
+  onChangeAddress,
+}: {
+  address: string;
+  empty?: boolean;
+  onChangeAddress?: () => void;
+}) {
   return (
     <div style={{
       display: "flex", alignItems: "center", justifyContent: "space-between",
-      borderRadius: 10, padding: "10px 14px", marginBottom: 12,
+      borderRadius: 14, padding: "14px 16px",
       border: "1px solid #e5e7eb", background: "white", flexWrap: "wrap", gap: 8,
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#374151", flexWrap: "wrap" }}>
-        <span style={{ fontWeight: 600 }}>Delivered To:</span>
-        <span style={{ color: "#6b7280" }}>{address}</span>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0, flex: 1 }}>
+        <MapPin size={18} style={{ color: PRIMARY_MID, flexShrink: 0, marginTop: 2 }} />
+        <div style={{ minWidth: 0 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", margin: 0 }}>Deliver To</p>
+          <p style={{ fontSize: 12, color: empty ? "#94a3b8" : "#64748b", margin: "4px 0 0", wordBreak: "break-word" }}>
+            {empty ? "No address selected" : address}
+          </p>
+        </div>
       </div>
       <button
+        type="button"
         onClick={onChangeAddress}
         style={{
-          fontSize: 11, fontWeight: 600, border: "1px solid #d1d5db",
-          borderRadius: 6, padding: "4px 10px", background: "white", color: "#374151",
-          cursor: "pointer", transition: "all 0.15s",
-        }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = TEAL_ACCENT; e.currentTarget.style.color = TEAL_ACCENT; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = "#d1d5db"; e.currentTarget.style.color = "#374151"; }}>
-        Change
+          fontSize: 12, fontWeight: 700, border: "none",
+          borderRadius: 8, padding: "8px 14px", background: "#ecfeff", color: PRIMARY_MID,
+          cursor: "pointer", fontFamily: "inherit",
+        }}>
+        {empty ? "Add" : "Change"}
       </button>
     </div>
   );
@@ -183,14 +226,17 @@ export default function CartCheckout({
   const { addresses, selectedAddress, selectedAddressId, isLoading: addressesLoading, error: addressError, selectAddress } = useAddresses();
   const pageRef = useRef<HTMLDivElement>(null);
   const { runWithLoading } = useAppLoading();
-  const { items: cartItems, removeFromCart, updateQty, clearCart } = useCart();
+  const { items: cartItems, removeFromCart, updateQty, clearCart, addToCart } = useCart();
   const [step, setStep]               = useState<number>(0);
   const [placing, setPlacing]         = useState<boolean>(false);
   const [orderError, setOrderError]   = useState<string | null>(null);
   const [placedAmount, setPlacedAmount] = useState<number>(0);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date(2026, 10, 11));
-  const [weekBase, setWeekBase]       = useState<Date>(new Date(2026, 10, 7));
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  const [weekBase, setWeekBase]       = useState<Date>(() => new Date());
   const [selectedTime, setSelectedTime] = useState<string>("morning");
+  const [deliveryMode, setDeliveryMode] = useState<"anytime" | "schedule">("anytime");
+  const [cartTab, setCartTab] = useState<"shop" | "saved">("shop");
+  const [savedItems, setSavedItems] = useState<SavedCartLine[]>([]);
   const [redeemInput, setRedeemInput] = useState<string>("");
   const [redeemApplied, setRedeemApplied] = useState<boolean>(false);
   const [redeemPoints, setRedeemPoints] = useState<number>(0);
@@ -199,8 +245,17 @@ export default function CartCheckout({
   const [couponError, setCouponError] = useState<string | null>(null);
   const [payMethod, setPayMethod]     = useState<string>("cod");
   const [showAddressModal, setShowAddressModal] = useState<boolean>(false);
-  const currentAddress = selectedAddress ? formatAddress(selectedAddress) : address || "No saved address selected";
-  const items: DisplayItem[] = useMemo(() => cartItems.map(i => ({
+  const currentAddress = selectedAddress ? formatAddress(selectedAddress) : address || "No address selected";
+  const addressEmpty = !selectedAddress;
+
+  useEffect(() => {
+    setSavedItems(loadSavedCart());
+  }, []);
+
+  const syncSaved = useCallback((rows: SavedCartLine[]) => {
+    setSavedItems(rows);
+    persistSavedCart(rows);
+  }, []);  const items: DisplayItem[] = useMemo(() => cartItems.map(i => ({
     id:            i.id,
     name:          i.name,
     vendor:        i.vendor,
@@ -329,36 +384,59 @@ export default function CartCheckout({
         }
 
         const paymentMode = payMethod === "cod" ? "cod" : "razorpay";
+        if (paymentMode !== "cod") {
+          const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+          if (!razorpayKey) {
+            setOrderError("Payment is not configured. Missing NEXT_PUBLIC_RAZORPAY_KEY_ID.");
+            return;
+          }
+        }
+
+        const deliverySchedule =
+          deliveryMode === "schedule"
+            ? {
+                mode: "schedule",
+                date: selectedDate.toISOString().slice(0, 10),
+                slot: selectedTime || undefined,
+              }
+            : { mode: "anytime" };
+
         const order = await commerceApi.createOrderFromCart({
           redeemPoints: redeemApplied ? redeemPoints : 0,
           couponCode: couponCode || undefined,
           addressId: String(selectedAddressId),
           shippingAddress: shippingSnapshotFromAddress(selectedAddress),
           paymentMode,
+          deliverySchedule,
         });
 
         if (paymentMode === "cod") {
           setPlacedAmount(total);
-          clearCart();
+          await clearCart();
+          commerceApi.invalidateOrdersCache();
           setStep(2);
           scrollToTop();
           return;
         }
 
-        const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-        if (!razorpayKey) {
-          setOrderError("Payment is not configured. Missing NEXT_PUBLIC_RAZORPAY_KEY_ID.");
-          return;
-        }
-
+        const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!;
+        const payAmount = Number(
+          (order as { orders?: { totalAmount?: number }[] }).orders?.reduce(
+            (s, o) => s + Number(o.totalAmount || 0),
+            0,
+          ) || order.totalAmount || total,
+        );
         const intent = await paymentsApi.createIntent({
           orderId: order.id,
-          amount: total,
+          amount: payAmount,
           metadata: {
             orderType: "product",
             domain: "product",
             productOrderId: String(order.id),
             orderRef: order.orderRef || order.id,
+            siblingOrderIds: (order as { orders?: { id: string }[] }).orders
+              ?.map((o) => o.id)
+              .filter((id) => id !== order.id),
           },
         });
         if (!intent.providerRef) {
@@ -366,7 +444,7 @@ export default function CartCheckout({
         }
 
         const Rzp = await loadRazorpay();
-        const amountSubunits = Math.round(Number(total) * 100);
+        const amountSubunits = Math.round(Number(payAmount) * 100);
         await new Promise<void>((resolve, reject) => {
           const rzp = new Rzp({
             key: razorpayKey,
@@ -387,8 +465,9 @@ export default function CartCheckout({
                   reject(new Error("Payment not verified"));
                   return;
                 }
-                setPlacedAmount(total);
-                clearCart();
+                setPlacedAmount(payAmount);
+                await clearCart();
+                commerceApi.invalidateOrdersCache();
                 setStep(2);
                 scrollToTop();
                 resolve();
@@ -400,8 +479,9 @@ export default function CartCheckout({
             modal: {
               ondismiss: () => {
                 setOrderError(
-                  "Payment was cancelled. Your order is created and pending payment — you can retry from My Orders.",
+                  "Payment was cancelled. Your order is pending payment — use Pay now on My Orders.",
                 );
+                commerceApi.invalidateOrdersCache();
                 resolve();
               },
             },
@@ -439,6 +519,46 @@ export default function CartCheckout({
 
   function removeItem(id: string | number) {
     removeFromCart(id);
+  }
+
+  function saveForLater(id: string | number) {
+    const item = cartItems.find((i) => i.id === id);
+    if (!item) return;
+    const line: SavedCartLine = {
+      id: item.productId ?? item.id,
+      productId: item.productId ?? item.id,
+      name: item.name,
+      vendor: item.vendor,
+      vendorId: item.vendorId,
+      price: item.price,
+      originalPrice: item.originalPrice,
+      image: item.imageUrl || item.image,
+      qty: item.qty,
+    };
+    const next = [line, ...savedItems.filter((s) => String(s.productId ?? s.id) !== String(line.productId))];
+    syncSaved(next);
+    removeFromCart(id);
+    setCartTab("saved");
+  }
+
+  function moveSavedToCart(line: SavedCartLine) {
+    addToCart({
+      id: line.productId ?? line.id,
+      productId: line.productId ?? line.id,
+      name: line.name,
+      price: line.price,
+      originalPrice: line.originalPrice,
+      vendor: line.vendor,
+      vendorId: line.vendorId || "",
+      image: line.image,
+      qty: line.qty,
+    });
+    syncSaved(savedItems.filter((s) => String(s.productId ?? s.id) !== String(line.productId ?? line.id)));
+    setCartTab("shop");
+  }
+
+  function removeSaved(line: SavedCartLine) {
+    syncSaved(savedItems.filter((s) => String(s.productId ?? s.id) !== String(line.productId ?? line.id)));
   }
  
   const stepLabels = [
@@ -492,9 +612,10 @@ export default function CartCheckout({
   } 
   function Sidebar({ showRedeem = true }: { showRedeem?: boolean }) {
     const breakdownRows: { label: string; val: string; color: string }[] = [
-      { label: `Price (${items.length} item${items.length !== 1 ? "s" : ""})`, val: formatPrice(itemTotal), color: "#374151" },
-      { label: "Platform Fee", val: formatPrice(platformFee), color: "#374151" },
+      { label: "Item Total (MRP)", val: formatPrice(itemTotal), color: "#374151" },
+      { label: "Subtotal", val: formatPrice(Math.max(0, itemTotal - (redeemApplied ? redeemSave : 0) - couponDiscount)), color: "#374151" },
     ];
+    if (platformFee > 0) breakdownRows.push({ label: "Platform Fee", val: formatPrice(platformFee), color: "#374151" });
     if (gstOnFee > 0) breakdownRows.push({ label: `GST on Platform Fee (${quote?.gstOnPlatformFeePercent ?? 18}%)`, val: formatPrice(gstOnFee), color: "#374151" });
     if (deliveryFee > 0) breakdownRows.push({ label: "Delivery Fee", val: formatPrice(deliveryFee), color: "#374151" });
     if (surgeCost > 0) breakdownRows.push({ label: "Surge Cost", val: formatPrice(surgeCost), color: "#b45309" });
@@ -549,6 +670,9 @@ export default function CartCheckout({
           {couponError && (
             <p style={{ fontSize: 11, color: "#dc2626", margin: "4px 0 0" }}>{couponError}</p>
           )}
+          <Link href="/profile" style={{ display: "inline-block", marginTop: 10, fontSize: 12, fontWeight: 700, color: PRIMARY_MID, textDecoration: "none" }}>
+            View My Coupons
+          </Link>
         </div>
         {showRedeem && (
           <div style={{ background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: 16 }}>
@@ -557,7 +681,7 @@ export default function CartCheckout({
               <input
                 value={redeemInput}
                 onChange={e => setRedeemInput(e.target.value)}
-                placeholder="Enter Points"
+                placeholder={`Enter Points (max ${Math.max(1, Math.round(maxRedeemValue) || 8)})`}
                 style={{
                   flex: 1, border: "1px solid #e5e7eb", borderRadius: 8,
                   padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", minWidth: 0,
@@ -580,7 +704,7 @@ export default function CartCheckout({
               )
               : (
                 <p style={{ fontSize: 10, color: TEAL_ACCENT }}>
-                  You have {walletBalance} reward points · max redeemable: {formatPrice(maxRedeemValue)} ({quote?.maxRedeemablePercent ?? 0}%)
+                  Wallet: {walletBalance} pts · Max redeemable: {formatPrice(maxRedeemValue)} · Min: 1 pt
                 </p>
               )
             }
@@ -592,7 +716,7 @@ export default function CartCheckout({
 
         <div style={{ background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: 16 }}>
           <p style={{ fontSize: 13, fontWeight: 700, color: "#1f2937", marginBottom: 12 }}>
-            Price details {quoteLoading && <Loader2 size={12} className="animate-spin" style={{ display: "inline", marginLeft: 6 }} />}
+            Bill Details {quoteLoading && <Loader2 size={12} className="animate-spin" style={{ display: "inline", marginLeft: 6 }} />}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {breakdownRows.map(({ label, val, color }) => (
@@ -601,7 +725,7 @@ export default function CartCheckout({
                 <span style={{ fontWeight: 600, color }}>{val}</span>
               </div>
             ))}
-            <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: 10, display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#111827" }}>
+            <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: 10, display: "flex", justifyContent: "space-between", fontSize: 15, fontWeight: 800, color: PRIMARY_MID }}>
               <span>Total Amount</span>
               <span>{formatPrice(total)}</span>
             </div>
@@ -619,11 +743,19 @@ export default function CartCheckout({
           {quoteError && (
             <p style={{ fontSize: 11, fontWeight: 500, marginTop: 8, color: "#dc2626" }}>{quoteError}</p>
           )}
+          <div style={{ background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", padding: 12, marginTop: 12 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "#334155", margin: "0 0 6px" }}>
+              Review your order and address details to avoid cancellations.
+            </p>
+            <p style={{ fontSize: 11, color: "#64748b", margin: 0, lineHeight: 1.45 }}>
+              You can only cancel the order until it is accepted by the vendor. Late cancellations may deduct amount, and redeemed wallet points are not refundable.
+            </p>
+          </div>
           <PrimaryBtn
             disabled={items.length === 0 || !meetsMinCart || quoteLoading}
             onClick={() => goToStep(Math.min(step + 1, 2))}
-            style={{ width: "100%", marginTop: 14, padding: "11px 0", fontSize: 13, borderRadius: 10, display: "block" }}>
-            Proceed to Buy
+            style={{ width: "100%", marginTop: 14, padding: "14px 0", fontSize: 15, borderRadius: 12, display: "block", fontWeight: 800 }}>
+            Proceed To Checkout
           </PrimaryBtn>
         </div>
       </div>
@@ -654,122 +786,284 @@ export default function CartCheckout({
   }
  
   function CartStep() {
-    if (items.length === 0) {
-      return (
-        <div style={{ textAlign: "center", padding: "60px 16px" }}>
-          <div style={{ fontSize: "4rem", marginBottom: 16 }}>🛒</div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1f2937", marginBottom: 8 }}>Your cart is empty</h2>
-          <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>Add some products to get started!</p>
-          <PrimaryBtn onClick={onBack} style={{ padding: "10px 24px", fontSize: 13 }}>
-            Continue Shopping
-          </PrimaryBtn>
-        </div>
-      );
-    }
+    const emptyShop = items.length === 0;
 
     return (
       <div>
-        <div style={{ marginBottom: 16, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1f2937", margin: 0 }}>Review Your Order</h1>
-            <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>
-              Please verify your order and payment details before completing your purchase.
-            </p>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, background: "#f1f5f9", borderRadius: 16, padding: 6, maxWidth: 420 }}>
+            {([
+              { id: "shop" as const, label: `Shop (${items.length})` },
+              { id: "saved" as const, label: `Saved (${savedItems.length})` },
+            ]).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setCartTab(tab.id)}
+                style={{
+                  border: "none",
+                  borderRadius: 12,
+                  padding: "12px 10px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  background: cartTab === tab.id ? "white" : "transparent",
+                  color: cartTab === tab.id ? "#0f172a" : "#64748b",
+                  boxShadow: cartTab === tab.id ? "0 1px 3px rgba(15,23,42,0.08)" : "none",
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
-          <button
-            onClick={() => { if (window.confirm("Remove all items from cart?")) clearCart(); }}
-            style={{
-              display: "flex", alignItems: "center", gap: 6, padding: "8px 16px",
-              fontSize: 12, fontWeight: 600, color: "#ef4444", background: "#fef2f2",
-              border: "1px solid #fecaca", borderRadius: 8, cursor: "pointer",
-              fontFamily: "inherit", transition: "all 0.15s",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#fee2e2"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#fef2f2"; }}
-          >
-            <Trash2 size={14} /> Remove Cart
-          </button>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }} className="cart-layout">
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-            <AddressBar address={currentAddress} onChangeAddress={() => setShowAddressModal(true)} />
-            {items.map(item => (
-              <div key={item.id} style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 16 }}>
-                <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-                  <div style={{ width: 80, height: 80, borderRadius: 10, overflow: "hidden", border: "1px solid #f3f4f6", flexShrink: 0, background: "#f9fafb" }}>
-                    {item.image
-                      ? <img src={item.image} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem" }}>📦</div>
-                    }
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#1f2937", lineHeight: 1.4, margin: 0, wordBreak: "break-word" }}>{item.name}</p>
-                        {item.color && <p style={{ fontSize: 10, color: "#9ca3af", margin: "3px 0 0" }}>{item.color}</p>}
-                        <p style={{ fontSize: 10, color: "#9ca3af", margin: "1px 0 0" }}>
-                          Vendor: <span style={{ fontWeight: 600, color: TEAL_ACCENT }}>{item.vendor}</span>
-                        </p>
-                      </div>
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0 }}>{formatPrice(item.price * item.qty)}</p>
-                        {item.discount > 0 && (
-                          <>
-                            <p style={{ fontSize: 10, color: "#9ca3af", textDecoration: "line-through", margin: "2px 0" }}>{formatPrice(item.originalPrice * item.qty)}</p>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: "#059669" }}>{item.discount}% Off</span>
-                          </>
-                        )}
-                      </div>
+
+        {cartTab === "saved" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {savedItems.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "48px 16px", background: "white", borderRadius: 16, border: "1px solid #e5e7eb" }}>
+                <Heart size={28} style={{ color: "#94a3b8", margin: "0 auto 10px" }} />
+                <p style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: 0 }}>No saved items</p>
+                <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 6 }}>Save cart items for later from the Shop tab.</p>
+              </div>
+            ) : (
+              savedItems.map((line) => (
+                <div key={String(line.productId ?? line.id)} style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", padding: 16 }}>
+                  <div style={{ display: "flex", gap: 14 }}>
+                    <div style={{ width: 72, height: 72, borderRadius: 12, overflow: "hidden", background: "#f8fafc", flexShrink: 0 }}>
+                      {line.image ? <img src={resolveMediaUrl(line.image) || line.image} alt={line.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}
                     </div>
-                    <p style={{ fontSize: 10, color: "#6b7280", margin: "8px 0 2px" }}>
-                      Eligible for <span style={{ fontWeight: 600, color: TEAL_ACCENT }}>FREE Shipping.</span>
-                    </p>
-                    <p style={{ fontSize: 10, color: "#059669", fontWeight: 600, margin: "0 0 8px" }}>{item.delivery}</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                      <div style={{ display: "flex", alignItems: "center", borderRadius: 8, border: "1px solid #e5e7eb", overflow: "hidden" }}>
-                        {([
-                          { label: "−", action: () => changeQty(item.id, -1) },
-                          { label: String(item.qty), action: null as (() => void) | null },
-                          { label: "+", action: () => changeQty(item.id, +1) },
-                        ]).map((btn, bi) => (
-                          <button key={bi} onClick={btn.action ?? undefined}
-                            style={{
-                              width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
-                              fontSize: 13, fontWeight: 700, background: "white",
-                              border: "none", borderLeft: bi > 0 ? "1px solid #e5e7eb" : "none",
-                              cursor: btn.action ? "pointer" : "default", color: "#374151", fontFamily: "inherit",
-                            }}>
-                            {btn.label}
-                          </button>
-                        ))}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: 0 }}>{line.name}</p>
+                      <p style={{ fontSize: 12, color: "#64748b", margin: "4px 0 0" }}>Vendor: {line.vendor || "—"}</p>
+                      <p style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", margin: "8px 0 0" }}>{formatPrice(line.price)}</p>
+                      <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
+                        <button type="button" onClick={() => moveSavedToCart(line)} style={{ border: "none", background: "none", color: PRIMARY_MID, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
+                          MOVE TO CART
+                        </button>
+                        <button type="button" onClick={() => removeSaved(line)} style={{ border: "none", background: "none", color: "#ef4444", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
+                          REMOVE
+                        </button>
                       </div>
-                      <button
-                        style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}
-                        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = TEAL_ACCENT)}
-                        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = "#6b7280")}>
-                        <Bookmark size={10} /> Save for later
-                      </button>
-                      <button
-                        onClick={() => removeItem(item.id)}
-                        style={{ fontSize: 10, fontWeight: 600, color: "#9ca3af", display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}
-                        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = "#ef4444")}
-                        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = "#9ca3af")}>
-                        <Trash2 size={10} /> Remove
-                      </button>
                     </div>
                   </div>
                 </div>
+              ))
+            )}
+          </div>
+        ) : emptyShop ? (
+          <div style={{ textAlign: "center", padding: "60px 16px" }}>
+            <div style={{ fontSize: "4rem", marginBottom: 16 }}>🛒</div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1f2937", marginBottom: 8 }}>Your cart is empty</h2>
+            <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>Add some products to get started!</p>
+            <PrimaryBtn onClick={onBack} style={{ padding: "10px 24px", fontSize: 13 }}>
+              Continue Shopping
+            </PrimaryBtn>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }} className="cart-layout">
+            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+              <AddressBar
+                address={currentAddress}
+                empty={addressEmpty}
+                onChangeAddress={() => setShowAddressModal(true)}
+              />
+
+              <div style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", margin: 0, padding: "14px 16px", borderBottom: "1px solid #f1f5f9" }}>
+                  Delivery Schedule
+                </p>
+                {([
+                  {
+                    id: "anytime" as const,
+                    title: "Any Time",
+                    desc: "Standard delivery at the earliest",
+                    icon: <Clock size={18} style={{ color: PRIMARY_MID }} />,
+                  },
+                  {
+                    id: "schedule" as const,
+                    title: "Schedule An Appointment",
+                    desc: "Choose a specific date & time slot",
+                    icon: <Calendar size={18} style={{ color: PRIMARY_MID }} />,
+                  },
+                ]).map((opt, idx) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setDeliveryMode(opt.id)}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "14px 16px",
+                      border: "none",
+                      borderTop: idx === 0 ? "none" : "1px solid #f1f5f9",
+                      background: deliveryMode === opt.id ? "#f0fdfa" : "white",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: "#ecfeff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {opt.icon}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: 0 }}>{opt.title}</p>
+                      <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>{opt.desc}</p>
+                    </div>
+                    <div style={{
+                      width: 22, height: 22, borderRadius: "50%",
+                      border: `2px solid ${deliveryMode === opt.id ? PRIMARY_MID : "#cbd5e1"}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      {deliveryMode === opt.id ? <div style={{ width: 10, height: 10, borderRadius: "50%", background: PRIMARY_MID }} /> : null}
+                    </div>
+                  </button>
+                ))}
               </div>
-            ))}
+
+              {deliveryMode === "schedule" && (
+                <div style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", padding: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                    <button type="button" onClick={() => setWeekBase(new Date(weekBase.getTime() - 7 * 86400000))} style={{ border: "1px solid #e5e7eb", background: "white", borderRadius: 8, padding: 6, cursor: "pointer" }}>
+                      <ChevronLeft size={16} />
+                    </button>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", margin: 0 }}>
+                      {MONTHS[weekBase.getMonth()]} {weekBase.getFullYear()}
+                    </p>
+                    <button type="button" onClick={() => setWeekBase(new Date(weekBase.getTime() + 7 * 86400000))} style={{ border: "1px solid #e5e7eb", background: "white", borderRadius: 8, padding: 6, cursor: "pointer" }}>
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 12 }}>
+                    {weekDays.map((d) => {
+                      const active = d.toDateString() === selectedDate.toDateString();
+                      return (
+                        <button
+                          key={d.toISOString()}
+                          type="button"
+                          onClick={() => setSelectedDate(d)}
+                          style={{
+                            border: `1px solid ${active ? PRIMARY_MID : "#e5e7eb"}`,
+                            background: active ? "#ecfeff" : "white",
+                            borderRadius: 10,
+                            padding: "8px 4px",
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          <div style={{ fontSize: 10, color: "#64748b" }}>{DAYS[d.getDay()]}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{d.getDate()}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {TIME_SLOTS.map((slot) => (
+                      <button
+                        key={slot.value}
+                        type="button"
+                        onClick={() => setSelectedTime(slot.value)}
+                        style={{
+                          textAlign: "left",
+                          border: `1px solid ${selectedTime === slot.value ? PRIMARY_MID : "#e5e7eb"}`,
+                          background: selectedTime === slot.value ? "#f0fdfa" : "white",
+                          borderRadius: 10,
+                          padding: "10px 12px",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#0f172a",
+                        }}
+                      >
+                        {slot.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {items.map((item) => (
+                <div key={item.id} style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", padding: 16 }}>
+                  <div style={{ display: "flex", gap: 14 }}>
+                    <div style={{ width: 84, height: 84, borderRadius: 12, overflow: "hidden", border: "1px solid #f1f5f9", flexShrink: 0, background: "#f8fafc" }}>
+                      {item.image
+                        ? <img src={item.image} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem" }}>📦</div>}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <p style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: 0, wordBreak: "break-word" }}>{item.name}</p>
+                          <p style={{ fontSize: 12, color: "#64748b", margin: "4px 0 0" }}>
+                            Vendor: <span style={{ fontWeight: 600, color: PRIMARY_MID }}>{item.vendor || "—"}</span>
+                          </p>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, color: PRIMARY_MID, flexShrink: 0 }}>
+                          <Clock size={14} />
+                          <span style={{ fontSize: 12, fontWeight: 700 }}>Delivery in 30 Mins</span>
+                        </div>
+                      </div>
+                      <p style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", margin: "10px 0 0" }}>{formatPrice(item.price)}</p>
+                      <p style={{ fontSize: 12, color: "#059669", fontWeight: 600, margin: "6px 0 0" }}>Eligible for FREE Shipping</p>
+                      <p style={{ fontSize: 12, color: "#ea580c", margin: "4px 0 0" }}>
+                        Up to {formatPrice(Math.max(1, Math.round(item.price * 0.05)))} redeemable via points (5%)
+                      </p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 12 }}>
+                        <div style={{ display: "flex", alignItems: "center", borderRadius: 10, border: "1px solid #e5e7eb", overflow: "hidden", background: "#f8fafc" }}>
+                          {([
+                            { label: "−", action: () => changeQty(item.id, -1) },
+                            { label: String(item.qty), action: null as (() => void) | null },
+                            { label: "+", action: () => changeQty(item.id, +1) },
+                          ]).map((btn, bi) => (
+                            <button
+                              key={bi}
+                              type="button"
+                              onClick={btn.action ?? undefined}
+                              style={{
+                                width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+                                fontSize: 14, fontWeight: 700, background: "transparent",
+                                border: "none", borderLeft: bi > 0 ? "1px solid #e5e7eb" : "none",
+                                cursor: btn.action ? "pointer" : "default", color: "#0f172a", fontFamily: "inherit",
+                              }}
+                            >
+                              {btn.label}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => saveForLater(item.id)}
+                          style={{ fontSize: 12, fontWeight: 700, color: PRIMARY_MID, display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}
+                        >
+                          <Heart size={13} /> SAVE FOR LATER
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          style={{ fontSize: 12, fontWeight: 700, color: "#ef4444", display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}
+                        >
+                          <Trash2 size={13} /> REMOVE
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="sidebar-col">
+              <Sidebar showRedeem={true} />
+            </div>
           </div>
-          <div className="sidebar-col">
-            <Sidebar showRedeem={true} />
-          </div>
-        </div>
+        )}
       </div>
     );
   }
- 
+
+
   function PaymentStep() {
     const methods: PaymentMethod[] = [
       {
@@ -784,7 +1078,7 @@ export default function CartCheckout({
     return (
       <div style={{ display: "flex", gap: 16, flexDirection: "column" }} className="cart-layout">
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-          <AddressBar address={currentAddress} onChangeAddress={() => setShowAddressModal(true)} />
+          <AddressBar address={currentAddress} empty={addressEmpty} onChangeAddress={() => setShowAddressModal(true)} />
           <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 16 }}>
             <h3 style={{ fontSize: 13, fontWeight: 700, color: "#1f2937", marginBottom: 14 }}>Payment Method</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

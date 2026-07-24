@@ -131,6 +131,7 @@ export interface Booking {
   timeSlot: string;
   status: string;
   createdAt: string;
+  totalAmount?: number | string;
   /** Aliases for simple screens */
   date: string;
   slot: string;
@@ -172,6 +173,7 @@ function normalizeBooking(row: Record<string, unknown>): Booking {
     timeSlot,
     status: String(row.status ?? ""),
     createdAt: String(row.createdAt ?? row.created_at ?? ""),
+    totalAmount: row.totalAmount ?? row.total_amount ?? 0,
     date: bookingDate,
     slot: timeSlot,
     metadata: row.metadata && typeof row.metadata === "object" ? row.metadata as Record<string, unknown> : null,
@@ -273,24 +275,51 @@ export const commerceApi = {
       addressId?: string;
       shippingAddress?: Record<string, unknown>;
       paymentMode?: string;
+      deliverySchedule?: Record<string, unknown>;
     } = {},
   ) {
-    return apiClient.post<Order>(`${BASE}/orders/from-cart`, {
+    return apiClient.post<Order & { orders?: Order[] }>(`${BASE}/orders/from-cart`, {
       ...(opts.redeemPoints != null ? { redeemPoints: opts.redeemPoints } : {}),
       ...(opts.vendorId ? { vendorId: opts.vendorId } : {}),
       ...(opts.couponCode ? { couponCode: opts.couponCode } : {}),
       ...(opts.addressId ? { addressId: opts.addressId } : {}),
       ...(opts.shippingAddress ? { shippingAddress: opts.shippingAddress } : {}),
       ...(opts.paymentMode ? { paymentMode: opts.paymentMode } : {}),
+      ...(opts.deliverySchedule ? { deliverySchedule: opts.deliverySchedule } : {}),
     });
+  },
+
+  /** Retry / create online payment for an unpaid product order. */
+  createOrderPayment(orderId: string | number) {
+    return apiClient.post<{
+      id?: string | null;
+      providerRef?: string | null;
+      providerOrderId?: string;
+      amount: number;
+      currency: string;
+      orderId: string;
+    }>(`${BASE}/orders/${encodeURIComponent(String(orderId))}/payment`, {});
   },
 
   createOrder(data: { items: { productId: number; quantity: number; price: number }[]; addressId?: number }) {
     return apiClient.post<Order>(`${BASE}/orders`, data);
   },
 
-  getOrders(customerId: string | number, params?: { limit?: number; offset?: number }) {
-    return apiClient.get<PaginatedResponse<Order>>(`${BASE}/customers/${customerId}/orders`, params as Record<string, string | number | boolean>);
+  getOrders(
+    customerId: string | number,
+    params?: { limit?: number; offset?: number },
+    options?: { forceRefresh?: boolean },
+  ) {
+    return apiClient.get<PaginatedResponse<Order>>(
+      `${BASE}/customers/${customerId}/orders`,
+      params as Record<string, string | number | boolean>,
+      { forceRefresh: options?.forceRefresh ?? true, cacheTtlMs: 0 },
+    );
+  },
+
+  /** Drop cached order list responses (call after placing an order). */
+  invalidateOrdersCache() {
+    apiClient.clearGetCache(`${BASE}/customers/`);
   },
 
   getOrder(orderId: string | number) {

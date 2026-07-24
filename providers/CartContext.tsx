@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from "react";
 import { commerceApi, type Cart, type CartItemApi } from "@/lib/api/commerce";
 import { resolveMediaUrl } from "@/lib/media";
 import { setPostLoginAction } from "@/lib/postLoginAction";
@@ -28,7 +28,8 @@ interface CartContextType {
   addToCart: (item: Omit<CartItem, "qty"> & { qty?: number }) => void;
   removeFromCart: (id: string | number) => void;
   updateQty: (id: string | number, qty: number) => void;
-  clearCart: () => void;
+  /** Clears local + server cart. Await after checkout so items cannot rematerialize. */
+  clearCart: () => Promise<void>;
   totalItems: number;
   syncing: boolean;
   syncError: string | null;
@@ -58,6 +59,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(loadCart);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  /** Bumped on clear/checkout so in-flight mount merge cannot restore a stale cart. */
+  const syncEpochRef = useRef(0);
 
   // Persist to localStorage on every change
   useEffect(() => {
@@ -69,6 +72,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem("p4u_token");
     if (!token) return;
 
+    const epoch = syncEpochRef.current;
     setSyncing(true);
     const localItems = loadCart();
 
@@ -121,8 +125,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       };
     };
 
-    const linesFromLocal = (items: CartItem[]) =>
-      items.map((i) => ({
+    const linesFromLocal = (lines: CartItem[]) =>
+      lines.map((i) => ({
         productId: i.productId ?? i.id,
         variationId: i.variationId ?? null,
         quantity: i.qty,
@@ -131,37 +135,48 @@ export function CartProvider({ children }: { children: ReactNode }) {
         metadata: cartLineMetadata(i),
       }));
 
+    const applyIfCurrent = (serverCart: Cart) => {
+      if (epoch !== syncEpochRef.current) return;
+      setSyncError(null);
+      setItems(mapServerItems(serverCart));
+    };
+
     if (localItems.length) {
       commerceApi
         .mergeCart(linesFromLocal(localItems))
-        .then((serverCart) => {
-          setSyncError(null);
-          setItems(mapServerItems(serverCart));
-        })
+        .then(applyIfCurrent)
         .catch(() => {
           // Fallback: replace cart if merge fails
           commerceApi
             .updateCart(linesFromLocal(localItems))
-            .then((serverCart) => {
-              setSyncError(null);
-              setItems(mapServerItems(serverCart));
-            })
-            .catch(() => setSyncError("Failed to sync cart with server"));
+            .then(applyIfCurrent)
+            .catch(() => {
+              if (epoch === syncEpochRef.current) {
+                setSyncError("Failed to sync cart with server");
+              }
+            });
         })
-        .finally(() => setSyncing(false));
+        .finally(() => {
+          if (epoch === syncEpochRef.current) setSyncing(false);
+        });
     } else {
       commerceApi
         .getCart()
         .then((serverCart) => {
+          if (epoch !== syncEpochRef.current) return;
           setSyncError(null);
           if (serverCart.items.length) {
             setItems(mapServerItems(serverCart));
           }
         })
         .catch(() => {
-          setSyncError("Failed to load cart from server");
+          if (epoch === syncEpochRef.current) {
+            setSyncError("Failed to load cart from server");
+          }
         })
-        .finally(() => setSyncing(false));
+        .finally(() => {
+          if (epoch === syncEpochRef.current) setSyncing(false);
+        });
     }
   }, []);
 
@@ -225,10 +240,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   }, [syncToServer]);
 
-  const clearCart = useCallback(() => {
+  const clearCart = useCallback(async () => {
+    syncEpochRef.current += 1;
+    saveCart([]);
     setItems([]);
-    syncToServer(() => commerceApi.clearCart());
-  }, [syncToServer]);
+    const token = typeof window !== "undefined" ? localStorage.getItem("p4u_token") : null;
+    if (!token) return;
+    try {
+      await commerceApi.clearCart();
+      setSyncError(null);
+    } catch {
+      setSyncError("Cart sync failed");
+    }
+  }, []);
 
   const totalItems = items.reduce((s, i) => s + i.qty, 0);
 

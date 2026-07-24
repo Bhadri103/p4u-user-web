@@ -19,6 +19,7 @@ import logo from "../../images/logo.png";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { avatarLetterFromDisplayName } from "@/lib/resolveCustomerId";
+import { isFoodModuleEnabled } from "@/lib/features";
 
 const HEADER_TEAL = "#0a9a9a";
 const SELLER_ORANGE = "#f5a623";
@@ -58,7 +59,9 @@ export default function Header({ onCartOpen }: HeaderProps) {
     { icon: Wrench, label: "Services", href: "/service" },
     { icon: Building2, label: "Find Home", href: "/find-home" },
     { icon: Newspaper, label: "Classified Ads", href: "/classified" },
-    { icon: UtensilsCrossed, label: "Food", href: "/food" },
+    ...(isFoodModuleEnabled
+      ? [{ icon: UtensilsCrossed, label: "Food", href: "/food" } as const]
+      : []),
   ];
 
   const pathname = usePathname();

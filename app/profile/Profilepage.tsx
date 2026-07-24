@@ -621,7 +621,7 @@ function SimpleRichTextEditor({
 }
 
 function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc: () => void }) {
-  const { addresses, createAddress } = useAddresses();
+  const { addresses, createAddress, updateAddress, deleteAddress } = useAddresses();
   const avatarRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: "",
@@ -637,8 +637,10 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
   const [kycDocuments, setKycDocuments] = useState<UserProfile["kycDocuments"]>({});
   const [occupations, setOccupations] = useState<{ value: string; label: string }[]>([{ value: "", label: "Select occupation" }]);
   const [showAddAddress, setShowAddAddress] = useState(false);
+  const [editAddressId, setEditAddressId] = useState<string | number | null>(null);
   const [addrForm, setAddrForm] = useState<AddressFormState>({ ...EMPTY_ADDRESS_FORM });
   const [addrErrors, setAddrErrors] = useState<Record<string, string>>({});
+  const [addrBusy, setAddrBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -739,13 +741,64 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
     const e = validateAddressForm(f);
     setAddrErrors(e);
     if (Object.keys(e).length) return;
+    setAddrBusy(true);
     try {
       await createAddress(formToPayload(f));
       setAddrForm({ ...EMPTY_ADDRESS_FORM });
       setAddrErrors({});
       setShowAddAddress(false);
+      setEditAddressId(null);
     } catch {
       setSaveError("Could not save address. Please try again.");
+    } finally {
+      setAddrBusy(false);
+    }
+  };
+
+  const startEditAddress = (address: ProfileAddress) => {
+    setEditAddressId(address.id);
+    setShowAddAddress(false);
+    setAddrForm(profileAddressToForm(address));
+    setAddrErrors({});
+    setSaveError(null);
+  };
+
+  const saveEditedAddress = async () => {
+    if (editAddressId == null) return;
+    const f = { ...addrForm, phone: addrForm.phone.replace(/\D/g, "") };
+    const e = validateAddressForm(f);
+    setAddrErrors(e);
+    if (Object.keys(e).length) return;
+    setAddrBusy(true);
+    try {
+      await updateAddress(editAddressId, formToPayload(f));
+      setAddrForm({ ...EMPTY_ADDRESS_FORM });
+      setAddrErrors({});
+      setEditAddressId(null);
+    } catch {
+      setSaveError("Could not update address. Please try again.");
+    } finally {
+      setAddrBusy(false);
+    }
+  };
+
+  const cancelAddressForm = () => {
+    setShowAddAddress(false);
+    setEditAddressId(null);
+    setAddrForm({ ...EMPTY_ADDRESS_FORM });
+    setAddrErrors({});
+  };
+
+  const removeAddress = async (id: string | number) => {
+    if (!window.confirm("Delete this saved address?")) return;
+    setAddrBusy(true);
+    try {
+      await deleteAddress(id);
+      if (editAddressId != null && String(editAddressId) === String(id)) cancelAddressForm();
+    } catch {
+      setSaveError("Could not delete address. Please try again.");
+    } finally {
+      setAddrBusy(false);
     }
   };
 
@@ -840,16 +893,28 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
       <div className="mb-8 rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-[16px] font-bold text-slate-950">Saved Addresses</h2>
-          <button type="button" onClick={() => { setShowAddAddress((v) => !v); setAddrErrors({}); }} className="inline-flex items-center gap-2 rounded-[14px] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-teal-600">
+          <button
+            type="button"
+            onClick={() => {
+              setShowAddAddress((v) => !v);
+              setEditAddressId(null);
+              setAddrForm({ ...EMPTY_ADDRESS_FORM });
+              setAddrErrors({});
+            }}
+            className="inline-flex items-center gap-2 rounded-[14px] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-teal-600"
+          >
             <IcPlus s={16} /> Add Address
           </button>
         </div>
-        {showAddAddress && (
+        {(showAddAddress || editAddressId != null) && (
           <div className="mb-5 space-y-3 rounded-[14px] border border-teal-100 bg-teal-50/40 p-4">
+            <p className="text-xs font-medium text-slate-700">{editAddressId != null ? "Edit address" : "New address"}</p>
             <SavedAddressFormFields values={addrForm} errors={addrErrors} onChange={(patch) => { setAddrForm((f) => ({ ...f, ...patch })); setAddrErrors((prev) => { const n = { ...prev }; for (const k of Object.keys(patch)) delete n[k]; return n; }); }} idPrefix="edit-profile" />
             <div className="flex gap-3">
-              <PrimaryBtn type="button" onClick={saveNewAddress}>Save Address</PrimaryBtn>
-              <GhostBtn type="button" onClick={() => { setShowAddAddress(false); setAddrForm({ ...EMPTY_ADDRESS_FORM }); }}>Cancel</GhostBtn>
+              <PrimaryBtn type="button" disabled={addrBusy} onClick={() => void (editAddressId != null ? saveEditedAddress() : saveNewAddress())}>
+                {editAddressId != null ? "Update Address" : "Save Address"}
+              </PrimaryBtn>
+              <GhostBtn type="button" disabled={addrBusy} onClick={cancelAddressForm}>Cancel</GhostBtn>
             </div>
           </div>
         )}
@@ -858,13 +923,42 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
         ) : (
           <div className="space-y-3">
             {addresses.map((a) => (
-              <div key={String(a.id)} className="rounded-[14px] border border-slate-100 px-4 py-3">
-                <p className="text-sm font-semibold text-slate-900">{a.label || "Address"}{a.isDefault ? <span className="ml-2 text-xs text-teal-600">Default</span> : null}</p>
-                <p className="mt-1 text-sm text-slate-600">{[a.line1, a.line2, a.city, a.state, a.pincode].filter(Boolean).join(", ")}</p>
+              <div key={String(a.id)} className="flex items-start gap-3 rounded-[14px] border border-slate-100 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {a.label || "Address"}
+                    {a.isDefault ? <span className="ml-2 text-xs text-teal-600">Default</span> : null}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">{[a.line1, a.line2, a.city, a.state, a.pincode].filter(Boolean).join(", ")}</p>
+                </div>
+                <div className="flex shrink-0 gap-1.5">
+                  <button
+                    type="button"
+                    disabled={addrBusy}
+                    onClick={() => startEditAddress(a)}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-400 transition-all hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-50"
+                    aria-label={`Edit ${a.label || "address"}`}
+                  >
+                    <IcEdit />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={addrBusy}
+                    onClick={() => void removeAddress(a.id)}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-400 transition-all hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                    aria-label={`Delete ${a.label || "address"}`}
+                  >
+                    <IcTrash />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
+        <p className="mt-4 text-xs text-slate-500">
+          Or manage all addresses from{" "}
+          <a href="/saved-addresses" className="font-semibold text-teal-600 hover:underline">Saved Addresses</a>.
+        </p>
       </div>
 
       <button
