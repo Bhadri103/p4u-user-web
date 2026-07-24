@@ -259,17 +259,20 @@ const GhostBtn = ({
   children,
   onClick,
   className = "",
+  disabled = false,
   type = "button",
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   className?: string;
+  disabled?: boolean;
   type?: "button" | "submit";
 }) => (
   <button
     type={type}
     onClick={onClick}
-    className={`px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-200 bg-white text-slate-600 transition-all hover:bg-slate-50 active:scale-95 cursor-pointer ${className}`}
+    disabled={disabled}
+    className={`px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-200 bg-white text-slate-600 transition-all hover:bg-slate-50 active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
   >
     {children}
   </button>

@@ -173,7 +173,7 @@ function normalizeBooking(row: Record<string, unknown>): Booking {
     timeSlot,
     status: String(row.status ?? ""),
     createdAt: String(row.createdAt ?? row.created_at ?? ""),
-    totalAmount: row.totalAmount ?? row.total_amount ?? 0,
+    totalAmount: Number(row.totalAmount ?? row.total_amount ?? 0) || 0,
     date: bookingDate,
     slot: timeSlot,
     metadata: row.metadata && typeof row.metadata === "object" ? row.metadata as Record<string, unknown> : null,
