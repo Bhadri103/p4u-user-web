@@ -527,33 +527,33 @@ export default function ProductDetailPage({ product: rawProduct, onBack }) {
               <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", marginTop: 4 }}>
                 <div style={{ display: "flex", alignItems: "center", border: "1px solid #e0e0e0", borderRadius: 2, overflow: "hidden" }}>
                   <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))}
-                    style={{ width: 36, height: 48, border: "none", background: "#f5f5f5", cursor: "pointer", fontSize: 18, fontWeight: 700 }}>−</button>
+                    style={{ width: 36, height: 48, padding: 0, border: "none", background: "#f5f5f5", cursor: "pointer", fontSize: 18, fontWeight: 700, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>−</button>
                   <span style={{ width: 40, textAlign: "center", fontWeight: 700 }}>{qty}</span>
                   <button type="button" onClick={() => setQty((q) => Math.min(20, q + 1))}
-                    style={{ width: 36, height: 48, border: "none", background: "#f5f5f5", cursor: "pointer", fontSize: 18, fontWeight: 700 }}>+</button>
+                    style={{ width: 36, height: 48, padding: 0, border: "none", background: "#f5f5f5", cursor: "pointer", fontSize: 18, fontWeight: 700, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>+</button>
                 </div>
                 <button
                   onClick={handleAddToCart}
                   style={{
                     flex: 1, height: 48, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                     background: "#ff9f00", border: "none", borderRadius: 2, cursor: "pointer",
-                    fontSize: 14, fontWeight: 700, color: "white", boxShadow: "0 2px 4px rgba(255,159,0,0.4)",
+                    fontSize: 14, fontWeight: 700, lineHeight: 1, whiteSpace: "nowrap", color: "white", boxShadow: "0 2px 4px rgba(255,159,0,0.4)",
                     transition: "opacity 0.2s",
                   }}
                 >
-                  <ShoppingCart size={18} />
-                  ADD TO CART
+                  <ShoppingCart size={18} style={{ flexShrink: 0 }} />
+                  <span style={{ display: "inline-flex", alignItems: "center", lineHeight: 1 }}>ADD TO CART</span>
                 </button>
                 <button
                   onClick={handleBuyNow}
                   style={{
                     flex: 1, height: 48, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                     background: "#fb641b", border: "none", borderRadius: 2, cursor: "pointer",
-                    fontSize: 14, fontWeight: 700, color: "white", boxShadow: "0 2px 4px rgba(251,100,27,0.4)",
+                    fontSize: 14, fontWeight: 700, lineHeight: 1, whiteSpace: "nowrap", color: "white", boxShadow: "0 2px 4px rgba(251,100,27,0.4)",
                   }}
                 >
-                  <Zap size={18} />
-                  BUY NOW
+                  <Zap size={18} style={{ flexShrink: 0 }} />
+                  <span style={{ display: "inline-flex", alignItems: "center", lineHeight: 1 }}>BUY NOW</span>
                 </button>
               </div>
             </div>
