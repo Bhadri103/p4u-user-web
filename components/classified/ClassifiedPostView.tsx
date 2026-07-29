@@ -86,7 +86,7 @@ function PostFormBody() {
         contactPhone: contactPhone.trim(),
         imageUrls,
       });
-      setSuccess("Your ad is now live on Classifieds. Admin may review it within 24 hours.");
+      setSuccess("Your ad was submitted for review. Once it is approved by the admin, it will appear in Classifieds.");
       setTimeout(() => router.push(`/classified?category=${encodeURIComponent(categoryId)}`), 1200);
     } catch (err: unknown) {
       setError(err && typeof err === "object" && "message" in err ? String((err as { message: string }).message) : "Failed to post ad");
@@ -234,7 +234,7 @@ function PostFormBody() {
         </div>
 
         <p className="text-xs text-gray-500">
-          Your ad appears on Classifieds right away. Admin may review it within 24 hours.
+          Your ad will appear in Classifieds after it is approved by the admin.
         </p>
 
         <button

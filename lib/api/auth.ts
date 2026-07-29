@@ -59,12 +59,14 @@ export interface CustomerRegisterByPhoneRequest {
 }
 
 export interface RegisterVendorPayload {
-  vendorKind: "service" | "product";
-  vendorType: "SERVICE" | "PRODUCT";
-  ownerName: string;
-  businessName: string;
+  vendorKind: "service" | "product" | "both";
+  vendorType: "SERVICE" | "PRODUCT" | "BOTH";
+  ownerName?: string;
+  businessName?: string;
+  businessType?: string | null;
   email?: string | null;
-  phone: string;
+  phone?: string | null;
+  secondaryPhone?: string | null;
   gst?: string | null;
   pan?: string | null;
   categoriesJson?: unknown;
@@ -72,6 +74,12 @@ export interface RegisterVendorPayload {
   addressJson?: Record<string, unknown> | null;
   documentsJson?: Record<string, unknown> | null;
   bankJson?: Record<string, unknown> | null;
+}
+
+export interface RegistrationProductCategory {
+  id: string;
+  name: string;
+  slug?: string | null;
 }
 
 export const authApi = {
@@ -121,7 +129,19 @@ export const authApi = {
     return apiClient.post<{ message: string }>(`${BASE}/logout`, { refreshToken });
   },
 
+  /** Product taxonomy managed by admin; shared by every vendor-registration UI. */
+  registrationProductCategories() {
+    return apiClient.get<RegistrationProductCategory[]>(
+      "/api/v1/catalog/categories?kind=product&includeInactive=false",
+    );
+  },
+
   /** No-OTP vendor self-registration from user web "Become a Seller" flow. */
+  registrationServiceCategories() {
+    return apiClient.get<RegistrationProductCategory[]>(
+      "/api/v1/catalog/categories?kind=service&includeInactive=false",
+    );
+  },
   registerVendor(payload: RegisterVendorPayload) {
     return apiClient.postInternal<{ status: string; message: string }>(
       `${BASE}/public/vendor/register`,

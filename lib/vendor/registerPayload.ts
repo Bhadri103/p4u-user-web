@@ -1,51 +1,49 @@
 import type { RegisterVendorPayload } from "@/lib/api/auth";
 
-export type VendorKindChoice = "PRODUCT" | "SERVICE";
+export type VendorKindChoice = "" | "PRODUCT" | "SERVICE" | "BOTH";
 
-/** Personal step — user-web wizard (also maps into vendor `addressJson`). */
 export interface VendorRegisterPersonal {
   name: string;
   phone: string;
   secondaryPhone: string;
   email: string;
-  state: string;
-  district: string;
-  pincode: string;
-  facebook: string;
-  instagram: string;
 }
 
-/** Business step — aligned with vendor-web `register/page.tsx` Details fields. */
 export interface VendorRegisterBusiness {
   businessName: string;
+  businessType: string;
   vendorKind: VendorKindChoice;
   categorySlug: string;
   serviceName: string;
-  gst: string;
-  pan: string;
-  stateCode: string;
+  state: string;
+  district: string;
   shopAddress: string;
 }
 
 export interface VendorRegisterKyc {
-  gstCertName: string;
+  aadhaarNumber: string;
+  aadhaarFrontName: string;
+  aadhaarBackName: string;
+  pan: string;
   panCardName: string;
+  gst: string;
+  gstCertName: string;
 }
 
 export interface VendorRegisterBank {
   bankName: string;
-  ifscCode: string;
   accountHolderName: string;
   accountNumber: string;
+  confirmAccountNumber: string;
+  ifscCode: string;
 }
 
-/**
- * Builds the same JSON body as `p4u-new-vendor-web/app/register/page.tsx` →
- * `authApi.registerVendor()` → `POST /api/auth/public/vendor/register`.
- *
- * User-web adds personal/location/social keys inside `addressJson` for admin review;
- * core vendor columns (`ownerName`, `gst`, `bankJson`, etc.) match vendor portal.
- */
+function normalizedPhone(raw: string) {
+  const digits = raw.replace(/\D/g, "");
+  return digits ? `+91${digits}` : null;
+}
+
+/** Canonical payload shared by vendor web/mobile and customer web/mobile. */
 export function buildVendorRegisterPayload(input: {
   personal: VendorRegisterPersonal;
   business: VendorRegisterBusiness;
@@ -53,48 +51,69 @@ export function buildVendorRegisterPayload(input: {
   bank: VendorRegisterBank;
 }): RegisterVendorPayload {
   const { personal, business, kyc, bank } = input;
-  const vendorKind = business.vendorKind;
-  const stateName = personal.state.trim();
+  const effectiveKind = business.vendorKind || "PRODUCT";
+  const wantsProduct = effectiveKind === "PRODUCT" || effectiveKind === "BOTH";
+  const wantsService = effectiveKind === "SERVICE" || effectiveKind === "BOTH";
+  const hasBank = Boolean(
+    bank.bankName.trim() ||
+      bank.accountHolderName.trim() ||
+      bank.accountNumber.trim() ||
+      bank.ifscCode.trim(),
+  );
 
   return {
-    vendorKind: vendorKind === "SERVICE" ? "service" : "product",
-    vendorType: vendorKind,
+    vendorKind:
+      effectiveKind === "SERVICE"
+        ? "service"
+        : effectiveKind === "BOTH"
+          ? "both"
+          : "product",
+    vendorType: effectiveKind,
     ownerName: personal.name.trim(),
     businessName: business.businessName.trim(),
-    email: personal.email.trim() || null,
-    phone: personal.phone.trim(),
+    businessType: business.businessType.trim() || null,
+    email: personal.email.trim().toLowerCase() || null,
+    phone: normalizedPhone(personal.phone),
+    secondaryPhone: normalizedPhone(personal.secondaryPhone),
     categoriesJson:
-      vendorKind === "PRODUCT" && business.categorySlug.trim()
+      wantsProduct && business.categorySlug.trim()
         ? [business.categorySlug.trim()]
         : null,
     servicesJson:
-      vendorKind === "SERVICE" && business.serviceName.trim()
+      wantsService && business.serviceName.trim()
         ? [business.serviceName.trim()]
         : null,
-    gst: business.gst.trim() || null,
-    pan: business.pan.trim() || null,
+    gst: kyc.gst.trim().toUpperCase() || null,
+    pan: kyc.pan.trim().toUpperCase() || null,
     addressJson: {
-      // Vendor portal field names (admin approval maps these to catalog_vendors)
-      state: stateName || null,
-      stateName: stateName || null,
-      stateCode: business.stateCode.trim() || null,
+      state: business.state.trim() || null,
+      stateName: business.state.trim() || null,
+      district: business.district.trim() || null,
       areaLocality: business.shopAddress.trim() || null,
-      // User-web personal / location extras (stored in same JSON blob)
-      district: personal.district.trim() || null,
-      pincode: personal.pincode.trim() || null,
-      secondaryPhone: personal.secondaryPhone.trim() || null,
-      facebook: personal.facebook.trim() || null,
-      instagram: personal.instagram.trim() || null,
+      address: business.shopAddress.trim() || null,
     },
     documentsJson: {
-      gstCertificateFileName: kyc.gstCertName || null,
+      aadhaarNumber: kyc.aadhaarNumber || null,
+      aadhaarFrontFileName: kyc.aadhaarFrontName || null,
+      aadhaarBackFileName: kyc.aadhaarBackName || null,
       panCardFileName: kyc.panCardName || null,
+      gstCertificateFileName: kyc.gstCertName || null,
     },
     bankJson: {
-      bankName: bank.bankName.trim() || null,
-      ifscCode: bank.ifscCode.trim() || null,
-      accountHolderName: bank.accountHolderName.trim() || null,
-      accountNumber: bank.accountNumber.trim() || null,
+      version: 1,
+      accounts: hasBank
+        ? [
+            {
+              id: `primary-${Date.now()}`,
+              bankName: bank.bankName.trim(),
+              accountHolderName: bank.accountHolderName.trim(),
+              accountNumber: bank.accountNumber.trim(),
+              ifscCode: bank.ifscCode.trim().toUpperCase(),
+              accountType: "savings",
+              isPrimary: true,
+            },
+          ]
+        : [],
     },
   };
 }
