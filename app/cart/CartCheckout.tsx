@@ -15,6 +15,7 @@ import type { ApiError } from "@/lib/api/client";
 import { useAppLoading } from "@/providers/AppLoadingProvider";
 import { resolveMediaUrl } from "@/lib/media";
 import { loadRazorpay } from "@/lib/razorpay";
+import PurchaseActionButton from "@/components/shop/PurchaseActionButton";
 
 function shippingSnapshotFromAddress(address: {
   id: string | number;
@@ -838,10 +839,8 @@ export default function CartCheckout({
                       <p style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: 0 }}>{line.name}</p>
                       <p style={{ fontSize: 12, color: "#64748b", margin: "4px 0 0" }}>Vendor: {line.vendor || "—"}</p>
                       <p style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", margin: "8px 0 0" }}>{formatPrice(line.price)}</p>
-                      <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
-                        <button type="button" onClick={() => moveSavedToCart(line)} style={{ border: "none", background: "none", color: PRIMARY_MID, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
-                          MOVE TO CART
-                        </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
+                        <PurchaseActionButton action="cart" compact onClick={() => moveSavedToCart(line)} />
                         <button type="button" onClick={() => removeSaved(line)} style={{ border: "none", background: "none", color: "#ef4444", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
                           REMOVE
                         </button>

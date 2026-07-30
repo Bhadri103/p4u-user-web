@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import {
   Star, ChevronRight, X, SlidersHorizontal,
-  LayoutGrid, List as ListIcon, ShoppingCart, Zap, Heart,
+  LayoutGrid, List as ListIcon, Heart,
   Package, Images, Loader2, Tag,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -13,10 +13,10 @@ import { resolveCatalogUnitPrice } from "@/lib/catalog/resolvePrice";
 import { pickCategoryImage, pickProductImage, resolveMediaUrl, alternateUploadUrl } from "@/lib/media";
 import { useCart } from "@/providers/CartContext";
 import { profileApi } from "@/lib/api/profile";
+import PurchaseActionButton from "@/components/shop/PurchaseActionButton";
 
 const SHOP_CARD_PLACEHOLDER = "https://placehold.co/600x400/f3f4f6/64748b?text=P4U";
 const TEAL = "#009999";
-const BUY_GRADIENT = "linear-gradient(90deg,#0AA79E 0%,#12b3a6 45%,#F5A623 100%)";
 const PAGE_SIZE = 24;
 
 type ShopItem = {
@@ -191,23 +191,9 @@ function ProductCard({
         <span>({item.reviews})</span>
       </div>
       <p className="mt-1.5 text-[17px] font-bold text-gray-900">{formatInr(item.price)}</p>
-      <div className="mt-3 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onCart(); }}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-full border py-2 text-sm font-semibold transition hover:bg-[#009999]/5"
-          style={{ borderColor: TEAL, color: TEAL }}
-        >
-          <ShoppingCart className="h-4 w-4" /> Cart
-        </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onBuy(); }}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
-          style={{ background: BUY_GRADIENT }}
-        >
-          <Zap className="h-4 w-4 fill-white" /> Buy
-        </button>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <PurchaseActionButton action="cart" compact onClick={onCart} />
+        <PurchaseActionButton action="buy" compact onClick={onBuy} />
       </div>
     </div>
   );

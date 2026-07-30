@@ -2,14 +2,15 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Star, Heart, ShoppingCart, Minus, Plus, ChevronLeft,
+  Star, Heart, Minus, Plus, ChevronLeft,
   ChevronRight, Shield, Truck, RotateCcw, CheckCircle,
-  ThumbsUp, ChevronDown, ChevronUp, Tag, Zap
+  ThumbsUp, ChevronDown, ChevronUp, Tag
 } from "lucide-react";
 import { useCart } from "@/providers/CartContext";
 import { useAuth } from "@/providers/AuthContext";
 import { buildProductGalleryImages, resolveMediaUrl } from "@/lib/media";
 import { profileApi } from "@/lib/api/profile";
+import PurchaseActionButton from "@/components/shop/PurchaseActionButton";
 
 function parseAttributeOptions(raw) {
   if (!raw || typeof raw !== "object") return [];
@@ -532,29 +533,8 @@ export default function ProductDetailPage({ product: rawProduct, onBack }) {
                   <button type="button" onClick={() => setQty((q) => Math.min(20, q + 1))}
                     style={{ width: 36, height: 48, padding: 0, border: "none", background: "#f5f5f5", cursor: "pointer", fontSize: 18, fontWeight: 700, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>+</button>
                 </div>
-                <button
-                  onClick={handleAddToCart}
-                  style={{
-                    flex: 1, height: 48, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                    background: "#ff9f00", border: "none", borderRadius: 2, cursor: "pointer",
-                    fontSize: 14, fontWeight: 700, lineHeight: 1, whiteSpace: "nowrap", color: "white", boxShadow: "0 2px 4px rgba(255,159,0,0.4)",
-                    transition: "opacity 0.2s",
-                  }}
-                >
-                  <ShoppingCart size={18} style={{ flexShrink: 0 }} />
-                  <span style={{ display: "inline-flex", alignItems: "center", lineHeight: 1 }}>ADD TO CART</span>
-                </button>
-                <button
-                  onClick={handleBuyNow}
-                  style={{
-                    flex: 1, height: 48, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                    background: "#fb641b", border: "none", borderRadius: 2, cursor: "pointer",
-                    fontSize: 14, fontWeight: 700, lineHeight: 1, whiteSpace: "nowrap", color: "white", boxShadow: "0 2px 4px rgba(251,100,27,0.4)",
-                  }}
-                >
-                  <Zap size={18} style={{ flexShrink: 0 }} />
-                  <span style={{ display: "inline-flex", alignItems: "center", lineHeight: 1 }}>BUY NOW</span>
-                </button>
+                <PurchaseActionButton action="cart" className="flex-1" onClick={handleAddToCart} />
+                <PurchaseActionButton action="buy" className="flex-1" onClick={handleBuyNow} />
               </div>
             </div>
           </div> 

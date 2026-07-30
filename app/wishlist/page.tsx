@@ -12,6 +12,7 @@ import { catalogApi } from "@/lib/api/catalog";
 import { pickProductImage, resolveMediaUrl } from "@/lib/media";
 import { useCart } from "@/providers/CartContext";
 import { getServiceWishlist, removeServiceWishlist, type ServiceWishlistItem } from "@/lib/serviceWishlist";
+import PurchaseActionButton from "@/components/shop/PurchaseActionButton";
 
 type UiWishlistItem = WishlistItem & {
   safeName: string;
@@ -185,7 +186,9 @@ export default function WishlistPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
+                  <PurchaseActionButton
+                    action="cart"
+                    compact
                     onClick={() =>
                       addToCart({
                         id: item.productId,
@@ -198,10 +201,7 @@ export default function WishlistPage() {
                         vendorId: String(item.vendorId || ""),
                       })
                     }
-                    className="px-3 py-1.5 rounded-lg text-xs bg-teal-600 text-white hover:bg-teal-700"
-                  >
-                    Move to Cart
-                  </button>
+                  />
                   <button
                     onClick={() => removeItem(item.productId)}
                     disabled={processingId === item.productId}

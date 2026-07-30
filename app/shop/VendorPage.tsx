@@ -15,6 +15,7 @@ import { useAuth } from "@/providers/AuthContext";
 import { Loader2 } from "lucide-react";
 import { pickProductImage, pickVendorImage, resolveMediaUrl } from "@/lib/media";
 import { resolveCatalogDisplayOriginal, resolveCatalogUnitPrice } from "@/lib/catalog/resolvePrice";
+import PurchaseActionButton from "@/components/shop/PurchaseActionButton";
 
 const TEAL_SOLID = "#0d9488";
  
@@ -439,15 +440,7 @@ function ProductCard({ product, onProductClick, vendorId, vendorName, vendorCate
             <span className="text-xs font-semibold text-gray-900 text-center" style={{ minWidth: 20, padding: "4px 4px", borderLeft: "1px solid #e0e0e0", borderRight: "1px solid #e0e0e0" }}>{qty}</span>
             <button onClick={() => setQty(qty + 1)} className="flex items-center justify-center hover:bg-gray-50 transition-all" style={{ width: 26, height: 28, color: "#555" }}><Plus size={10} /></button>
           </div>
-          <button
-            onClick={handleAddToCart}
-            className="flex-1 text-[11px] sm:text-[12px] font-bold text-gray-900 rounded-xl transition-all active:scale-95 whitespace-nowrap"
-            style={{ height: 30, border: "1.5px solid #e0e0e0", background: "#fff" }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#ccc"; e.currentTarget.style.background = "#f5f5f5"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e0e0e0"; e.currentTarget.style.background = "#fff"; }}
-          >
-            Add to cart
-          </button>
+          <PurchaseActionButton action="cart" compact className="flex-1" onClick={handleAddToCart} />
         </div>
       </div>
     </div>
