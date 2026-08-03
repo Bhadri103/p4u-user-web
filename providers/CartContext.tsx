@@ -30,6 +30,8 @@ interface CartContextType {
   updateQty: (id: string | number, qty: number) => void;
   /** Clears local + server cart. Await after checkout so items cannot rematerialize. */
   clearCart: () => Promise<void>;
+  /** Replace local cart with server cart payload (after update/quote). */
+  applyServerCart: (serverCart: Cart) => void;
   totalItems: number;
   syncing: boolean;
   syncError: string | null;
@@ -272,10 +274,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const applyServerCart = useCallback((serverCart: Cart) => {
+    setSyncError(null);
+    setItems(mapServerItems(serverCart));
+  }, []);
+
   const totalItems = items.reduce((s, i) => s + i.qty, 0);
 
   return (
-    <CartContext.Provider value={{ items, addToCart, removeFromCart, updateQty, clearCart, totalItems, syncing, syncError }}>
+    <CartContext.Provider value={{ items, addToCart, removeFromCart, updateQty, clearCart, applyServerCart, totalItems, syncing, syncError }}>
       {children}
     </CartContext.Provider>
   );

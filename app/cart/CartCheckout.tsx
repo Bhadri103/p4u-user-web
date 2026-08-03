@@ -78,6 +78,21 @@ function checkoutFingerprint(parts: unknown[]): string {
   return `web-${(hash >>> 0).toString(16).padStart(8, "0")}`;
 }
 
+function newCheckoutAttemptKey(cartFingerprint: string): string {
+  const rand =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${cartFingerprint}-${rand}`;
+}
+
+/** Prefer catalog productId; never send a server cart-line UUID as productId. */
+function catalogProductId(item: { productId?: string | number; id: string | number }): string {
+  const pid = item.productId != null && String(item.productId).trim() !== "" ? String(item.productId) : "";
+  if (pid) return pid;
+  return String(item.id);
+}
+
 const DAYS   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const MONTHS = ["January","February","March","April","May","June",
                 "July","August","September","October","November","December"];
@@ -240,11 +255,14 @@ export default function CartCheckout({
   const { addresses, selectedAddress, selectedAddressId, isLoading: addressesLoading, error: addressError, selectAddress } = useAddresses();
   const pageRef = useRef<HTMLDivElement>(null);
   const { runWithLoading } = useAppLoading();
-  const { items: cartItems, removeFromCart, updateQty, clearCart, addToCart } = useCart();
-  const [step, setStep]               = useState<number>(0);
-  const [placing, setPlacing]         = useState<boolean>(false);
-  const [orderError, setOrderError]   = useState<string | null>(null);
+  const { items: cartItems, removeFromCart, updateQty, clearCart, addToCart, applyServerCart } = useCart();
+  const [step, setStep] = useState<number>(0);
+  const [placing, setPlacing] = useState<boolean>(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
   const [placedAmount, setPlacedAmount] = useState<number>(0);
+  const [placedOrderRef, setPlacedOrderRef] = useState<string>("");
+  const checkoutAttemptKeyRef = useRef<string | null>(null);
+  const quoteSeqRef = useRef(0);
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [weekBase, setWeekBase]       = useState<Date>(() => new Date());
   const [selectedTime, setSelectedTime] = useState<string>("morning");
@@ -261,11 +279,11 @@ export default function CartCheckout({
   const [showAddressModal, setShowAddressModal] = useState<boolean>(false);
   const currentAddress = selectedAddress ? formatAddress(selectedAddress) : address || "No address selected";
   const addressEmpty = !selectedAddress;
-  const checkoutKey = useMemo(
+  const cartFingerprint = useMemo(
     () => checkoutFingerprint([
       selectedAddressId ? String(selectedAddressId) : "",
       cartItems
-        .map((item) => [String(item.productId ?? item.id), item.qty, item.price, item.vendorId || ""])
+        .map((item) => [catalogProductId(item), item.qty, item.price, item.vendorId || ""])
         .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
     ]),
     [cartItems, selectedAddressId],
@@ -307,15 +325,17 @@ export default function CartCheckout({
       setQuoteError(null);
       return;
     }
+    const seq = ++quoteSeqRef.current;
     setQuoteLoading(true);
     setQuoteError(null);
     try {
-      await commerceApi.updateCart(
+      const synced = await commerceApi.updateCart(
         cartItems.map((i) => ({
-          productId: i.productId ?? i.id,
+          productId: catalogProductId(i),
           quantity: i.qty,
           unitPrice: i.price,
           vendorId: i.vendorId || null,
+          variationId: i.variationId ?? null,
           metadata: {
             productName: i.name,
             vendorName: i.vendor,
@@ -328,21 +348,37 @@ export default function CartCheckout({
           },
         })),
       );
+      if (seq !== quoteSeqRef.current) return;
+      const serverSig = (synced.items || [])
+        .map((i) => `${i.productId}:${i.quantity}:${i.vendorId || ""}`)
+        .sort()
+        .join("|");
+      const localSig = cartItems
+        .map((i) => `${catalogProductId(i)}:${i.qty}:${i.vendorId || ""}`)
+        .sort()
+        .join("|");
+      // Align UI to server truth once; avoid quote↔setItems loops when already matching.
+      if (serverSig !== localSig) {
+        applyServerCart(synced);
+        return;
+      }
       const q = await commerceApi.quoteCart({
         redeemPoints: pts,
         ...(coupon ? { couponCode: coupon } : {}),
       });
+      if (seq !== quoteSeqRef.current) return;
       setQuote(q);
       if (q.warnings?.length) {
         const couponWarn = q.warnings.find((w) => /coupon/i.test(w));
         if (couponWarn) setCouponError(couponWarn);
       }
     } catch (e) {
+      if (seq !== quoteSeqRef.current) return;
       setQuoteError(messageFromApiError(e, "Failed to fetch pricing."));
     } finally {
-      setQuoteLoading(false);
+      if (seq === quoteSeqRef.current) setQuoteLoading(false);
     }
-  }, [cartItems]);
+  }, [cartItems, applyServerCart]);
 
   useEffect(() => {
     refreshQuote(redeemApplied ? redeemPoints : 0, couponCode || undefined);
@@ -367,6 +403,7 @@ export default function CartCheckout({
   }, []);
 
   async function placeOrder() {
+    if (placing) return;
     setPlacing(true);
     setOrderError(null);
     try {
@@ -387,12 +424,13 @@ export default function CartCheckout({
           return;
         }
         if (cartItems.length > 0) {
-          await commerceApi.updateCart(
+          const synced = await commerceApi.updateCart(
             cartItems.map((i) => ({
-              productId: i.productId ?? i.id,
+              productId: catalogProductId(i),
               quantity: i.qty,
               unitPrice: i.price,
               vendorId: i.vendorId || null,
+              variationId: i.variationId ?? null,
               metadata: {
                 productName: i.name,
                 vendorName: i.vendor,
@@ -405,6 +443,7 @@ export default function CartCheckout({
               },
             })),
           );
+          applyServerCart(synced);
         }
 
         const paymentMode = payMethod === "cod" ? "cod" : "razorpay";
@@ -425,6 +464,12 @@ export default function CartCheckout({
               }
             : { mode: "anytime" };
 
+        // Unique per Place Order click so a stuck cart cannot replay an old order as "success".
+        if (!checkoutAttemptKeyRef.current) {
+          checkoutAttemptKeyRef.current = newCheckoutAttemptKey(cartFingerprint);
+        }
+        const idempotencyKey = checkoutAttemptKeyRef.current;
+
         const order = await commerceApi.createOrderFromCart({
           redeemPoints: redeemApplied ? redeemPoints : 0,
           couponCode: couponCode || undefined,
@@ -432,35 +477,43 @@ export default function CartCheckout({
           shippingAddress: shippingSnapshotFromAddress(selectedAddress),
           paymentMode,
           deliverySchedule,
-          idempotencyKey: checkoutKey,
+          idempotencyKey,
         });
 
+        const orderId = String(order?.id || "").trim();
+        const orderRef = String(order?.orderRef || "").trim();
+        if (!orderId || !orderRef) {
+          throw new Error("Order was not created. Please try again.");
+        }
+
+        const paidAmount = Number(
+          (order as { orders?: { totalAmount?: number | string }[] }).orders?.reduce(
+            (s, o) => s + Number(o.totalAmount || 0),
+            0,
+          ) || order.totalAmount || total,
+        );
+
         if (paymentMode === "cod") {
-          setPlacedAmount(total);
-          // Clear UI immediately so a rematerialized server cart cannot flash back.
+          setPlacedAmount(Number.isFinite(paidAmount) ? paidAmount : total);
+          setPlacedOrderRef(orderRef);
           try {
             await clearCart();
           } catch {
             setOrderError(
-              "Order placed, but cart could not be cleared. Check My Orders — remove leftover cart items if needed.",
+              `Order ${orderRef} placed, but cart could not be cleared. Open My Orders — remove leftover cart items if needed.`,
             );
           }
           commerceApi.invalidateOrdersCache();
+          checkoutAttemptKeyRef.current = null;
           setStep(2);
           scrollToTop();
           return;
         }
 
         const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!;
-        const payAmount = Number(
-          (order as { orders?: { totalAmount?: number }[] }).orders?.reduce(
-            (s, o) => s + Number(o.totalAmount || 0),
-            0,
-          ) || order.totalAmount || total,
-        );
         const intent = await paymentsApi.createIntent({
           orderId: order.id,
-          amount: payAmount,
+          amount: paidAmount,
           metadata: {
             orderType: "product",
             domain: "product",
@@ -476,7 +529,7 @@ export default function CartCheckout({
         }
 
         const Rzp = await loadRazorpay();
-        const amountSubunits = Math.round(Number(payAmount) * 100);
+        const amountSubunits = Math.round(Number(paidAmount) * 100);
         await new Promise<void>((resolve, reject) => {
           const rzp = new Rzp({
             key: razorpayKey,
@@ -505,16 +558,17 @@ export default function CartCheckout({
                   reject(new Error("Commerce confirmation failed"));
                   return;
                 }
-                setPlacedAmount(payAmount);
+                setPlacedAmount(Number.isFinite(paidAmount) ? paidAmount : total);
+                setPlacedOrderRef(orderRef);
                 try {
                   await clearCart();
                 } catch {
-                  // Order exists; warn but still show success so user can open My Orders.
                   setOrderError(
-                    "Order placed, but cart could not be cleared. Refresh My Orders — remove leftover cart items if needed.",
+                    `Order ${orderRef} placed, but cart could not be cleared. Refresh My Orders — remove leftover cart items if needed.`,
                   );
                 }
                 commerceApi.invalidateOrdersCache();
+                checkoutAttemptKeyRef.current = null;
                 setStep(2);
                 scrollToTop();
                 resolve();
@@ -526,7 +580,7 @@ export default function CartCheckout({
             modal: {
               ondismiss: () => {
                 setOrderError(
-                  "Payment was cancelled. Your order is pending payment — use Pay now on My Orders.",
+                  `Payment was cancelled. Order ${orderRef} is pending payment — use Pay now on My Orders.`,
                 );
                 commerceApi.invalidateOrdersCache();
                 resolve();
@@ -547,7 +601,7 @@ export default function CartCheckout({
         return;
       }
       setOrderError(
-        messageFromApiError(e, "Failed to place order. Please try again."),
+        messageFromApiError(e, "Could not place order. Please try again."),
       );
     } finally {
       setPlacing(false);
@@ -1200,7 +1254,14 @@ export default function CartCheckout({
           <h2 style={{ fontSize: 16, fontWeight: 600, color: "#202124", margin: "0 0 4px" }}>
             Your order of {formatPrice(placedAmount || itemTotal)}
           </h2>
-          <p style={{ fontSize: 16, fontWeight: 600, color: "#202124", margin: "0 0 32px" }}>has been successfully placed!</p>
+          <p style={{ fontSize: 16, fontWeight: 600, color: "#202124", margin: "0 0 8px" }}>has been successfully placed!</p>
+          {placedOrderRef ? (
+            <p style={{ fontSize: 13, fontWeight: 500, color: "#5D757A", margin: "0 0 32px" }}>
+              Order ID: {placedOrderRef}
+            </p>
+          ) : (
+            <div style={{ height: 32 }} />
+          )}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
             <button
               onClick={onBack ?? (() => goToStep(0))}
