@@ -9,12 +9,6 @@ type Tab = "browse" | "mine" | "messages" | "tools";
 const fieldClass = "h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-teal-500";
 const money = (value: unknown) => `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const messageOf = (error: unknown) => error instanceof Error ? error.message : "Request failed";
-const SAMPLE_PROPERTIES: PropertyRow[] = [
-  { id:"demo-home-1", title:"Modern 2 BHK Apartment", transaction_type:"sale", property_type:"apartment", bhk:"2", area_sqft:"1180", locality:"Whitefield", city:"Bengaluru", price:7200000, image_url:"/images/properties/modern-apartment.jpg", images:["/images/properties/modern-apartment.jpg"], description:"Bright, thoughtfully furnished apartment with a spacious living area and balcony views.", status:"approved" },
-  { id:"demo-home-2", title:"Premium Family Villa", transaction_type:"sale", property_type:"villa", bhk:"4", area_sqft:"2850", locality:"Kakkanad", city:"Kochi", price:14500000, image_url:"/images/properties/family-villa.jpg", images:["/images/properties/family-villa.jpg"], description:"Independent family villa with landscaped surroundings, generous rooms and covered parking.", status:"approved" },
-  { id:"demo-home-3", title:"Furnished Studio Apartment", transaction_type:"rent", property_type:"apartment", bhk:"1", area_sqft:"540", locality:"HITEC City", city:"Hyderabad", price:24000, image_url:"/images/properties/furnished-studio.jpg", images:["/images/properties/furnished-studio.jpg"], description:"Compact furnished studio with a dedicated workspace, storage and excellent natural light.", status:"approved" },
-];
-
 export default function PropertyWorkspace() {
   const [tab, setTab] = useState<Tab>("browse");
   const [items, setItems] = useState<PropertyRow[]>([]);
@@ -28,11 +22,12 @@ export default function PropertyWorkspace() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [showPost, setShowPost] = useState(false);
+  const [postSuccess, setPostSuccess] = useState("");
 
   const loadBrowse = useCallback(async () => {
     setLoading(true); setError("");
-    try { const result = await propertiesApi.list({ q: q || undefined, type: type || undefined, propertyType: propertyType || undefined, limit: 100 }); const apiRows=result.items||[]; const query=q.trim().toLowerCase(); setItems(apiRows.length ? apiRows : SAMPLE_PROPERTIES.filter((row) => (!type || row.transaction_type === type) && (!propertyType || String(row.property_type).toLowerCase().includes(propertyType.toLowerCase())) && (!query || [row.title,row.city,row.locality].join(" ").toLowerCase().includes(query)))); }
-    catch { const query=q.trim().toLowerCase(); setItems(SAMPLE_PROPERTIES.filter((row) => (!type || row.transaction_type === type) && (!propertyType || String(row.property_type).toLowerCase().includes(propertyType.toLowerCase())) && (!query || [row.title,row.city,row.locality].join(" ").toLowerCase().includes(query)))); setError(""); }
+    try { const result = await propertiesApi.list({ q: q || undefined, type: type || undefined, propertyType: propertyType || undefined, limit: 100 }); setItems(result.items || []); }
+    catch (requestError) { setItems([]); setError(messageOf(requestError)); }
     finally { setLoading(false); }
   }, [q, type, propertyType]);
 
@@ -54,13 +49,20 @@ export default function PropertyWorkspace() {
     <nav className="z-20 mt-4 flex shrink-0 gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur">{([['browse','Browse'],['mine','My properties'],['messages','Messages'],['tools','Tools']] as const).map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold transition ${tab === id ? "bg-teal-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}>{label}</button>)}</nav>
     {tab === "browse" && <div className="mt-3 flex shrink-0 gap-2 overflow-x-auto">{[["","All"],["sale","Buy"],["rent","Rent"]].map(([value,label]) => <button key={label} type="button" onClick={() => setType(value)} className={`rounded-full border px-4 py-2 text-sm font-bold ${type === value ? "bg-teal-50 text-teal-800" : "bg-white text-slate-700"}`}>{label}</button>)}<button type="button" onClick={() => setTab("tools")} className="rounded-full border bg-white px-4 py-2 text-sm font-bold text-slate-700">EMI</button><button type="button" onClick={() => setTab("tools")} className="rounded-full border bg-white px-4 py-2 text-sm font-bold text-slate-700">Estimate</button></div>}
     {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-red-700">{error}</p>}
+    {postSuccess && <p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 text-emerald-800">{postSuccess}</p>}
     <div className="min-h-0 flex-1">
     {tab === "browse" && <Browse items={items} loading={loading} q={q} setQ={setQ} type={type} setType={setType} propertyType={propertyType} setPropertyType={setPropertyType} search={loadBrowse} saveSearch={saveCurrentSearch} />}
     {tab === "mine" && <MyListings rows={mine} refresh={loadAccount} setError={setError} />}
     {tab === "messages" && <Messages rows={messages} />}
     {tab === "tools" && <Tools saved={saved} rent={rent} refresh={loadAccount} setError={setError} />}
     </div>
-    {showPost && <PropertyForm onClose={() => setShowPost(false)} onSaved={async () => { setShowPost(false); await loadAccount(); }} setError={setError} />}
+    {showPost && <PropertyForm onClose={() => setShowPost(false)} onSaved={async () => {
+      setShowPost(false);
+      setTab("mine");
+      setPostSuccess("Property submitted for review. Sale / rent / lease type was saved with your listing.");
+      window.setTimeout(() => setPostSuccess(""), 8000);
+      await loadAccount();
+    }} setError={setError} />}
   </div></div>;
 }
 
@@ -96,7 +98,7 @@ function MyListings({ rows, refresh, setError }: { rows:PropertyRow[]; refresh:(
       setError(messageOf(error));
     }
   }
-  return <section className="mt-5 space-y-3">{rows.map((row)=><article key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-white p-5"><div><h2 className="font-bold">{row.title}</h2><p className="text-sm text-slate-500">{money(row.price)} · {row.locality || row.city || 'No location'}</p></div><div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase">{row.status}</span>{['pending','rejected'].includes(String(row.status||''))&&<button onClick={()=>void edit(row)} className="rounded-lg border px-3 py-2 text-sm font-bold text-teal-700">Edit</button>}<button onClick={async()=>{if(!window.confirm('Delete this property?'))return;try{await propertiesApi.remove(row.id);await refresh();}catch(error){setError(messageOf(error));}}} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-600">Delete</button></div></article>)}{!rows.length&&<p className="py-16 text-center text-slate-500">You have not posted a property.</p>}</section>;
+  return <section className="mt-5 space-y-3">{rows.map((row)=><article key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-white p-5"><div className="flex min-w-0 flex-1 items-start gap-3">{row.image_url||row.cover_image||(Array.isArray(row.images)&&row.images[0])?<img src={String(row.image_url||row.cover_image||row.images?.[0]||"")} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover bg-slate-100"/>:<div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs text-slate-400">No photo</div>}<div className="min-w-0"><h2 className="font-bold">{row.title}</h2><p className="text-sm text-slate-500">{money(row.price)} · {String(row.transaction_type||row.listingType||"").replace(/_/g," ")||"listing"} · {row.locality || row.city || "No location"}</p></div></div><div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase">{row.status}</span>{['pending','rejected'].includes(String(row.status||''))&&<button onClick={()=>void edit(row)} className="rounded-lg border px-3 py-2 text-sm font-bold text-teal-700">Edit</button>}<button onClick={async()=>{if(!window.confirm('Delete this property?'))return;try{await propertiesApi.remove(row.id);await refresh();}catch(error){setError(messageOf(error));}}} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-600">Delete</button></div></article>)}{!rows.length&&<p className="py-16 text-center text-slate-500">You have not posted a property.</p>}</section>;
 }
 function Messages({ rows }: { rows:Record<string,unknown>[] }) { return <section className="mt-5 space-y-3">{rows.map((row,index)=><article key={String(row.id||index)} className="rounded-2xl border bg-white p-5"><div className="flex justify-between gap-3"><h2 className="font-bold">Property inquiry</h2><span className="text-xs font-bold uppercase text-teal-700">{String(row.status||'open')}</span></div><p className="mt-2 text-slate-700">{String(row.message||'')}</p><p className="mt-2 text-xs text-slate-400">{row.created_at?new Date(String(row.created_at)).toLocaleString():''}</p></article>)}{!rows.length&&<p className="py-16 text-center text-slate-500">No property conversations yet.</p>}</section>; }
 

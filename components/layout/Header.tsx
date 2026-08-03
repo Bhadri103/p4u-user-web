@@ -186,10 +186,23 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
       setProfileAvatar(null);
       return;
     }
-    Promise.allSettled([profileApi.getWishlist(), profileApi.getMe()]).then(([wishlist, profile]) => {
-      setWishlistCount(wishlist.status === "fulfilled" ? wishlist.value.length : 0);
-      setProfileAvatar(profile.status === "fulfilled" ? profile.value.avatar ?? null : null);
-    });
+    const loadProfileChrome = () => {
+      Promise.allSettled([profileApi.getWishlist(), profileApi.getMe()]).then(([wishlist, profile]) => {
+        setWishlistCount(wishlist.status === "fulfilled" ? wishlist.value.length : 0);
+        setProfileAvatar(profile.status === "fulfilled" ? profile.value.avatar ?? null : null);
+      });
+    };
+    loadProfileChrome();
+    const onProfileUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ avatar?: string | null }>).detail;
+      if (detail && "avatar" in detail) {
+        setProfileAvatar(detail.avatar ?? null);
+        return;
+      }
+      loadProfileChrome();
+    };
+    window.addEventListener("p4u-profile-updated", onProfileUpdated);
+    return () => window.removeEventListener("p4u-profile-updated", onProfileUpdated);
   }, [isLoggedIn]);
 
   function handleCartClick() {

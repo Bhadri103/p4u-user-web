@@ -14,7 +14,7 @@ const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpodGRkc3FucGZ2anZuZm9qZWVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTE3NTksImV4cCI6MjA4ODk2Nzc1OX0.ENeCHn70-5_I0tb61rr1q0q-VoI7f2mqcTBoL7yxhP0";
 
 export const USE_SUPABASE_DIRECT =
-  process.env.NEXT_PUBLIC_P4U_USE_SUPABASE_DIRECT !== "false";
+  process.env.NEXT_PUBLIC_P4U_USE_SUPABASE_DIRECT === "true";
 const REQUEST_TIMEOUT_MS = 10_000;
 
 type JsonMap = Record<string, unknown>;

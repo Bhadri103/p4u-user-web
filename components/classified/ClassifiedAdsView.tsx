@@ -7,7 +7,6 @@ import { ChevronLeft, ChevronRight, Clock, MapPin, Plus, Search, Tag } from "luc
 import { classifiedApi, type ClassifiedAd, type ClassifiedCategory } from "@/lib/api/classified";
 import { loadClassifiedCategories } from "@/lib/classified/categories";
 import { formatClassifiedInr, formatClassifiedShortDate } from "@/lib/classified/format";
-import { filteredSampleClassifiedAds } from "@/lib/classified/samples";
 import { resolveMediaUrl } from "@/lib/media";
 
 const THEME = "#89CFF0";
@@ -102,14 +101,14 @@ export default function ClassifiedAdsView() {
         loadClassifiedCategories({ forceRefresh: true }),
       ]);
       const remoteAds = listResult.status === "fulfilled" ? listResult.value.items : [];
-      setAds(remoteAds.length ? remoteAds : filteredSampleClassifiedAds(searchQuery, activeCategory));
+      setAds(remoteAds);
       setCategories(categoryResult.status === "fulfilled" ? categoryResult.value : []);
       if (listResult.status === "rejected") {
         const message = listResult.reason instanceof Error ? listResult.reason.message : "";
-        if (message && !/maximum call stack|request failed|failed to fetch|network|service/i.test(message)) setError(message);
+        setError(message || "Failed to load classified ads");
       }
     } catch (reason: unknown) {
-      setAds(filteredSampleClassifiedAds(searchQuery, activeCategory));
+      setAds([]);
       setError(reason && typeof reason === "object" && "message" in reason ? String(reason.message) : "Failed to load classified ads");
     } finally {
       setLoading(false);

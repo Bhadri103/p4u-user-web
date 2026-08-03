@@ -3,9 +3,6 @@ import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Home, ShoppingBag, Tags, Users, Wrench } from "lucide-react";
-import banner1 from "../../images/home-banner/banner1.png";
-import banner2 from "../../images/home-banner/banner2.jpg";
-import banner3 from "../../images/home-banner/banner3.png";
 import { contentApi } from "@/lib/api/content";
 import { resolveMediaUrl } from "@/lib/media";
 
@@ -22,12 +19,6 @@ type HeroSlide = {
   themeButtonColor?: string;
   backgroundGradient?: string;
 };
-
-const FALLBACK_SLIDES = [
-  { image: banner1, alt: "Banner" },
-  { image: banner2, alt: "Banner" },
-  { image: banner3, alt: "Banner" },
-];
 
 function isBannerLive(startDate?: string, endDate?: string): boolean {
   const now = Date.now();
@@ -60,7 +51,8 @@ function resolveBannerImageUrl(raw: unknown): string | undefined {
 }
 
 export default function HeroSlider() {
-  const [slides, setSlides] = useState<HeroSlide[]>(FALLBACK_SLIDES);
+  const [slides, setSlides] = useState<HeroSlide[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(true);
   const [slidePosition, setSlidePosition] = useState(0);
@@ -108,11 +100,11 @@ export default function HeroSlider() {
           .map((b) => ({ image: (resolveBannerImageUrl(b.imageUrl || b.image) || (b.imageUrl || b.image)) as any, alt: b.title ?? "Banner" }))
           .filter((s) => Boolean(s.image));
 
-        setSlides(cmsHero.length ? cmsHero : (fallbackApi.length ? fallbackApi : FALLBACK_SLIDES));
+        setSlides(cmsHero.length ? cmsHero : fallbackApi);
         setCurrentSlide(0);
         setSlidePosition(0);
       }
-    }).catch(() => {});
+    }).catch(() => setSlides([])).finally(() => setLoaded(true));
   }, []);
 
   const nextSlide = useCallback(() => {
@@ -163,13 +155,15 @@ export default function HeroSlider() {
     }
   }, [currentSlide, slidePosition, slides.length]);
 
-  if (slides.length === 0) {
+  if (!loaded) {
     return (
       <div className="mx-auto mt-6 w-full  max-w-7xl bg-white  px-4 sm:px-6 lg:mt-8 lg:px-8">
         <div className="h-[200px] animate-pulse rounded-[28px] border border-[#D7E7F5] bg-slate-100 shadow-[0_18px_50px_rgba(31,74,125,.08)] sm:h-[280px] lg:h-[380px]" />
       </div>
     );
   }
+
+  if (slides.length === 0) return null;
 
   const destinations = [
     { label: "Shop products", description: "Everyday essentials", href: "/shop", icon: ShoppingBag },

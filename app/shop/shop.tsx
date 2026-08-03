@@ -15,7 +15,6 @@ import { useCart } from "@/providers/CartContext";
 import { profileApi } from "@/lib/api/profile";
 import PurchaseActionButton from "@/components/shop/PurchaseActionButton";
 
-const SHOP_CARD_PLACEHOLDER = "https://placehold.co/600x400/f3f4f6/64748b?text=P4U";
 const TEAL = "#89CFF0";
 const PAGE_SIZE = 24;
 const ALL_CATEGORIES_COUNT_KEY = "__all__";
@@ -136,7 +135,7 @@ function ProductCard({
   item: ShopItem; wished: boolean; view: "grid" | "list";
   onOpen: () => void; onCart: () => void; onBuy: () => void; onWish: () => void;
 }) {
-  const initial = item.image && item.image.trim() ? item.image : SHOP_CARD_PLACEHOLDER;
+  const initial = item.image?.trim() || "";
   const [src, setSrc] = useState(initial);
   const [triedAlt, setTriedAlt] = useState(false);
 
@@ -151,7 +150,7 @@ function ProductCard({
 
   const ImageBox = (
     <div className={`relative overflow-hidden bg-gradient-to-br from-[#F7FBFF] to-[#EAF4FF]/60 ${view === "list" ? "h-full w-full" : "aspect-[4/3]"}`}>
-      <Image
+      {src ? <Image
         src={src}
         alt={item.title}
         fill
@@ -167,9 +166,9 @@ function ProductCard({
               return;
             }
           }
-          if (src !== SHOP_CARD_PLACEHOLDER) setSrc(SHOP_CARD_PLACEHOLDER);
+          setSrc("");
         }}
-      />
+      /> : <div className="flex h-full w-full items-center justify-center text-slate-400" role="img" aria-label={`${item.title} image unavailable`}><Package className="h-8 w-8" /></div>}
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onWish(); }}
@@ -317,6 +316,7 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
   const [items, setItems] = useState<ShopItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const loadingMoreRef = useRef(false);
@@ -339,7 +339,7 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
       return {
         id: p.id,
         title: p.name || "Product",
-        image: thumb || SHOP_CARD_PLACEHOLDER,
+        image: thumb,
         price: unit,
         originalPrice: Number(
           (p as { mrp?: number | string; compareAtPrice?: number | string }).mrp ??
@@ -350,7 +350,7 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
         vendorId: String(p.vendorId ?? ""),
         rating: Number((p as { rating?: number }).rating ?? 0) || 0,
         reviews: Number((p as { reviewCount?: number; reviews?: number }).reviewCount ?? (p as { reviews?: number }).reviews ?? 0) || 0,
-        imageCount: imageCount || 1,
+        imageCount,
       };
     });
   }
@@ -426,6 +426,7 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setLoadError("");
     setHasMore(false);
 
     const run = async () => {
@@ -453,11 +454,15 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
         setTotal(totalCount);
         setItems(mapProductRows(rows));
         setHasMore(rows.length >= PAGE_SIZE);
-      } catch {
+      } catch (error) {
         if (cancelled) return;
         setItems([]);
         setTotal(0);
         setHasMore(false);
+        const message = error && typeof error === "object" && "message" in error
+          ? String((error as { message?: unknown }).message || "")
+          : "";
+        setLoadError(message || "The product catalog could not be loaded from the main database.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -686,6 +691,14 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
           <div ref={productScrollRef} className="marketplace-primary-scroll min-w-0 lg:h-full lg:overflow-y-auto lg:overscroll-contain lg:pr-2 marketplace-scroll-panel">
           {loading ? (
             <div className="flex justify-center py-24"><Loader2 className="h-8 w-8 animate-spin text-teal-600" /></div>
+          ) : loadError ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-16 text-center text-red-700 shadow-sm">
+              <p className="font-semibold">Unable to load products</p>
+              <p className="mt-2 text-sm">{loadError}</p>
+              <button type="button" onClick={() => window.location.reload()} className="mt-5 rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white">
+                Retry
+              </button>
+            </div>
           ) : filtered.length === 0 ? (
             <div className="rounded-2xl bg-white py-24 text-center text-gray-400 shadow-sm">
               No products found. Pick a category or adjust filters.

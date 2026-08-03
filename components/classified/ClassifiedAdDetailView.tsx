@@ -11,7 +11,6 @@ import {
   whatsAppHref,
 } from "@/lib/classified/format";
 import { resolveMediaUrl } from "@/lib/media";
-import { sampleClassifiedById } from "@/lib/classified/samples";
 
 const TEAL = "#89CFF0";
 
@@ -55,12 +54,6 @@ export default function ClassifiedAdDetailView({ id }: { id: string }) {
       setLoading(true);
       setError("");
       setSelectedImage(null);
-      const sample = sampleClassifiedById(id);
-      if (sample) {
-        if (!cancelled) setAd(sample);
-        if (!cancelled) setLoading(false);
-        return;
-      }
       try {
         const row = await classifiedApi.get(id);
         if (!cancelled) setAd(row);
@@ -78,7 +71,7 @@ export default function ClassifiedAdDetailView({ id }: { id: string }) {
     };
   }, [id]);
 
-  const image = resolveMediaUrl(selectedImage || ad?.image) || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=1200&h=800&fit=crop";
+  const image = resolveMediaUrl(selectedImage || ad?.image) || "";
   const parsed = parseClassifiedDescription(ad?.description ?? null);
   const waHref = useMemo(() => {
     if (!ad) return null;
@@ -131,7 +124,7 @@ export default function ClassifiedAdDetailView({ id }: { id: string }) {
         <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
         <div className="bg-slate-50/70 p-3 sm:p-4">
         <div className="aspect-[4/3] max-h-[520px] overflow-hidden rounded-2xl bg-gray-100">
-          <img src={image} alt={ad.title} className="h-full w-full object-cover" />
+          {image ? <img src={image} alt={ad.title} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-sm text-slate-500">Image unavailable</div>}
         </div>
         {ad.images.length > 1 ? <div className="flex gap-2 overflow-x-auto py-2.5">{ad.images.slice(0, 10).map((url,index) => <button key={`${url}-${index}`} type="button" onClick={() => setSelectedImage(url)} className={`h-14 w-20 shrink-0 overflow-hidden rounded-xl border-2 bg-white p-0.5 ${resolveMediaUrl(url) === image ? "border-blue-500" : "border-transparent hover:border-blue-200"}`} aria-label={`View photo ${index + 1}`}><img src={resolveMediaUrl(url) || url} alt={`Photo ${index + 1}`} className="h-full w-full rounded-lg object-cover"/></button>)}</div> : null}
 

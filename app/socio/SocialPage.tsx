@@ -47,33 +47,14 @@ interface NotificationItem { id: string | number; userId: string; group: string;
 interface SearchItem { id: number; userId?: string; name: string; sub: string; avatar: string; verified: boolean }
 interface SuggestionItem { id: string | number; userId: string; name: string; sub: string; avatar: string }
 interface UserProfileData { userId: string; name: string; username: string; bio: string; website: string; posts: number; followers: number; following: number; avatar: string; images: ProfileGridMedia[]; reels: ReelItem[]; verified: boolean; isSelf: boolean; isFollowing: boolean }
+
+function getViewerFeed(params?: { limit?: number; offset?: number }) {
+  const signedIn = typeof window !== "undefined" && Boolean(localStorage.getItem("p4u_token"));
+  return signedIn ? socialApi.getFeed(params) : socialApi.getPublicFeed(params);
+}
 interface ExplorePostItem { id: number | string; image: string; likes: number; comments: number; type: "image" | "video"; reel?: ReelItem; category?: string | null }
 interface ReelItem { id: number | string; postId: string | number; userId: string; username: string; caption: string; video: string; likes: number; comments: number; shares: number; avatar: string; user: string; isLiked?: boolean; isSaved?: boolean; isFollowing?: boolean; isSelf?: boolean; createdAt?: string; views?: number; audio?: string }
 interface ProfileGridMedia { id: string | number; url: string; type: "image" | "video" }
-
-const DEMO_SOCIAL_PROFILES: SuggestionItem[] = [
-  { id: "demo-ananya", userId: "demo-ananya", name: "Ananya Sharma", sub: "@ananya.creates", avatar: "" },
-  { id: "demo-arjun", userId: "demo-arjun", name: "Arjun Mehta", sub: "@arjun.travels", avatar: "" },
-  { id: "demo-meera", userId: "demo-meera", name: "Meera Nair", sub: "@meera.home", avatar: "" },
-  { id: "demo-rohan", userId: "demo-rohan", name: "Rohan Verma", sub: "@rohan.fit", avatar: "" },
-  { id: "demo-kavya", userId: "demo-kavya", name: "Kavya Rao", sub: "@kavya.styles", avatar: "" },
-  { id: "demo-vikram", userId: "demo-vikram", name: "Vikram Singh", sub: "@vikram.tech", avatar: "" },
-];
-const DEMO_CONVERSATIONS: Conversation[] = [
-  { id:"demo-ananya", participantId:"demo-ananya", participantName:"Ananya Sharma", lastMessage:"Sent a photo · 3m", unreadCount:1 },
-  { id:"demo-arjun", participantId:"demo-arjun", participantName:"Arjun Mehta", lastMessage:"2 new messages · 2h", unreadCount:2 },
-  { id:"demo-meera", participantId:"demo-meera", participantName:"Meera Nair", lastMessage:"Sent 14m ago", unreadCount:0 },
-  { id:"demo-rohan", participantId:"demo-rohan", participantName:"Rohan Verma", lastMessage:"Looks great! · 5h", unreadCount:0 },
-  { id:"demo-kavya", participantId:"demo-kavya", participantName:"Kavya Rao", lastMessage:"4+ new messages · 1d", unreadCount:4 },
-  { id:"demo-vikram", participantId:"demo-vikram", participantName:"Vikram Singh", lastMessage:"Shared a post · 2d", unreadCount:1 },
-];
-const DEMO_CHAT_MESSAGES = [
-  ["Hey! How are you?", false, "10:18 AM"],
-  ["I’m doing great. How about you?", true, "10:19 AM"],
-  ["All good! I saw your latest post.", false, "10:20 AM"],
-  ["Thank you! Glad you liked it 😊", true, "10:21 AM"],
-  ["Let’s catch up sometime this week.", false, "10:23 AM"],
-] as const;
 
 function firstAlphabet(name?: string | null): string {
   const trimmed = (name || "U").trim();
@@ -1587,7 +1568,7 @@ function HomeSection({ onUserClick }: { onUserClick: (userId: string) => void })
     try {
       setLoadingFeed(true);
       const [feedRes, storyRes, suggestionsRes, meRes, myStoriesRes, adsRes, adConfigRes] = await Promise.allSettled([
-        socialApi.getPublicFeed({ limit: 20 }),
+        getViewerFeed({ limit: 20 }),
         socialApi.getStoryFeed(),
         socialApi.getSuggestions(),
         socialApi.getMyProfile(),
@@ -1849,7 +1830,7 @@ function ExploreSection({ onUserClick }: { onUserClick: (userId: string) => void
     async function load() {
       try {
         const [feedRes, sugRes, tagsRes, placesRes] = await Promise.allSettled([
-          socialApi.getPublicFeed({ limit: 18 }),
+          getViewerFeed({ limit: 18 }),
           socialApi.getSuggestions(),
           socialApi.getTrendingTags({ limit: 20 }),
           socialApi.getTrendingPlaces({ limit: 20 }),
@@ -2572,11 +2553,10 @@ function MessagesSection({
     try {
       apiClient.clearGetCache("/api/v1/social/messages/conversations");
       const rows = await socialApi.getConversations();
-      const ids = new Set(rows.map((row) => String(row.id)));
-      setConversations(sortConversations([...rows, ...DEMO_CONVERSATIONS.filter((row) => !ids.has(String(row.id)))]));
+      setConversations(sortConversations(rows));
     } catch (err) {
-      setListError(null);
-      if (!silent) setConversations(DEMO_CONVERSATIONS);
+      setListError(err instanceof Error ? err.message : "Could not load conversations.");
+      if (!silent) setConversations([]);
     } finally {
       if (!silent) setLoadingList(false);
     }
@@ -2603,7 +2583,7 @@ function MessagesSection({
       const suggestions = suggestionsResult.status === "fulfilled" ? suggestionsResult.value.map(mapApiSuggestion) : [];
       const mineName = mine?.displayName || mine?.username || mine?.userName || "Your note";
       setMessageAccountName(mine?.username ? `@${mine.username.replace(/^@/, "")}` : mineName);
-      const notePeople = [...suggestions, ...DEMO_SOCIAL_PROFILES].filter((item, index, all) => all.findIndex((other) => other.userId === item.userId) === index).slice(0, 3);
+      const notePeople = suggestions.slice(0, 3);
       setMessageNotes(notePeople.map((item, index) => ({ userId: item.userId, name: index === 0 ? "Your note" : item.name, avatar: index === 0 ? (mine?.userAvatar ?? item.avatar) : item.avatar, note: ["Just curious...", "Weekend plans ✨", "New"][index], mine: index === 0 })));
     });
     return () => { cancelled = true; };
@@ -2613,11 +2593,6 @@ function MessagesSection({
     setLoadingMessages(true);
     setMessagesError(null);
     try {
-      if (conversationId.startsWith("demo-")) {
-        const base = new Date();
-        setMessages(DEMO_CHAT_MESSAGES.map(([content, isMine], index) => ({ id:`${conversationId}-${index}`, conversationId, senderId:isMine ? "me" : conversationId, content, createdAt:new Date(base.getTime() - (DEMO_CHAT_MESSAGES.length - index) * 60_000).toISOString(), isMine, status:"read" })));
-        return;
-      }
       const rows = await socialApi.getMessages(conversationId, { limit: 100 });
       setMessages(sortMessages(rows));
     } catch (err) {
@@ -2669,7 +2644,7 @@ function MessagesSection({
     setMessages([]);
     await loadMessages(conversationId);
     try {
-      if (!conversationId.startsWith("demo-")) await socialApi.markConversationRead(conversationId);
+      await socialApi.markConversationRead(conversationId);
       setConversations((rows) =>
         rows.map((row) => (String(row.id) === conversationId ? { ...row, unreadCount: 0, isRequest: tab === "requests" ? false : row.isRequest } : row)),
       );
@@ -2737,10 +2712,9 @@ function MessagesSection({
     try {
       const rows = await socialApi.getSuggestions({ limit: 12 });
       const mapped = rows.map(mapApiSuggestion);
-      const ids = new Set(mapped.map((row) => row.userId));
-      setNewChatSuggestions([...mapped, ...DEMO_SOCIAL_PROFILES.filter((row) => !ids.has(row.userId))]);
+      setNewChatSuggestions(mapped);
     } catch {
-      setNewChatSuggestions(DEMO_SOCIAL_PROFILES);
+      setNewChatSuggestions([]);
     } finally {
       setNewChatLoading(false);
     }
@@ -2771,7 +2745,7 @@ function MessagesSection({
     setInput("");
     setSending(true);
     try {
-      const saved = activeId.startsWith("demo-") ? { ...optimistic, id:`demo-message-${Date.now()}`, status:"read" as const } : await socialApi.sendMessage(activeId, payload);
+      const saved = await socialApi.sendMessage(activeId, payload);
       setMessages((rows) => rows.map((row) => (row.id === optimisticId ? saved : row)));
       const preview = text || (payload.mediaType === "video" ? "Video" : "Photo");
       setConversations((rows) => {

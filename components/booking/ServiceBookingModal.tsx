@@ -8,13 +8,6 @@ import { formatAddress, useAddresses } from "@/providers/AddressContext";
 import type { ApiError } from "@/lib/api/client";
 import { TEAL_GRAD } from "@/app/service/serviceData";
 
-/** Mirrors commerce-management-services booking.service TIME_SLOTS for offline fallback */
-const FALLBACK_SLOTS: AvailableSlot[] = [
-  { label: "Morning 9-11 AM", value: "09:00-11:00", available: true },
-  { label: "Afternoon 12-3 PM", value: "12:00-15:00", available: true },
-  { label: "Evening 4-6 PM", value: "16:00-18:00", available: true },
-];
-
 function todayYmd(): string {
   const d = new Date();
   const y = d.getFullYear();
@@ -47,7 +40,7 @@ export default function ServiceBookingModal({
   const { addresses, selectedAddress, isLoading: addressesLoading, error: addressError, selectAddress } = useAddresses();
 
   const [date, setDate] = useState(todayYmd());
-  const [slots, setSlots] = useState<AvailableSlot[]>(FALLBACK_SLOTS);
+  const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotValue, setSlotValue] = useState("");
   const [addressId, setAddressId] = useState<string>("");
@@ -60,7 +53,7 @@ export default function ServiceBookingModal({
     setSlotValue("");
     setNotes("");
     setError(null);
-    setSlots(FALLBACK_SLOTS);
+    setSlots([]);
   }, []);
 
   useEffect(() => {
@@ -84,7 +77,7 @@ export default function ServiceBookingModal({
       .getAvailableSlots(vendorId, date, catalogServiceId ?? undefined)
       .then((list) => {
         if (cancelled) return;
-        const use = Array.isArray(list) ? list : FALLBACK_SLOTS;
+        const use = Array.isArray(list) ? list : [];
         setSlots(use);
         const firstAvail = use.find((s) => s.available !== false);
         setSlotValue((prev) => {
@@ -93,10 +86,11 @@ export default function ServiceBookingModal({
           return firstAvail?.value ?? "";
         });
       })
-      .catch(() => {
+      .catch((reason) => {
         if (!cancelled) {
-          setSlots(FALLBACK_SLOTS);
-          setSlotValue(FALLBACK_SLOTS[0]?.value ?? "");
+          setSlots([]);
+          setSlotValue("");
+          setError(reason instanceof Error ? reason.message : "Unable to load available time slots.");
         }
       })
       .finally(() => {
@@ -144,6 +138,22 @@ export default function ServiceBookingModal({
           ? String((err as ApiError).message)
           : "Could not create booking.";
       setError(msg);
+      if (/no longer available|not available/i.test(msg) && vendorId.trim() && date) {
+        setError("That time was just taken. Pick another slot below.");
+        setSlotValue("");
+        setSlotsLoading(true);
+        commerceApi
+          .getAvailableSlots(vendorId, date, catalogServiceId ?? undefined)
+          .then((list) => {
+            const use = Array.isArray(list) ? list : [];
+            setSlots(use);
+            setSlotValue(use.find((s) => s.available !== false)?.value ?? "");
+          })
+          .catch(() => {
+            setSlots([]);
+          })
+          .finally(() => setSlotsLoading(false));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -275,6 +285,9 @@ export default function ServiceBookingModal({
             </label>
             {slots.length === 0 && !slotsLoading ? (
               <p style={{ fontSize: 12, color: "#202124", marginBottom: 12 }}>No times are available for this date. Try another day.</p>
+            ) : null}
+            {slots.length > 0 && slots.every((s) => s.available === false) && !slotsLoading ? (
+              <p style={{ fontSize: 12, color: "#b45309", marginBottom: 12 }}>All times are booked for this date. Try another day.</p>
             ) : null}
             <select
               value={slotValue}

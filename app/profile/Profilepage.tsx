@@ -832,6 +832,11 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
         avatar: nextAvatar || undefined,
       });
       if (nextAvatar) setAvatarUrl(nextAvatar);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("p4u-profile-updated", { detail: { avatar: nextAvatar || null } }),
+        );
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err: unknown) {

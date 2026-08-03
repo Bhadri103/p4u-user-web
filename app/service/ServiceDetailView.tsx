@@ -26,12 +26,6 @@ import { addServiceWishlist, getServiceWishlist, removeServiceWishlist } from "@
 
 const BLUE = "#89CFF0";
 
-const FALLBACK_SLOTS: AvailableSlot[] = [
-  { label: "Morning 9–11 AM", value: "09:00-11:00", available: true },
-  { label: "Afternoon 12–3 PM", value: "12:00-15:00", available: true },
-  { label: "Evening 4–6 PM", value: "16:00-18:00", available: true },
-];
-
 const HIGHLIGHTS = ["Professional & trained experts", "Eco-friendly products used"];
 const TRUST = [
   { icon: ShieldCheck, label: "Verified experts", detail: "Background checked" },
@@ -105,14 +99,15 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
     commerceApi.getAvailableSlots(vendorId, date, serviceId)
       .then((list) => {
         if (cancelled) return;
-        const nextSlots = Array.isArray(list) && list.length ? list : FALLBACK_SLOTS;
+        const nextSlots = Array.isArray(list) ? list : [];
         setSlots(nextSlots);
         setSlot(nextSlots.find((item) => item.available !== false)?.value ?? "");
       })
-      .catch(() => {
+      .catch((reason) => {
         if (!cancelled) {
-          setSlots(FALLBACK_SLOTS);
-          setSlot(FALLBACK_SLOTS[0].value);
+          setSlots([]);
+          setSlot("");
+          setError(reason instanceof Error ? reason.message : "Unable to load available time slots.");
         }
       })
       .finally(() => {
@@ -169,11 +164,27 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
       await commerceApi.createBooking({ vendorId, serviceId, date, slot, totalAmount: String(service.price || 0) });
       router.push("/bookings");
     } catch (bookingError) {
-      setError(
+      const msg =
         bookingError && typeof bookingError === "object" && "message" in bookingError
           ? String((bookingError as { message: string }).message)
-          : "Could not create booking.",
-      );
+          : "Could not create booking.";
+      setError(msg);
+      if (/no longer available|not available/i.test(msg) && date && vendorId) {
+        setError("That time was just taken. Pick another slot below.");
+        setSlot("");
+        setSlotsLoading(true);
+        commerceApi
+          .getAvailableSlots(vendorId, date, serviceId)
+          .then((list) => {
+            const nextSlots = Array.isArray(list) ? list : [];
+            setSlots(nextSlots);
+            setSlot(nextSlots.find((item) => item.available !== false)?.value ?? "");
+          })
+          .catch(() => {
+            setSlots([]);
+          })
+          .finally(() => setSlotsLoading(false));
+      }
     } finally {
       setBooking(false);
     }
@@ -206,6 +217,7 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
 
   const img = service.image?.trim() || "";
   const availableSlots = slots.filter((item) => item.available !== false);
+  const takenSlots = slots.filter((item) => item.available === false);
 
   return (
     <div className="min-h-screen bg-[#f5f8fc] text-[#202124]">
@@ -296,13 +308,29 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
                     {slotsLoading ? <Loader2 className="h-4 w-4 animate-spin text-blue-600" /> : date ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">{availableSlots.length} available</span> : null}
                   </div>
 
-                  {date && !slotsLoading && availableSlots.length > 0 ? (
+                  {date && !slotsLoading && slots.length > 0 ? (
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                      {availableSlots.map((item) => {
-                        const active = slot === item.value;
+                      {slots.map((item) => {
+                        const full = item.available === false;
+                        const active = !full && slot === item.value;
                         return (
-                          <button key={item.value} type="button" onClick={() => setSlot(item.value)} className={`relative min-h-11 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${active ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50/50"}`}>
+                          <button
+                            key={item.value}
+                            type="button"
+                            disabled={full}
+                            onClick={() => setSlot(item.value)}
+                            className={`relative min-h-11 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+                              full
+                                ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400 line-through"
+                                : active
+                                  ? "border-blue-600 bg-blue-50 text-blue-700"
+                                  : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50/50"
+                            }`}
+                          >
                             {item.label}
+                            {full ? (
+                              <span className="ml-1 text-[10px] font-bold uppercase no-underline">Full</span>
+                            ) : null}
                             {active ? <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-600" /> : null}
                           </button>
                         );
@@ -316,6 +344,9 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
                       <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     </div>
                   )}
+                  {date && !slotsLoading && availableSlots.length === 0 && takenSlots.length > 0 ? (
+                    <p className="mt-2 text-xs text-amber-700">All listed times are already booked. Try another date.</p>
+                  ) : null}
                 </div>
               </div>
 

@@ -68,6 +68,16 @@ function formatPrice(n: number): string {
   return "₹" + Number(n).toLocaleString("en-IN");
 }
 
+function checkoutFingerprint(parts: unknown[]): string {
+  const value = JSON.stringify(parts);
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `web-${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
 const DAYS   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const MONTHS = ["January","February","March","April","May","June",
                 "July","August","September","October","November","December"];
@@ -251,6 +261,15 @@ export default function CartCheckout({
   const [showAddressModal, setShowAddressModal] = useState<boolean>(false);
   const currentAddress = selectedAddress ? formatAddress(selectedAddress) : address || "No address selected";
   const addressEmpty = !selectedAddress;
+  const checkoutKey = useMemo(
+    () => checkoutFingerprint([
+      selectedAddressId ? String(selectedAddressId) : "",
+      cartItems
+        .map((item) => [String(item.productId ?? item.id), item.qty, item.price, item.vendorId || ""])
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+    ]),
+    [cartItems, selectedAddressId],
+  );
 
   useEffect(() => {
     setSavedItems(loadSavedCart());
@@ -412,6 +431,7 @@ export default function CartCheckout({
           shippingAddress: shippingSnapshotFromAddress(selectedAddress),
           paymentMode,
           deliverySchedule,
+          idempotencyKey: checkoutKey,
         });
 
         if (paymentMode === "cod") {

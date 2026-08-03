@@ -278,6 +278,7 @@ export const commerceApi = {
       shippingAddress?: Record<string, unknown>;
       paymentMode?: string;
       deliverySchedule?: Record<string, unknown>;
+      idempotencyKey?: string;
     } = {},
   ) {
     return apiClient.post<Order & { orders?: Order[] }>(`${BASE}/orders/from-cart`, {
@@ -288,6 +289,7 @@ export const commerceApi = {
       ...(opts.shippingAddress ? { shippingAddress: opts.shippingAddress } : {}),
       ...(opts.paymentMode ? { paymentMode: opts.paymentMode } : {}),
       ...(opts.deliverySchedule ? { deliverySchedule: opts.deliverySchedule } : {}),
+      ...(opts.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : {}),
     });
   },
 
@@ -444,6 +446,15 @@ export const commerceApi = {
 
   confirmServiceCompletion(bookingId: string | number, accept: boolean, reason?: string) {
     return apiClient.post<Record<string, unknown>>(`${BASE}/bookings/${encodeURIComponent(String(bookingId))}/completion-confirmation`, { accept, reason }).then((row) => normalizeBooking(row));
+  },
+
+  decideAdditionalBill(bookingId: string | number, accept: boolean, reason?: string) {
+    return apiClient
+      .post<Record<string, unknown>>(`${BASE}/bookings/${encodeURIComponent(String(bookingId))}/additional-bill/decision`, {
+        accept,
+        reason,
+      })
+      .then((row) => normalizeBooking(row));
   },
 
   disputeService(bookingId: string | number, reason: string, photoUrls: string[] = []) {

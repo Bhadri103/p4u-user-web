@@ -19,16 +19,6 @@ import PurchaseActionButton from "@/components/shop/PurchaseActionButton";
 
 const TEAL_SOLID = "#89CFF0";
  
-const FALLBACK_IMAGES: Record<string, string> = {
-  Electronics: "https://placehold.co/400x400/1e3a5f/ffffff?text=Electronics",
-  Restaurants:  "https://placehold.co/400x400/5f1e1e/ffffff?text=Food",
-  Clothing:     "https://placehold.co/400x400/3a1e5f/ffffff?text=Fashion",
-  Groceries:    "https://placehold.co/400x400/1e5f2a/ffffff?text=Grocery",
-  Medical:      "https://placehold.co/400x400/5f1e1e/ffffff?text=Medical",
-  Cosmetics:    "https://placehold.co/400x400/5f1e4a/ffffff?text=Beauty",
-  default:      "https://placehold.co/400x400/cccccc/555555?text=Product",
-};
-
 type Color = { name: string; hex: string };
 type Product = {
   id: string | number;
@@ -49,20 +39,13 @@ type Product = {
 };
 type Banner = { gradient: string; accent: string; title: string; subtitle: string };
 
-const DEFAULT_BANNER: Banner = {
-  gradient: TEAL_GRADIENT,
-  accent: TEAL_SOLID,
-  title: "Shop trusted products",
-  subtitle: "Fast delivery · Quality picks",
-};
-
 function normalizeBanner(raw: Partial<Banner> | undefined): Banner {
-  if (!raw) return DEFAULT_BANNER;
+  if (!raw) return { gradient: TEAL_GRADIENT, accent: TEAL_SOLID, title: "", subtitle: "" };
   return {
-    gradient: raw.gradient ?? DEFAULT_BANNER.gradient,
-    accent: raw.accent ?? DEFAULT_BANNER.accent,
-    title: raw.title ?? DEFAULT_BANNER.title,
-    subtitle: raw.subtitle ?? DEFAULT_BANNER.subtitle,
+    gradient: raw.gradient ?? TEAL_GRADIENT,
+    accent: raw.accent ?? TEAL_SOLID,
+    title: raw.title ?? "",
+    subtitle: raw.subtitle ?? "",
   };
 }
 function VendorAvatar({ logo, logoColor }: { logo: string; logoColor?: string }) {
@@ -103,16 +86,11 @@ function ProductImage({ product, vendorCategory }: { product: Product; vendorCat
     }) ||
     (product.imageUrl ? resolveMediaUrl(product.imageUrl) : null);
 
-  const fallback =
-    FALLBACK_IMAGES[product.category ?? vendorCategory] ?? FALLBACK_IMAGES.default;
-
   if (!src || errored) {
     return (
-      <img
-        src={fallback}
-        alt={product.name}
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-      />
+      <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xs font-semibold text-slate-500" role="img" aria-label={`${product.name} image unavailable`}>
+        Image unavailable
+      </div>
     );
   }
 
@@ -127,10 +105,7 @@ function ProductImage({ product, vendorCategory }: { product: Product; vendorCat
 }
  
 function VendorBanner({ banners, vendorName }: { banners: Banner[]; vendorName: string }) {
-  const slides =
-    banners.length > 0
-      ? banners.map((x) => normalizeBanner(x))
-      : [normalizeBanner({ ...DEFAULT_BANNER, title: vendorName || DEFAULT_BANNER.title })];
+  const slides = banners.map((x) => normalizeBanner(x));
   const [current, setCurrent] = useState(0);
   const [animating, setAnimating] = useState(false);
   const [dir, setDir] = useState<"next" | "prev">("next");
@@ -685,7 +660,7 @@ export default function VendorDetailPage({ vendorId, onBack }: VendorDetailPageP
         </div>
 
         <div className="mb-3 sm:mb-4">
-          <VendorBanner banners={vendor.banners} vendorName={vendor.name} />
+          {vendor.banners.length > 0 ? <VendorBanner banners={vendor.banners} vendorName={vendor.name} /> : null}
         </div>
 
         <div className="lg:hidden"><VendorInfoCard vendor={vendor} /></div>

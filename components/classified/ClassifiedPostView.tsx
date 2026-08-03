@@ -190,7 +190,7 @@ function PostFormBody() {
         contactPhone: contactPhone.trim(), preferredContact, tags: keywordList, imageUrls,
       });
       setSuccess("Your ad was submitted for review. Once approved, it will appear in Classifieds.");
-      setTimeout(() => router.push(`/classified?category=${encodeURIComponent(categoryId)}`), 1200);
+      setTimeout(() => router.push("/classified"), 1400);
     } catch (err: unknown) {
       setError(err && typeof err === "object" && "message" in err ? String((err as { message: string }).message) : "Failed to post ad");
     } finally {

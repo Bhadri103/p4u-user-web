@@ -30,12 +30,6 @@ const readable = (value: unknown) => typeof value === "boolean"
   ? (value ? "Yes" : "No")
   : String(value).replaceAll("_", " ");
 
-const DEMO_PROPERTY_DETAILS: Record<string, PropertyRow> = {
-  "demo-home-1": { id:"demo-home-1",title:"Modern 2 BHK Apartment",transaction_type:"sale",property_type:"apartment",bhk:2,bathrooms:2,balconies:1,area_sqft:1180,locality:"Whitefield",city:"Bengaluru",state:"Karnataka",price:7200000,image_url:"/images/properties/modern-apartment.jpg",images:["/images/properties/modern-apartment.jpg"],description:"Bright, thoughtfully furnished apartment with a spacious living area and balcony views.",furnishing:"furnished",parking:"car",ownership:"freehold",availability:"ready",amenities:["lift","security","power_backup","water_supply"],contact_name:"Property Owner",status:"approved" },
-  "demo-home-2": { id:"demo-home-2",title:"Premium Family Villa",transaction_type:"sale",property_type:"villa",bhk:4,bathrooms:4,balconies:2,area_sqft:2850,locality:"Kakkanad",city:"Kochi",state:"Kerala",price:14500000,image_url:"/images/properties/family-villa.jpg",images:["/images/properties/family-villa.jpg"],description:"Independent family villa with landscaped surroundings, generous rooms and covered parking.",furnishing:"semi_furnished",parking:"both",ownership:"freehold",availability:"ready",amenities:["security","water_supply","park","pet_friendly"],contact_name:"Property Owner",status:"approved" },
-  "demo-home-3": { id:"demo-home-3",title:"Furnished Studio Apartment",transaction_type:"rent",property_type:"apartment",bhk:1,bathrooms:1,balconies:1,area_sqft:540,locality:"HITEC City",city:"Hyderabad",state:"Telangana",price:24000,security_deposit:48000,image_url:"/images/properties/furnished-studio.jpg",images:["/images/properties/furnished-studio.jpg"],description:"Compact furnished studio with a dedicated workspace, storage and excellent natural light.",furnishing:"furnished",parking:"bike",ownership:"freehold",availability:"ready",amenities:["lift","security","internet","air_conditioning"],contact_name:"Property Owner",status:"approved" },
-};
-
 type Detail = [string, unknown];
 
 function InfoGrid({ title, icon, values }: { title: string; icon: ReactNode; values: Detail[] }) {
@@ -81,12 +75,6 @@ export default function PropertyDetailView({ id }: { id: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    const demo = DEMO_PROPERTY_DETAILS[id];
-    if (demo) {
-      setProperty(demo);
-      setLoading(false);
-      return;
-    }
     propertiesApi.get(id)
       .then((row) => { if (!cancelled) setProperty(row && row.id ? row : null); })
       .catch((requestError) => { if (!cancelled) setError(messageOf(requestError)); })

@@ -238,6 +238,8 @@ export default function OrderDetailsPage() {
     try {
       const updated = await commerceApi.confirmProductDelivery(orderId);
       setOrder((current: any) => ({ ...current, ...updated }));
+      const fresh = await commerceApi.getProductTracking(orderId);
+      setTracking(fresh);
     } catch (e: any) { setActionError(e?.message || "Could not confirm delivery"); }
     finally { setActionBusy(false); }
   }
@@ -324,16 +326,21 @@ export default function OrderDetailsPage() {
                 <h2 className="flex items-center gap-2 text-xl font-bold text-neutral-900"><Truck className="h-5 w-5" /> Delivery &amp; returns</h2>
                 <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
                   <p>Status: <strong className="capitalize text-neutral-900">{String(tracking?.status || orderStatus).replace(/_/g, " ")}</strong></p>
-                  <p>Shipping: <strong className="capitalize text-neutral-900">{tracking?.shippingType || "Not dispatched"}</strong></p>
+                  <p>Shipping: <strong className="capitalize text-neutral-900">{tracking?.shippingType === "own" ? "Own delivery" : (tracking?.shippingType || "Not dispatched")}</strong></p>
                   {tracking?.courierName ? <p>Courier: <strong className="text-neutral-900">{tracking.courierName}</strong></p> : null}
                   {tracking?.trackingNumber ? <p>Tracking / AWB: <strong className="text-neutral-900">{tracking.trackingNumber}</strong></p> : null}
+                  {tracking?.shippedAt ? <p>Shipped: <strong className="text-neutral-900">{new Date(tracking.shippedAt).toLocaleString()}</strong></p> : null}
+                  {tracking?.estimatedDeliveryAt ? <p>ETA: <strong className="text-neutral-900">{new Date(tracking.estimatedDeliveryAt).toLocaleString()}</strong></p> : null}
+                  {tracking?.deliveredAt ? <p>Delivered: <strong className="text-neutral-900">{new Date(tracking.deliveredAt).toLocaleString()}</strong></p> : null}
                 </div>
                 {tracking?.trackingUrl ? <a className="mt-3 inline-block text-sm font-semibold text-teal-700 hover:underline" href={tracking.trackingUrl} target="_blank" rel="noreferrer">Track with courier</a> : null}
                 {Array.isArray(tracking?.history) && tracking.history.length ? (
                   <ol className="mt-4 space-y-2 border-l-2 border-teal-100 pl-4 text-sm">
                     {tracking.history.map((entry: any, index: number) => <li key={`${entry.at}-${index}`}><strong className="capitalize">{String(entry.status).replace(/_/g, " ")}</strong><span className="ml-2 text-slate-500">{entry.at ? new Date(entry.at).toLocaleString() : ""}</span></li>)}
                   </ol>
-                ) : null}
+                ) : (
+                  <p className="mt-4 text-sm text-slate-500">Tracking updates will appear here once the seller ships your order.</p>
+                )}
                 {tracking?.returnRequest ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Return status: <strong className="capitalize">{String(tracking.returnRequest.status || "requested").replace(/_/g, " ")}</strong>{tracking.returnRequest.refundStatus ? ` · Refund: ${tracking.returnRequest.refundStatus}` : ""}</p> : null}
                 <div className="mt-4 flex flex-wrap gap-2">
                   {["shipped", "out_for_delivery"].includes(orderStatus.toLowerCase()) ? <button disabled={actionBusy} onClick={() => void confirmDelivery()} className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /> Confirm delivery</button> : null}
