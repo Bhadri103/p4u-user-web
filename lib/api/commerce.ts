@@ -314,8 +314,9 @@ export const commerceApi = {
     params?: { limit?: number; offset?: number },
     options?: { forceRefresh?: boolean },
   ) {
+    // Prefer token-scoped mine endpoint so profile UUID vs Keycloak sub cannot 403.
     return apiClient.get<PaginatedResponse<Order>>(
-      `${BASE}/customers/${customerId}/orders`,
+      `${BASE}/orders/mine`,
       params as Record<string, string | number | boolean>,
       { forceRefresh: options?.forceRefresh ?? true, cacheTtlMs: 0 },
     );
@@ -323,6 +324,7 @@ export const commerceApi = {
 
   /** Drop cached order list responses (call after placing an order). */
   invalidateOrdersCache() {
+    apiClient.clearGetCache(`${BASE}/orders/mine`);
     apiClient.clearGetCache(`${BASE}/customers/`);
   },
 

@@ -354,6 +354,7 @@ export default function CartCheckout({
   const surgeCost       = quote ? Number(quote.surgeCost) : 0;
   const redeemSave      = quote ? Number(quote.pointsRedeemedValue) : 0;
   const couponDiscount  = quote ? Number(quote.discount) : 0;
+  const quotedItemTotal = quote ? Number(quote.itemSubtotal) : itemTotal;
   const total           = quote ? Number(quote.grandTotal) : itemTotal;
   const walletBalance   = quote ? Number(quote.walletBalanceBefore) : 0;
   const maxRedeemValue  = quote ? Number(quote.maxRedeemableValue) : 0;
@@ -436,6 +437,7 @@ export default function CartCheckout({
 
         if (paymentMode === "cod") {
           setPlacedAmount(total);
+          // Clear UI immediately so a rematerialized server cart cannot flash back.
           try {
             await clearCart();
           } catch {
@@ -657,8 +659,8 @@ export default function CartCheckout({
   } 
   function Sidebar({ showRedeem = true }: { showRedeem?: boolean }) {
     const breakdownRows: { label: string; val: string; color: string }[] = [
-      { label: "Item Total (MRP)", val: formatPrice(itemTotal), color: "#202124" },
-      { label: "Subtotal", val: formatPrice(Math.max(0, itemTotal - (redeemApplied ? redeemSave : 0) - couponDiscount)), color: "#202124" },
+      { label: "Item Total (MRP)", val: formatPrice(quotedItemTotal), color: "#202124" },
+      { label: "Subtotal", val: formatPrice(Math.max(0, quotedItemTotal - (redeemApplied ? redeemSave : 0) - couponDiscount)), color: "#202124" },
     ];
     if (platformFee > 0) breakdownRows.push({ label: "Platform Fee", val: formatPrice(platformFee), color: "#202124" });
     if (gstOnFee > 0) breakdownRows.push({ label: `GST on Platform Fee (${quote?.gstOnPlatformFeePercent ?? 18}%)`, val: formatPrice(gstOnFee), color: "#202124" });

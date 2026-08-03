@@ -36,6 +36,7 @@ interface CartContextType {
 }
 
 const STORAGE_KEY = "p4u_cart";
+const CLEARED_AT_KEY = "p4u_cart_cleared_at";
 
 function loadCart(): CartItem[] {
   if (typeof window === "undefined") return [];
@@ -53,6 +54,67 @@ function saveCart(items: CartItem[]) {
   } catch { /* quota exceeded */ }
 }
 
+function mapServerItems(serverCart: Cart): CartItem[] {
+  return serverCart.items.map((si: CartItemApi) => {
+    const productId = si.productId;
+    const unit = si.unitPrice ?? si.price;
+    const price =
+      typeof unit === "string"
+        ? Number(unit) || 0
+        : typeof unit === "number"
+          ? unit
+          : 0;
+    const meta =
+      si.metadata && typeof si.metadata === "object"
+        ? (si.metadata as Record<string, unknown>)
+        : {};
+    const rawImg =
+      si.productImage ||
+      (typeof meta.productImage === "string" ? meta.productImage : null) ||
+      (typeof meta.imageUrl === "string" ? meta.imageUrl : null) ||
+      (typeof meta.thumbnailUrl === "string" ? meta.thumbnailUrl : null);
+    const resolvedImg = resolveMediaUrl(typeof rawImg === "string" ? rawImg : null);
+    const name =
+      si.productName ||
+      (typeof meta.productName === "string" ? meta.productName : null) ||
+      `Product #${productId}`;
+    const vendor =
+      (typeof meta.vendorName === "string" ? meta.vendorName : "") || "";
+    return {
+      id: si.id,
+      productId,
+      variationId: si.variationId ?? null,
+      name,
+      price,
+      originalPrice: price,
+      vendor,
+      vendorId: String(si.vendorId ?? ""),
+      qty: si.quantity,
+      image: resolvedImg || (typeof rawImg === "string" ? rawImg : undefined),
+    };
+  });
+}
+
+function cartLineMetadata(i: CartItem) {
+  const rawImg = i.imageUrl || i.image;
+  return {
+    productName: i.name,
+    vendorName: i.vendor,
+    ...(rawImg ? { productImage: rawImg } : {}),
+  };
+}
+
+function linesFromLocal(lines: CartItem[]) {
+  return lines.map((i) => ({
+    productId: i.productId ?? i.id,
+    variationId: i.variationId ?? null,
+    quantity: i.qty,
+    unitPrice: i.price,
+    vendorId: i.vendorId || null,
+    metadata: cartLineMetadata(i),
+  }));
+}
+
 const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -67,7 +129,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     saveCart(items);
   }, [items]);
 
-  // On mount, if user is logged in, try to merge local cart with server cart
+  // On mount: REPLACE server cart with local (never merge/add — that doubles qty).
   useEffect(() => {
     const token = localStorage.getItem("p4u_token");
     if (!token) return;
@@ -75,65 +137,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const epoch = syncEpochRef.current;
     setSyncing(true);
     const localItems = loadCart();
-
-    const mapServerItems = (serverCart: Cart): CartItem[] =>
-      serverCart.items.map((si: CartItemApi) => {
-        const productId = si.productId;
-        const unit = si.unitPrice ?? si.price;
-        const price =
-          typeof unit === "string"
-            ? Number(unit) || 0
-            : typeof unit === "number"
-              ? unit
-              : 0;
-        const meta =
-          si.metadata && typeof si.metadata === "object"
-            ? (si.metadata as Record<string, unknown>)
-            : {};
-        const rawImg =
-          si.productImage ||
-          (typeof meta.productImage === "string" ? meta.productImage : null) ||
-          (typeof meta.imageUrl === "string" ? meta.imageUrl : null) ||
-          (typeof meta.thumbnailUrl === "string" ? meta.thumbnailUrl : null);
-        const resolvedImg = resolveMediaUrl(typeof rawImg === "string" ? rawImg : null);
-        const name =
-          si.productName ||
-          (typeof meta.productName === "string" ? meta.productName : null) ||
-          `Product #${productId}`;
-        const vendor =
-          (typeof meta.vendorName === "string" ? meta.vendorName : "") || "";
-        return {
-          id: si.id,
-          productId,
-          variationId: si.variationId ?? null,
-          name,
-          price,
-          originalPrice: price,
-          vendor,
-          vendorId: String(si.vendorId ?? ""),
-          qty: si.quantity,
-          image: resolvedImg || (typeof rawImg === "string" ? rawImg : undefined),
-        };
-      });
-
-    const cartLineMetadata = (i: CartItem) => {
-      const rawImg = i.imageUrl || i.image;
-      return {
-        productName: i.name,
-        vendorName: i.vendor,
-        ...(rawImg ? { productImage: rawImg } : {}),
-      };
-    };
-
-    const linesFromLocal = (lines: CartItem[]) =>
-      lines.map((i) => ({
-        productId: i.productId ?? i.id,
-        variationId: i.variationId ?? null,
-        quantity: i.qty,
-        unitPrice: i.price,
-        vendorId: i.vendorId || null,
-        metadata: cartLineMetadata(i),
-      }));
+    const recentlyCleared = (() => {
+      try {
+        const at = Number(localStorage.getItem(CLEARED_AT_KEY) || 0);
+        return at > 0 && Date.now() - at < 5 * 60 * 1000;
+      } catch {
+        return false;
+      }
+    })();
 
     const applyIfCurrent = (serverCart: Cart) => {
       if (epoch !== syncEpochRef.current) return;
@@ -141,33 +152,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setItems(mapServerItems(serverCart));
     };
 
-    if (localItems.length) {
-      commerceApi
-        .mergeCart(linesFromLocal(localItems))
-        .then(applyIfCurrent)
-        .catch(() => {
-          // Fallback: replace cart if merge fails
-          commerceApi
-            .updateCart(linesFromLocal(localItems))
-            .then(applyIfCurrent)
-            .catch(() => {
-              if (epoch === syncEpochRef.current) {
-                setSyncError("Failed to sync cart with server");
-              }
-            });
-        })
-        .finally(() => {
-          if (epoch === syncEpochRef.current) setSyncing(false);
-        });
-    } else {
+    const loadOnly = () =>
       commerceApi
         .getCart()
         .then((serverCart) => {
           if (epoch !== syncEpochRef.current) return;
           setSyncError(null);
-          if (serverCart.items.length) {
-            setItems(mapServerItems(serverCart));
+          // After checkout clear, never rehydrate from a stale server cart in the same window.
+          if (recentlyCleared && localItems.length === 0) {
+            setItems([]);
+            if (serverCart.items.length) {
+              void commerceApi.clearCart().catch(() => undefined);
+            }
+            return;
           }
+          setItems(mapServerItems(serverCart));
         })
         .catch(() => {
           if (epoch === syncEpochRef.current) {
@@ -177,6 +176,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
         .finally(() => {
           if (epoch === syncEpochRef.current) setSyncing(false);
         });
+
+    if (localItems.length && !recentlyCleared) {
+      // Replace (not merge) so quantities are not added on top of existing server lines.
+      commerceApi
+        .updateCart(linesFromLocal(localItems))
+        .then(applyIfCurrent)
+        .catch(() => loadOnly())
+        .finally(() => {
+          if (epoch === syncEpochRef.current) setSyncing(false);
+        });
+    } else {
+      void loadOnly();
     }
   }, []);
 
@@ -193,6 +204,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       window.dispatchEvent(new CustomEvent("p4u-open-auth"));
       return;
     }
+    try {
+      localStorage.removeItem(CLEARED_AT_KEY);
+    } catch { /* ignore */ }
     const pid = newItem.productId ?? newItem.id;
     const vid = newItem.variationId ?? null;
     const addQty = Math.max(1, Number(newItem.qty) || 1);
@@ -244,6 +258,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     syncEpochRef.current += 1;
     saveCart([]);
     setItems([]);
+    try {
+      localStorage.setItem(CLEARED_AT_KEY, String(Date.now()));
+    } catch { /* ignore */ }
     const token = typeof window !== "undefined" ? localStorage.getItem("p4u_token") : null;
     if (!token) return;
     try {
@@ -251,7 +268,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setSyncError(null);
     } catch (error) {
       setSyncError("Cart sync failed");
-      // Re-throw so checkout can avoid a false "success" while server cart still has items.
       throw error instanceof Error ? error : new Error("Cart sync failed");
     }
   }, []);
