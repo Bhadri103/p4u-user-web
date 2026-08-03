@@ -222,7 +222,7 @@ export default function OrderDetailsPage() {
             }
           },
           modal: { ondismiss: () => resolve() },
-          theme: { color: "#009999" },
+          theme: { color: "#89CFF0" },
         });
         rzp.open();
       });
@@ -311,7 +311,7 @@ export default function OrderDetailsPage() {
               <div className="rounded-2xl border bg-white p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h1 className="text-3xl font-bold text-slate-900 leading-none">Order Details</h1>
+                    <h1 className="text-3xl font-bold text-neutral-900 leading-none">Order Details</h1>
                     <p className="text-sm text-slate-500 mt-2 font-medium">{String(order?.orderRef || order?.id || orderId)}</p>
                   </div>
                   <span className={`text-xs px-3 py-1 rounded-full capitalize font-semibold ${getStatusPillClasses(orderStatus)}`}>
@@ -321,12 +321,12 @@ export default function OrderDetailsPage() {
               </div>
 
               <div className="rounded-2xl border bg-white p-5">
-                <h2 className="flex items-center gap-2 text-xl font-bold text-slate-900"><Truck className="h-5 w-5" /> Delivery &amp; returns</h2>
+                <h2 className="flex items-center gap-2 text-xl font-bold text-neutral-900"><Truck className="h-5 w-5" /> Delivery &amp; returns</h2>
                 <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
-                  <p>Status: <strong className="capitalize text-slate-900">{String(tracking?.status || orderStatus).replace(/_/g, " ")}</strong></p>
-                  <p>Shipping: <strong className="capitalize text-slate-900">{tracking?.shippingType || "Not dispatched"}</strong></p>
-                  {tracking?.courierName ? <p>Courier: <strong className="text-slate-900">{tracking.courierName}</strong></p> : null}
-                  {tracking?.trackingNumber ? <p>Tracking / AWB: <strong className="text-slate-900">{tracking.trackingNumber}</strong></p> : null}
+                  <p>Status: <strong className="capitalize text-neutral-900">{String(tracking?.status || orderStatus).replace(/_/g, " ")}</strong></p>
+                  <p>Shipping: <strong className="capitalize text-neutral-900">{tracking?.shippingType || "Not dispatched"}</strong></p>
+                  {tracking?.courierName ? <p>Courier: <strong className="text-neutral-900">{tracking.courierName}</strong></p> : null}
+                  {tracking?.trackingNumber ? <p>Tracking / AWB: <strong className="text-neutral-900">{tracking.trackingNumber}</strong></p> : null}
                 </div>
                 {tracking?.trackingUrl ? <a className="mt-3 inline-block text-sm font-semibold text-teal-700 hover:underline" href={tracking.trackingUrl} target="_blank" rel="noreferrer">Track with courier</a> : null}
                 {Array.isArray(tracking?.history) && tracking.history.length ? (
@@ -337,7 +337,7 @@ export default function OrderDetailsPage() {
                 {tracking?.returnRequest ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Return status: <strong className="capitalize">{String(tracking.returnRequest.status || "requested").replace(/_/g, " ")}</strong>{tracking.returnRequest.refundStatus ? ` · Refund: ${tracking.returnRequest.refundStatus}` : ""}</p> : null}
                 <div className="mt-4 flex flex-wrap gap-2">
                   {["shipped", "out_for_delivery"].includes(orderStatus.toLowerCase()) ? <button disabled={actionBusy} onClick={() => void confirmDelivery()} className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /> Confirm delivery</button> : null}
-                  {["delivered", "completed"].includes(orderStatus.toLowerCase()) && !tracking?.returnRequest ? <button disabled={actionBusy} onClick={() => void requestReturn()} className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold text-slate-800 disabled:opacity-50"><RotateCcw className="h-4 w-4" /> Request return</button> : null}
+                  {["delivered", "completed"].includes(orderStatus.toLowerCase()) && !tracking?.returnRequest ? <button disabled={actionBusy} onClick={() => void requestReturn()} className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold text-neutral-800 disabled:opacity-50"><RotateCcw className="h-4 w-4" /> Request return</button> : null}
                 </div>
                 {actionError ? <p className="mt-3 text-sm text-red-600">{actionError}</p> : null}
               </div>
@@ -357,7 +357,7 @@ export default function OrderDetailsPage() {
               </div>
 
               <div className="rounded-2xl border bg-white p-5">
-                <h2 className="font-bold text-slate-900 mb-4 inline-flex items-center gap-2 text-3xl leading-none">
+                <h2 className="font-bold text-neutral-900 mb-4 inline-flex items-center gap-2 text-3xl leading-none">
                   <Package className="w-5 h-5" /> Items ({lines.length})
                 </h2>
                 <div className="space-y-3">
@@ -374,12 +374,12 @@ export default function OrderDetailsPage() {
                           ) : null}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-slate-800 truncate">{line.productName}</p>
+                          <p className="text-sm font-medium text-neutral-800 truncate">{line.productName}</p>
                           <p className="text-xs text-slate-500">Qty: {line.quantity} × {inr(line.unitPrice)}</p>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-semibold text-slate-900">{inr(line.lineTotal)}</p>
+                        <p className="text-sm font-semibold text-neutral-900">{inr(line.lineTotal)}</p>
                         <button
                           onClick={() =>
                             downloadOrderInvoice(
@@ -410,7 +410,7 @@ export default function OrderDetailsPage() {
               </div>
 
               <div className="rounded-2xl border bg-white p-5">
-                <h2 className="font-bold text-slate-900 mb-3 text-3xl leading-none">Bill Details</h2>
+                <h2 className="font-bold text-neutral-900 mb-3 text-3xl leading-none">Bill Details</h2>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-slate-600">
                     <span>Item Total (MRP)</span>
@@ -420,7 +420,7 @@ export default function OrderDetailsPage() {
                     <span>Delivery Fee</span>
                     <span className="text-emerald-600 font-semibold">FREE</span>
                   </div>
-                  <div className="border-t pt-2 flex justify-between font-semibold text-slate-900">
+                  <div className="border-t pt-2 flex justify-between font-semibold text-neutral-900">
                     <span>Grand Total</span>
                     <span>{inr(total)}</span>
                   </div>
@@ -428,15 +428,15 @@ export default function OrderDetailsPage() {
               </div>
 
               <div className="rounded-2xl border bg-white p-5">
-                <h2 className="font-bold text-slate-900 mb-3 text-3xl leading-none">Order Info</h2>
+                <h2 className="font-bold text-neutral-900 mb-3 text-3xl leading-none">Order Info</h2>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-slate-600">
                     <span>Order ID</span>
-                    <span className="text-slate-900 font-medium">{String(order?.orderRef || order?.id || orderId)}</span>
+                    <span className="text-neutral-900 font-medium">{String(order?.orderRef || order?.id || orderId)}</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
                     <span>Placed on</span>
-                    <span className="text-slate-900 font-medium">
+                    <span className="text-neutral-900 font-medium">
                       {order?.createdAt ? new Date(order.createdAt).toLocaleString() : "—"}
                     </span>
                   </div>
@@ -472,7 +472,7 @@ export default function OrderDetailsPage() {
                   {Boolean((order as { metadata?: { shippingAddress?: unknown } } | null)?.metadata?.shippingAddress) && (
                     <div className="flex justify-between gap-3 text-slate-600">
                       <span>Deliver to</span>
-                      <span className="text-slate-900 font-medium text-right max-w-[60%]">
+                      <span className="text-neutral-900 font-medium text-right max-w-[60%]">
                         {(() => {
                           const ship = (order as { metadata?: { shippingAddress?: Record<string, unknown> } })
                             ?.metadata?.shippingAddress;
@@ -484,7 +484,7 @@ export default function OrderDetailsPage() {
                   )}
                   <div className="flex justify-between text-slate-600">
                     <span>Payment Ref ID</span>
-                    <span className="text-slate-900 font-medium">{paymentRef}</span>
+                    <span className="text-neutral-900 font-medium">{paymentRef}</span>
                   </div>
                 </div>
                 {(() => {

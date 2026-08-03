@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Mail,
   Facebook,
   Twitter,
   Linkedin,
@@ -59,37 +58,32 @@ export default function Footer() {
 
   return (
     <>
-      <footer
-        className="w-full mt-2 sm:mt-3 md:mt-4"
-     style={{
-  background: "#E8F6F6",
-}}
-      >
-        <div className="max-w-[1400px] mx-auto px-3 sm:px-4 md:px-6">
-          <div className="pt-10 pb-2 px-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-2">
+      <footer className="site-footer mt-8 w-full border-t border-[#D7E7F5] bg-gradient-to-br from-[#F7FBFF] via-[#EAF4FF] to-[#D8ECFF] text-[#89CFF0]">
+        <div className="mx-auto max-w-7xl    px-3 sm:px-4 md:px-6">
+          <div className="px-1 pb-5 pt-8 sm:px-4 md:pt-10">
+            <div className="mb-6 grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-5 lg:gap-10">
               {/* Info */}
               <div>
-                <h4 className="font-semibold mb-4 text-gray-900">Info</h4>
-                <ul className="space-y-2 text-sm text-gray-900">
+                <h4 className="mb-3 font-semibold text-[#202124]">Info</h4>
+                <ul className="space-y-2 text-sm leading-6 text-[#5D687A]">
                   {infoLinks.map((i, idx) => (
                     <li key={idx}>{i}</li>
                   ))}
                 </ul>
-                <p className="mt-3 text-sm text-gray-900 flex items-center gap-2">
+                <p className="mt-3 text-sm leading-6 text-[#5D687A]">
                   planext4uofficial@gmail.com <br />
                   +91-9787176868
                 </p>
               </div>
  
               <div>
-                <h4 className="font-semibold mb-4 text-gray-900">Company</h4>
-                <ul className="space-y-2 text-sm text-gray-900">
+                <h4 className="mb-3 font-semibold text-[#202124]">Company</h4>
+                <ul className="space-y-2 text-sm text-[#5D687A]">
                   {companyLinks.map((i, idx) => (
                     <li key={idx}>
                       <a
                         href="#"
-                        className="hover:text-gray-900 transition-colors"
+                        className="inline-block transition-colors hover:text-[#89CFF0]"
                       >
                         {i}
                       </a>
@@ -100,13 +94,13 @@ export default function Footer() {
 
               {/* Help */}
               <div>
-                <h4 className="font-semibold mb-4 text-gray-900">Help</h4>
-                <ul className="space-y-2 text-sm text-gray-900">
+                <h4 className="mb-3 font-semibold text-[#202124]">Help</h4>
+                <ul className="space-y-2 text-sm text-[#5D687A]">
                   {helpLinks.map((i, idx) => (
                     <li key={idx}>
                       <a
                         href="#"
-                        className="hover:text-gray-900 transition-colors"
+                        className="inline-block transition-colors hover:text-[#89CFF0]"
                       >
                         {i}
                       </a>
@@ -115,15 +109,15 @@ export default function Footer() {
                 </ul>
               </div> 
               <div>
-                <h4 className="font-semibold mb-4 text-gray-900">
+                <h4 className="mb-3 font-semibold text-[#202124]">
                   Consumer Policy
                 </h4>
-                <ul className="space-y-2 text-sm text-gray-900">
+                <ul className="space-y-2 text-sm text-[#5D687A]">
                   {consumerPolicyLinks.map((i, idx) => (
                     <li key={idx}>
                       <a
                         href="#"
-                        className="hover:text-gray-900 transition-colors"
+                        className="inline-block transition-colors hover:text-[#89CFF0]"
                       >
                         {i}
                       </a>
@@ -133,9 +127,11 @@ export default function Footer() {
               </div>
 
               {/* Logo + Store */}
-              <div className="hidden lg:flex flex-col items-center lg:items-start gap-4">
-                <Image src={footerLogo} alt="P4U Logo" width={140} priority />
-                <div className="flex items-center justify-center lg:justify-start gap-4">
+              <div className="flex flex-col items-start gap-4 sm:col-span-2 lg:col-span-1">
+                <div className="rounded-2xl border border-[#D7E7F5] bg-white p-2 shadow-sm">
+                  <Image src={footerLogo} alt="P4U Logo" width={112} priority />
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
                   <Image
                     src={appstore}
                     alt="App Store"
@@ -153,8 +149,8 @@ export default function Footer() {
             </div>
 
             {/* Social */}
-            <div className="mb-8">
-              <h4 className="font-semibold mb-3 text-gray-900">Social</h4>
+            <div>
+              <h4 className="mb-3 font-semibold text-[#202124]">Social</h4>
               <div className="flex flex-wrap gap-2">
                 {socialIcons.map((s, i) => {
                   const Icon = s.icon;
@@ -162,21 +158,8 @@ export default function Footer() {
                     <a
                       key={i}
                       href="#"
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-gray-900 transition-all duration-200"
-                      style={{ border: "1.5px solid rgba(255,255,255,0.35)" }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor =
-                          "rgba(255,255,255,0.15)";
-                        e.currentTarget.style.borderColor =
-                          "rgba(255,255,255,0.8)";
-                        e.currentTarget.style.color = "#ffffff";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "transparent";
-                        e.currentTarget.style.borderColor =
-                          "rgba(255,255,255,0.35)";
-                        e.currentTarget.style.color = "#d1d5db";
-                      }}
+                      aria-label={s.label}
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-[#C7DDF2] bg-white text-[#7A879B] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#B8E3F7] hover:text-[#89CFF0] hover:shadow-md"
                     >
                       <Icon className="w-5 h-5" />
                     </a>
@@ -187,12 +170,11 @@ export default function Footer() {
           </div>
  
           <div
-            className="mx-4"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.15)" }}
+            className="mx-4 border-t border-[#C7DDF2]"
           /> 
           <div className="px-4 py-5">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <p className="text-sm text-gray-400 text-center md:text-left">
+            <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+              <p className="text-center text-sm text-[#5D687A] md:text-left">
                 Planext4u Solutions India Private Limited Copyright © 2026. All
                 Rights Reserved.
               </p>
@@ -200,8 +182,7 @@ export default function Footer() {
                 {paymentMethods.map((m, i) => (
                   <div
                     key={i}
-                    className="relative w-14 h-9 rounded overflow-hidden"
-                    style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                    className="relative h-9 w-14 overflow-hidden rounded-md border border-[#D7E7F5] bg-white"
                   >
                     <Image
                       src={m.logo}

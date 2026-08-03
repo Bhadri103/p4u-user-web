@@ -144,7 +144,7 @@ function ListingCard({ item }: { item: Listing }) {
  
       <div style={{
         flex: 1,
-        background: "radial-gradient(ellipse at 65% 25%, #1a4a3a 0%, #0E221F 55%, #081812 100%)",
+        background: "radial-gradient(ellipse at 65% 25%, #89CFF0 0%, #89CFF0 55%, #89CFF0 100%)",
         padding: "20px 18px",
         display: "flex",
         flexDirection: "column",
@@ -184,7 +184,7 @@ function ListingCard({ item }: { item: Listing }) {
           <p style={{
             margin: 0,
             color: "#ffffff",
-            fontWeight: 700,
+            fontWeight: 600,
             fontSize: "0.95rem",
             lineHeight: 1.3, 
           }}>
@@ -212,7 +212,7 @@ function ListingCard({ item }: { item: Listing }) {
           <p style={{
             margin: 0,
             color: "#ffffff",
-            fontWeight: 700,
+            fontWeight: 600,
             fontSize: "0.9rem", 
             letterSpacing: "-0.01em",
           }}>
@@ -315,8 +315,8 @@ export default function ClassifiedsSection() {
       }}>
         <h2 style={{
           margin: 0,
-          color: "#0E221F",
-          fontWeight: 700,
+          color: "#202124",
+          fontWeight: 600,
           fontSize: "clamp(1.1rem, 2.5vw, 1.55rem)",
           letterSpacing: "-0.01em", 
         }}>
@@ -410,7 +410,7 @@ export default function ClassifiedsSection() {
                 height: "7px",
                 width: activeDot === i ? "26px" : "7px",
                 borderRadius: "999px",
-                background: activeDot === i ? "#0E221F" : "#c8dbd8",
+                background: activeDot === i ? "#89CFF0" : "#c8dbd8",
                 border: "none",
                 padding: 0,
                 cursor: "pointer",

@@ -101,7 +101,7 @@ export default function HomepageCmsBlocks() {
   return (
     <>
       {contentSections.length > 0 && (
-        <section className="mx-auto max-w-[1400px] px-4 xl:px-6 mt-3 md:mt-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <section className="mx-auto mt-5 grid max-w-7xl bg-white  grid-cols-1 gap-4 px-4 sm:px-6 md:grid-cols-2 lg:grid-cols-3 lg:px-8">
           {contentSections.map((s) => {
             const m = s.metadata || {};
             const href = toHref(s);
@@ -113,7 +113,7 @@ export default function HomepageCmsBlocks() {
             return (
               <article
                 key={String(s.id)}
-                className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm"
+                className="overflow-hidden rounded-[22px] border border-[#D7E7F5] bg-white shadow-[0_12px_32px_rgba(31,74,125,.07)]"
                 style={{
                   backgroundColor: m.themeBgColor || undefined,
                   background: m.backgroundGradient || undefined,
@@ -135,8 +135,8 @@ export default function HomepageCmsBlocks() {
                   {m.ctaText && href ? (
                     <button
                       type="button"
-                      className="mt-3 px-4 py-2 rounded-md text-sm font-semibold"
-                      style={{ backgroundColor: m.themeButtonColor || "#0ea5a4", color: "#fff" }}
+                      className="mt-3 rounded-xl px-4 py-2 text-sm font-semibold"
+                      style={{ backgroundColor: m.themeButtonColor || "#89CFF0", color: "#fff" }}
                       onClick={() => goTo(href)}
                     >
                       {m.ctaText}
@@ -156,7 +156,7 @@ export default function HomepageCmsBlocks() {
         const containerCls =
           mode === "floating_pip"
             ? "fixed bottom-4 right-4 z-[950] w-[300px] sm:w-[360px] bg-white rounded-xl shadow-2xl border"
-            : "mx-auto max-w-[1400px] px-4 xl:px-6 mt-4";
+            : "mx-auto mt-4 max-w-7xl bg-white  px-4 sm:px-6 lg:px-8";
         const posterRaw = m.thumbnailUrl || videoAd.imageUrl;
         const posterResolved =
           typeof posterRaw === "string" && posterRaw.trim()
@@ -189,7 +189,7 @@ export default function HomepageCmsBlocks() {
                 <button
                   type="button"
                   onClick={() => goTo(href)}
-                  className="absolute bottom-3 left-3 px-3 py-1.5 rounded-md text-sm font-semibold bg-teal-600 text-white"
+                  className="absolute bottom-3 left-3 rounded-xl bg-[#89CFF0] px-3 py-1.5 text-sm font-semibold text-white"
                 >
                   {m.ctaText}
                 </button>

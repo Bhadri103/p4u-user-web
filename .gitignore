@@ -9,6 +9,7 @@ node_modules/
 # Build Output
 # =========================
 .next/
+.next-*/
 out/
 build/
 dist/

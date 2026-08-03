@@ -56,24 +56,24 @@ export default function PickupSection() {
 
   return (
  <div className=" mx-auto max-w-[1400px] px-3 sm:px-4 md:px-6 mt-2 sm:mt-3 md:mt-4  "> 
-      <div className="hidden lg:grid lg:grid-cols-3 gap-8">
+      <div className={`hidden gap-5 lg:grid ${sections.length === 1 ? 'lg:grid-cols-1' : sections.length === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
         {sections.map((section, sectionIndex) => (
           <div 
             key={sectionIndex} 
-            className="bg-white rounded-3xl shadow-lg p-8 flex flex-col"
+            className="flex flex-col bg-white p-6 shadow-sm"
          
           >
-            <h3 className="text-2xl font-bold mb-8 text-gray-900">{section.title}</h3>
-            <div className="grid grid-cols-2 gap-6 flex-1">
+            <h3 className="mb-5 text-2xl font-bold text-gray-900">{section.title}</h3>
+            <div className={`grid flex-1 gap-5 ${sections.length === 1 ? 'grid-cols-3 xl:grid-cols-4' : 'grid-cols-2'}`}>
               {section.products.map((product, productIndex) => (
                 <div key={productIndex} className="flex flex-col cursor-pointer hover:scale-105 transition-transform">
-                  <div className="bg-gray-50 rounded-2xl mb-4 flex-1 flex items-center justify-center overflow-hidden" style={{ minHeight: '280px' }}>
+                  <div className="mb-3 flex aspect-square items-center justify-center overflow-hidden bg-gray-50">
                     <div className="relative w-full h-full">
                       <Image
                         src={product.image}
                         alt={product.name}
                         fill
-                        className="object-contain rounded-2xl"
+                        className="object-contain"
                       />
                     </div>
                   </div>

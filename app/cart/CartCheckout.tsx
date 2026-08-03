@@ -59,9 +59,9 @@ function isUnauthorizedError(e: unknown): boolean {
   return /unauthorized|invalid or missing token|missing token|invalid token/i.test(msg);
 }
  
-const PRIMARY_MID  = "#009999";
-const TEAL_ACCENT  = "#00b3b3"; // lighter accent for highlights
-const BTN_GRAD     = "#009999"; // plain color (no gradient)
+const PRIMARY_MID  = "#89CFF0";
+const TEAL_ACCENT  = "#89CFF0";
+const BTN_GRAD     = "#89CFF0";
 
 
 function formatPrice(n: number): string {
@@ -125,17 +125,19 @@ function PrimaryBtn({
 }) {
   return (
     <button
+      className="cart-primary-button"
       onClick={onClick}
       disabled={disabled}
       style={{
         background: BTN_GRAD,
-        color: "white",
-        border: "none",
+        color: "#FFFFFF",
+        border: "1px solid #89CFF0",
         cursor: disabled ? "not-allowed" : "pointer",
         fontFamily: "inherit",
-        fontWeight: 700,
-        borderRadius: 10,
-        transition: "opacity 0.15s, transform 0.1s",
+        fontWeight: 600,
+        borderRadius: 12,
+        boxShadow: "0 8px 20px rgba(137,207,240, 0.18)",
+        transition: "opacity 0.18s, transform 0.18s, box-shadow 0.18s",
         opacity: disabled ? 0.6 : 1,
         ...style,
       }}
@@ -189,26 +191,27 @@ function AddressBar({
   onChangeAddress?: () => void;
 }) {
   return (
-    <div style={{
+    <div className="cart-panel cart-address-panel" style={{
       display: "flex", alignItems: "center", justifyContent: "space-between",
       borderRadius: 14, padding: "14px 16px",
-      border: "1px solid #e5e7eb", background: "white", flexWrap: "wrap", gap: 8,
+      border: "1px solid #D7E7F5", background: "white", flexWrap: "wrap", gap: 8,
     }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0, flex: 1 }}>
         <MapPin size={18} style={{ color: PRIMARY_MID, flexShrink: 0, marginTop: 2 }} />
         <div style={{ minWidth: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", margin: 0 }}>Deliver To</p>
-          <p style={{ fontSize: 12, color: empty ? "#94a3b8" : "#64748b", margin: "4px 0 0", wordBreak: "break-word" }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", margin: 0 }}>Deliver To</p>
+          <p style={{ fontSize: 12, color: empty ? "#94a3b8" : "#5D757A", margin: "4px 0 0", wordBreak: "break-word" }}>
             {empty ? "No address selected" : address}
           </p>
         </div>
       </div>
       <button
+        className="cart-secondary-button"
         type="button"
         onClick={onChangeAddress}
         style={{
-          fontSize: 12, fontWeight: 700, border: "none",
-          borderRadius: 8, padding: "8px 14px", background: "#ecfeff", color: PRIMARY_MID,
+          fontSize: 12, fontWeight: 600, border: "1px solid #89CFF0",
+          borderRadius: 10, padding: "8px 16px", background: "#FFFFFF", color: PRIMARY_MID,
           cursor: "pointer", fontFamily: "inherit",
         }}>
         {empty ? "Add" : "Change"}
@@ -486,7 +489,7 @@ export default function CartCheckout({
                 resolve();
               },
             },
-            theme: { color: "#009999" },
+            theme: { color: "#89CFF0" },
           });
           rzp.open();
         });
@@ -583,9 +586,9 @@ export default function CartCheckout({
                   <div style={{
                     width: 22, height: 22, borderRadius: "50%",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 10, fontWeight: 700,
-                    background: done || active ? BTN_GRAD : "#e5e7eb",
-                    color: done || active ? "white" : "#9ca3af",
+                    fontSize: 10, fontWeight: 600,
+                    background: done || active ? BTN_GRAD : "#D7E7F5",
+                    color: done || active ? "#202124" : "#5D757A",
                     boxShadow: active ? "0 2px 8px rgba(14,34,31,0.4)" : "none",
                     transition: "all 0.2s",
                     flexShrink: 0,
@@ -594,13 +597,13 @@ export default function CartCheckout({
                   </div>
                   <span style={{
                     fontSize: 10, fontWeight: 600, whiteSpace: "nowrap",
-                    color: active ? PRIMARY_MID : done ? "#374151" : "#9ca3af",
+                    color: active ? PRIMARY_MID : done ? "#202124" : "#5D757A",
                   }}>{s.short}</span>
                 </div>
                 {i < stepLabels.length - 1 && (
                   <div style={{
                     flex: 1, height: 2, margin: "0 6px", marginBottom: 14,
-                    background: done ? `linear-gradient(90deg, ${PRIMARY_MID}, ${TEAL_ACCENT})` : "#e5e7eb",
+                    background: done ? `linear-gradient(90deg, ${PRIMARY_MID}, ${TEAL_ACCENT})` : "#D7E7F5",
                     borderRadius: 99, transition: "background 0.3s",
                   }} />
                 )}
@@ -613,27 +616,27 @@ export default function CartCheckout({
   } 
   function Sidebar({ showRedeem = true }: { showRedeem?: boolean }) {
     const breakdownRows: { label: string; val: string; color: string }[] = [
-      { label: "Item Total (MRP)", val: formatPrice(itemTotal), color: "#374151" },
-      { label: "Subtotal", val: formatPrice(Math.max(0, itemTotal - (redeemApplied ? redeemSave : 0) - couponDiscount)), color: "#374151" },
+      { label: "Item Total (MRP)", val: formatPrice(itemTotal), color: "#202124" },
+      { label: "Subtotal", val: formatPrice(Math.max(0, itemTotal - (redeemApplied ? redeemSave : 0) - couponDiscount)), color: "#202124" },
     ];
-    if (platformFee > 0) breakdownRows.push({ label: "Platform Fee", val: formatPrice(platformFee), color: "#374151" });
-    if (gstOnFee > 0) breakdownRows.push({ label: `GST on Platform Fee (${quote?.gstOnPlatformFeePercent ?? 18}%)`, val: formatPrice(gstOnFee), color: "#374151" });
-    if (deliveryFee > 0) breakdownRows.push({ label: "Delivery Fee", val: formatPrice(deliveryFee), color: "#374151" });
-    if (surgeCost > 0) breakdownRows.push({ label: "Surge Cost", val: formatPrice(surgeCost), color: "#b45309" });
-    if (redeemApplied && redeemSave > 0) breakdownRows.push({ label: "Redeem Points", val: `-${formatPrice(redeemSave)}`, color: "#059669" });
-    if (couponDiscount > 0) breakdownRows.push({ label: couponCode ? `Coupon (${couponCode})` : "Coupon", val: `-${formatPrice(couponDiscount)}`, color: "#059669" });
+    if (platformFee > 0) breakdownRows.push({ label: "Platform Fee", val: formatPrice(platformFee), color: "#202124" });
+    if (gstOnFee > 0) breakdownRows.push({ label: `GST on Platform Fee (${quote?.gstOnPlatformFeePercent ?? 18}%)`, val: formatPrice(gstOnFee), color: "#202124" });
+    if (deliveryFee > 0) breakdownRows.push({ label: "Delivery Fee", val: formatPrice(deliveryFee), color: "#202124" });
+    if (surgeCost > 0) breakdownRows.push({ label: "Surge Cost", val: formatPrice(surgeCost), color: "#202124" });
+    if (redeemApplied && redeemSave > 0) breakdownRows.push({ label: "Redeem Points", val: `-${formatPrice(redeemSave)}`, color: "#89CFF0" });
+    if (couponDiscount > 0) breakdownRows.push({ label: couponCode ? `Coupon (${couponCode})` : "Coupon", val: `-${formatPrice(couponDiscount)}`, color: "#89CFF0" });
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: "#1f2937", marginBottom: 12 }}>Coupon</p>
+        <div className="cart-sidebar-card" style={{ background: "white", borderRadius: 10, border: "1px solid #D7E7F5", padding: 16 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", marginBottom: 12 }}>Coupon</p>
           <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
             <input
               value={couponInput}
               onChange={e => setCouponInput(e.target.value)}
               placeholder="Enter coupon code"
               style={{
-                flex: 1, border: "1px solid #e5e7eb", borderRadius: 8,
+                flex: 1, border: "1px solid #D7E7F5", borderRadius: 8,
                 padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", minWidth: 0,
               }}
             />
@@ -664,27 +667,27 @@ export default function CartCheckout({
             </PrimaryBtn>
           </div>
           {couponCode && couponDiscount > 0 && (
-            <p style={{ fontSize: 11, color: "#059669", margin: 0 }}>
+            <p style={{ fontSize: 11, color: "#89CFF0", margin: 0 }}>
               Applied {couponCode}: −{formatPrice(couponDiscount)}
             </p>
           )}
           {couponError && (
             <p style={{ fontSize: 11, color: "#dc2626", margin: "4px 0 0" }}>{couponError}</p>
           )}
-          <Link href="/profile" style={{ display: "inline-block", marginTop: 10, fontSize: 12, fontWeight: 700, color: PRIMARY_MID, textDecoration: "none" }}>
+          <Link href="/profile" style={{ display: "inline-block", marginTop: 10, fontSize: 12, fontWeight: 600, color: PRIMARY_MID, textDecoration: "none" }}>
             View My Coupons
           </Link>
         </div>
         {showRedeem && (
-          <div style={{ background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: 16 }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#1f2937", marginBottom: 12 }}>Redeem Points</p>
+          <div className="cart-sidebar-card" style={{ background: "white", borderRadius: 10, border: "1px solid #D7E7F5", padding: 16 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", marginBottom: 12 }}>Redeem Points</p>
             <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
               <input
                 value={redeemInput}
                 onChange={e => setRedeemInput(e.target.value)}
                 placeholder={`Enter Points (max ${Math.max(1, Math.round(maxRedeemValue) || 8)})`}
                 style={{
-                  flex: 1, border: "1px solid #e5e7eb", borderRadius: 8,
+                  flex: 1, border: "1px solid #D7E7F5", borderRadius: 8,
                   padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", minWidth: 0,
                 }}
               />
@@ -699,7 +702,7 @@ export default function CartCheckout({
             </div>
             {redeemApplied
               ? (
-                <p style={{ fontSize: 10, color: "#059669", fontWeight: 500 }}>
+                <p style={{ fontSize: 10, color: "#89CFF0", fontWeight: 500 }}>
                   Applied: {quote?.pointsRedeemed ?? redeemPoints} pts ({formatPrice(redeemSave)} off)
                 </p>
               )
@@ -710,23 +713,23 @@ export default function CartCheckout({
               )
             }
             {quote?.warnings?.length ? (
-              <p style={{ fontSize: 10, color: "#b45309", marginTop: 4 }}>{quote.warnings[0]}</p>
+              <p style={{ fontSize: 10, color: "#202124", marginTop: 4 }}>{quote.warnings[0]}</p>
             ) : null}
           </div>
         )}
 
-        <div style={{ background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: "#1f2937", marginBottom: 12 }}>
+        <div className="cart-sidebar-card cart-summary-card" style={{ background: "white", borderRadius: 10, border: "1px solid #D7E7F5", padding: 16 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", marginBottom: 12 }}>
             Bill Details {quoteLoading && <Loader2 size={12} className="animate-spin" style={{ display: "inline", marginLeft: 6 }} />}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {breakdownRows.map(({ label, val, color }) => (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6b7280" }}>
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#5D757A" }}>
                 <span>{label}</span>
                 <span style={{ fontWeight: 600, color }}>{val}</span>
               </div>
             ))}
-            <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: 10, display: "flex", justifyContent: "space-between", fontSize: 15, fontWeight: 800, color: PRIMARY_MID }}>
+            <div style={{ borderTop: "1px solid #F7FBFF", paddingTop: 10, display: "flex", justifyContent: "space-between", fontSize: 15, fontWeight: 600, color: PRIMARY_MID }}>
               <span>Total Amount</span>
               <span>{formatPrice(total)}</span>
             </div>
@@ -744,18 +747,18 @@ export default function CartCheckout({
           {quoteError && (
             <p style={{ fontSize: 11, fontWeight: 500, marginTop: 8, color: "#dc2626" }}>{quoteError}</p>
           )}
-          <div style={{ background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", padding: 12, marginTop: 12 }}>
-            <p style={{ fontSize: 12, fontWeight: 700, color: "#334155", margin: "0 0 6px" }}>
+          <div style={{ background: "#FFFFFF", borderRadius: 12, border: "1px solid #D7E7F5", padding: 12, marginTop: 12 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: "#3F3F46", margin: "0 0 6px" }}>
               Review your order and address details to avoid cancellations.
             </p>
-            <p style={{ fontSize: 11, color: "#64748b", margin: 0, lineHeight: 1.45 }}>
+            <p style={{ fontSize: 11, color: "#5D757A", margin: 0, lineHeight: 1.45 }}>
               You can only cancel the order until it is accepted by the vendor. Late cancellations may deduct amount, and redeemed wallet points are not refundable.
             </p>
           </div>
           <PrimaryBtn
             disabled={items.length === 0 || !meetsMinCart || quoteLoading}
             onClick={() => goToStep(Math.min(step + 1, 2))}
-            style={{ width: "100%", marginTop: 14, padding: "14px 0", fontSize: 15, borderRadius: 12, display: "block", fontWeight: 800 }}>
+            style={{ width: "100%", marginTop: 14, padding: "14px 0", fontSize: 15, borderRadius: 12, display: "block", fontWeight: 600 }}>
             Proceed To Checkout
           </PrimaryBtn>
         </div>
@@ -766,13 +769,13 @@ export default function CartCheckout({
   function Breadcrumb() {
     const crumbs = ["Home", "Cart", "Checkout"];
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#9ca3af", marginBottom: 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#5D757A", marginBottom: 16, flexWrap: "wrap" }}>
         {crumbs.map((c, i) => (
           <span key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            {i > 0 && <span style={{ color: "#d1d5db" }}>›</span>}
+            {i > 0 && <span style={{ color: "#D7E7F5" }}>›</span>}
             <span
               style={{
-                color: i === crumbs.length - 1 ? "#374151" : undefined,
+                color: i === crumbs.length - 1 ? "#202124" : undefined,
                 fontWeight: i === crumbs.length - 1 ? 600 : 400,
                 cursor: i < crumbs.length - 1 ? "pointer" : "default",
               }}
@@ -792,12 +795,13 @@ export default function CartCheckout({
     return (
       <div>
         <div style={{ marginBottom: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, background: "#f1f5f9", borderRadius: 16, padding: 6, maxWidth: 420 }}>
+          <div className="cart-tabs" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, background: "#FFFFFF", borderRadius: 16, padding: 6, maxWidth: 420 }}>
             {([
               { id: "shop" as const, label: `Shop (${items.length})` },
               { id: "saved" as const, label: `Saved (${savedItems.length})` },
             ]).map((tab) => (
               <button
+                className={cartTab === tab.id ? "cart-tab is-active" : "cart-tab"}
                 key={tab.id}
                 type="button"
                 onClick={() => setCartTab(tab.id)}
@@ -806,12 +810,12 @@ export default function CartCheckout({
                   borderRadius: 12,
                   padding: "12px 10px",
                   fontSize: 14,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   cursor: "pointer",
                   fontFamily: "inherit",
-                  background: cartTab === tab.id ? "white" : "transparent",
-                  color: cartTab === tab.id ? "#0f172a" : "#64748b",
-                  boxShadow: cartTab === tab.id ? "0 1px 3px rgba(15,23,42,0.08)" : "none",
+                  background: cartTab === tab.id ? PRIMARY_MID : "transparent",
+                  color: cartTab === tab.id ? "#FFFFFF" : "#5D757A",
+                  boxShadow: cartTab === tab.id ? "0 6px 16px rgba(137,207,240,0.18)" : "none",
                 }}
               >
                 {tab.label}
@@ -823,25 +827,25 @@ export default function CartCheckout({
         {cartTab === "saved" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {savedItems.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "48px 16px", background: "white", borderRadius: 16, border: "1px solid #e5e7eb" }}>
+              <div style={{ textAlign: "center", padding: "48px 16px", background: "white", borderRadius: 16, border: "1px solid #D7E7F5" }}>
                 <Heart size={28} style={{ color: "#94a3b8", margin: "0 auto 10px" }} />
-                <p style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: 0 }}>No saved items</p>
+                <p style={{ fontSize: 16, fontWeight: 600, color: "#202124", margin: 0 }}>No saved items</p>
                 <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 6 }}>Save cart items for later from the Shop tab.</p>
               </div>
             ) : (
               savedItems.map((line) => (
-                <div key={String(line.productId ?? line.id)} style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", padding: 16 }}>
+                <div key={String(line.productId ?? line.id)} style={{ background: "white", borderRadius: 14, border: "1px solid #D7E7F5", padding: 16 }}>
                   <div style={{ display: "flex", gap: 14 }}>
-                    <div style={{ width: 72, height: 72, borderRadius: 12, overflow: "hidden", background: "#f8fafc", flexShrink: 0 }}>
+                    <div style={{ width: 72, height: 72, borderRadius: 12, overflow: "hidden", background: "#FFFFFF", flexShrink: 0 }}>
                       {line.image ? <img src={resolveMediaUrl(line.image) || line.image} alt={line.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: 0 }}>{line.name}</p>
-                      <p style={{ fontSize: 12, color: "#64748b", margin: "4px 0 0" }}>Vendor: {line.vendor || "—"}</p>
-                      <p style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", margin: "8px 0 0" }}>{formatPrice(line.price)}</p>
+                      <p style={{ fontSize: 15, fontWeight: 600, color: "#202124", margin: 0 }}>{line.name}</p>
+                      <p style={{ fontSize: 12, color: "#5D757A", margin: "4px 0 0" }}>Vendor: {line.vendor || "—"}</p>
+                      <p style={{ fontSize: 15, fontWeight: 600, color: "#202124", margin: "8px 0 0" }}>{formatPrice(line.price)}</p>
                       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
                         <PurchaseActionButton action="cart" compact onClick={() => moveSavedToCart(line)} />
-                        <button type="button" onClick={() => removeSaved(line)} style={{ border: "none", background: "none", color: "#ef4444", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
+                        <button type="button" onClick={() => removeSaved(line)} style={{ border: "none", background: "none", color: "#ef4444", fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
                           REMOVE
                         </button>
                       </div>
@@ -854,23 +858,23 @@ export default function CartCheckout({
         ) : emptyShop ? (
           <div style={{ textAlign: "center", padding: "60px 16px" }}>
             <div style={{ fontSize: "4rem", marginBottom: 16 }}>🛒</div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1f2937", marginBottom: 8 }}>Your cart is empty</h2>
-            <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>Add some products to get started!</p>
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: "#202124", marginBottom: 8 }}>Your cart is empty</h2>
+            <p style={{ fontSize: 13, color: "#5D757A", marginBottom: 24 }}>Add some products to get started!</p>
             <PrimaryBtn onClick={onBack} style={{ padding: "10px 24px", fontSize: 13 }}>
               Continue Shopping
             </PrimaryBtn>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }} className="cart-layout">
-            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="cart-layout">
+            <div className="checkout-main-col" style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
               <AddressBar
                 address={currentAddress}
                 empty={addressEmpty}
                 onChangeAddress={() => setShowAddressModal(true)}
               />
 
-              <div style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", overflow: "hidden" }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", margin: 0, padding: "14px 16px", borderBottom: "1px solid #f1f5f9" }}>
+              <div className="cart-panel cart-schedule-panel" style={{ background: "white", borderRadius: 14, border: "1px solid #D7E7F5", overflow: "hidden" }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", margin: 0, padding: "14px 16px", borderBottom: "1px solid #F7FBFF" }}>
                   Delivery Schedule
                 </p>
                 {([
@@ -888,6 +892,7 @@ export default function CartCheckout({
                   },
                 ]).map((opt, idx) => (
                   <button
+                    className={deliveryMode === opt.id ? "cart-delivery-option is-active" : "cart-delivery-option"}
                     key={opt.id}
                     type="button"
                     onClick={() => setDeliveryMode(opt.id)}
@@ -898,19 +903,19 @@ export default function CartCheckout({
                       gap: 12,
                       padding: "14px 16px",
                       border: "none",
-                      borderTop: idx === 0 ? "none" : "1px solid #f1f5f9",
-                      background: deliveryMode === opt.id ? "#f0fdfa" : "white",
+                      borderTop: idx === 0 ? "none" : "1px solid #F7FBFF",
+                      background: deliveryMode === opt.id ? "#EAF4FF" : "white",
                       cursor: "pointer",
                       textAlign: "left",
                       fontFamily: "inherit",
                     }}
                   >
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: "#ecfeff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: "#EAF4FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {opt.icon}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: 0 }}>{opt.title}</p>
-                      <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0" }}>{opt.desc}</p>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: "#202124", margin: 0 }}>{opt.title}</p>
+                      <p style={{ fontSize: 12, color: "#5D757A", margin: "2px 0 0" }}>{opt.desc}</p>
                     </div>
                     <div style={{
                       width: 22, height: 22, borderRadius: "50%",
@@ -924,15 +929,15 @@ export default function CartCheckout({
               </div>
 
               {deliveryMode === "schedule" && (
-                <div style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", padding: 16 }}>
+                <div style={{ background: "white", borderRadius: 14, border: "1px solid #D7E7F5", padding: 16 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                    <button type="button" onClick={() => setWeekBase(new Date(weekBase.getTime() - 7 * 86400000))} style={{ border: "1px solid #e5e7eb", background: "white", borderRadius: 8, padding: 6, cursor: "pointer" }}>
+                    <button type="button" onClick={() => setWeekBase(new Date(weekBase.getTime() - 7 * 86400000))} style={{ border: "1px solid #D7E7F5", background: "white", borderRadius: 8, padding: 6, cursor: "pointer" }}>
                       <ChevronLeft size={16} />
                     </button>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", margin: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", margin: 0 }}>
                       {MONTHS[weekBase.getMonth()]} {weekBase.getFullYear()}
                     </p>
-                    <button type="button" onClick={() => setWeekBase(new Date(weekBase.getTime() + 7 * 86400000))} style={{ border: "1px solid #e5e7eb", background: "white", borderRadius: 8, padding: 6, cursor: "pointer" }}>
+                    <button type="button" onClick={() => setWeekBase(new Date(weekBase.getTime() + 7 * 86400000))} style={{ border: "1px solid #D7E7F5", background: "white", borderRadius: 8, padding: 6, cursor: "pointer" }}>
                       <ChevronRight size={16} />
                     </button>
                   </div>
@@ -945,16 +950,16 @@ export default function CartCheckout({
                           type="button"
                           onClick={() => setSelectedDate(d)}
                           style={{
-                            border: `1px solid ${active ? PRIMARY_MID : "#e5e7eb"}`,
-                            background: active ? "#ecfeff" : "white",
+                            border: `1px solid ${active ? PRIMARY_MID : "#D7E7F5"}`,
+                            background: active ? "#EAF4FF" : "white",
                             borderRadius: 10,
                             padding: "8px 4px",
                             cursor: "pointer",
                             fontFamily: "inherit",
                           }}
                         >
-                          <div style={{ fontSize: 10, color: "#64748b" }}>{DAYS[d.getDay()]}</div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{d.getDate()}</div>
+                          <div style={{ fontSize: 10, color: "#5D757A" }}>{DAYS[d.getDay()]}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#202124" }}>{d.getDate()}</div>
                         </button>
                       );
                     })}
@@ -967,15 +972,15 @@ export default function CartCheckout({
                         onClick={() => setSelectedTime(slot.value)}
                         style={{
                           textAlign: "left",
-                          border: `1px solid ${selectedTime === slot.value ? PRIMARY_MID : "#e5e7eb"}`,
-                          background: selectedTime === slot.value ? "#f0fdfa" : "white",
+                          border: `1px solid ${selectedTime === slot.value ? PRIMARY_MID : "#D7E7F5"}`,
+                          background: selectedTime === slot.value ? "#EAF4FF" : "white",
                           borderRadius: 10,
                           padding: "10px 12px",
                           cursor: "pointer",
                           fontFamily: "inherit",
                           fontSize: 13,
                           fontWeight: 600,
-                          color: "#0f172a",
+                          color: "#202124",
                         }}
                       >
                         {slot.label}
@@ -986,9 +991,9 @@ export default function CartCheckout({
               )}
 
               {items.map((item) => (
-                <div key={item.id} style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", padding: 16 }}>
+                <div className="cart-panel cart-item-card" key={item.id} style={{ background: "white", borderRadius: 14, border: "1px solid #D7E7F5", padding: 16 }}>
                   <div style={{ display: "flex", gap: 14 }}>
-                    <div style={{ width: 84, height: 84, borderRadius: 12, overflow: "hidden", border: "1px solid #f1f5f9", flexShrink: 0, background: "#f8fafc" }}>
+                    <div style={{ width: 84, height: 84, borderRadius: 12, overflow: "hidden", border: "1px solid #F7FBFF", flexShrink: 0, background: "#FFFFFF" }}>
                       {item.image
                         ? <img src={item.image} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem" }}>📦</div>}
@@ -996,23 +1001,23 @@ export default function CartCheckout({
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                         <div style={{ minWidth: 0, flex: 1 }}>
-                          <p style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: 0, wordBreak: "break-word" }}>{item.name}</p>
-                          <p style={{ fontSize: 12, color: "#64748b", margin: "4px 0 0" }}>
+                          <p style={{ fontSize: 15, fontWeight: 600, color: "#202124", margin: 0, wordBreak: "break-word" }}>{item.name}</p>
+                          <p style={{ fontSize: 12, color: "#5D757A", margin: "4px 0 0" }}>
                             Vendor: <span style={{ fontWeight: 600, color: PRIMARY_MID }}>{item.vendor || "—"}</span>
                           </p>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 4, color: PRIMARY_MID, flexShrink: 0 }}>
                           <Clock size={14} />
-                          <span style={{ fontSize: 12, fontWeight: 700 }}>Delivery in 30 Mins</span>
+                          <span style={{ fontSize: 12, fontWeight: 600 }}>Delivery in 30 Mins</span>
                         </div>
                       </div>
-                      <p style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", margin: "10px 0 0" }}>{formatPrice(item.price)}</p>
-                      <p style={{ fontSize: 12, color: "#059669", fontWeight: 600, margin: "6px 0 0" }}>Eligible for FREE Shipping</p>
-                      <p style={{ fontSize: 12, color: "#ea580c", margin: "4px 0 0" }}>
+                      <p style={{ fontSize: 16, fontWeight: 600, color: "#202124", margin: "10px 0 0" }}>{formatPrice(item.price)}</p>
+                      <p style={{ fontSize: 12, color: "#89CFF0", fontWeight: 600, margin: "6px 0 0" }}>Eligible for FREE Shipping</p>
+                      <p style={{ fontSize: 12, color: "#5D757A", margin: "4px 0 0" }}>
                         Up to {formatPrice(Math.max(1, Math.round(item.price * 0.05)))} redeemable via points (5%)
                       </p>
                       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 12 }}>
-                        <div style={{ display: "flex", alignItems: "center", borderRadius: 10, border: "1px solid #e5e7eb", overflow: "hidden", background: "#f8fafc" }}>
+                        <div style={{ display: "flex", alignItems: "center", borderRadius: 10, border: "1px solid #D7E7F5", overflow: "hidden", background: "#FFFFFF" }}>
                           {([
                             { label: "−", action: () => changeQty(item.id, -1) },
                             { label: String(item.qty), action: null as (() => void) | null },
@@ -1024,9 +1029,9 @@ export default function CartCheckout({
                               onClick={btn.action ?? undefined}
                               style={{
                                 width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
-                                fontSize: 14, fontWeight: 700, background: "transparent",
-                                border: "none", borderLeft: bi > 0 ? "1px solid #e5e7eb" : "none",
-                                cursor: btn.action ? "pointer" : "default", color: "#0f172a", fontFamily: "inherit",
+                                fontSize: 14, fontWeight: 600, background: "transparent",
+                                border: "none", borderLeft: bi > 0 ? "1px solid #D7E7F5" : "none",
+                                cursor: btn.action ? "pointer" : "default", color: "#202124", fontFamily: "inherit",
                               }}
                             >
                               {btn.label}
@@ -1034,16 +1039,18 @@ export default function CartCheckout({
                           ))}
                         </div>
                         <button
+                          className="cart-action-button"
                           type="button"
                           onClick={() => saveForLater(item.id)}
-                          style={{ fontSize: 12, fontWeight: 700, color: PRIMARY_MID, display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}
+                          style={{ fontSize: 12, fontWeight: 600, color: PRIMARY_MID, display: "flex", alignItems: "center", gap: 6, background: "white", border: "1px solid #D7E7F5", cursor: "pointer", fontFamily: "inherit", padding: "8px 12px", borderRadius: 10 }}
                         >
                           <Heart size={13} /> SAVE FOR LATER
                         </button>
                         <button
+                          className="cart-action-button cart-action-danger"
                           type="button"
                           onClick={() => removeItem(item.id)}
-                          style={{ fontSize: 12, fontWeight: 700, color: "#ef4444", display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}
+                          style={{ fontSize: 12, fontWeight: 600, color: "#dc2626", display: "flex", alignItems: "center", gap: 6, background: "white", border: "1px solid #fecaca", cursor: "pointer", fontFamily: "inherit", padding: "8px 12px", borderRadius: 10 }}
                         >
                           <Trash2 size={13} /> REMOVE
                         </button>
@@ -1069,39 +1076,39 @@ export default function CartCheckout({
         id: "razorpay",
         label: "Pay online (Razorpay)",
         sub: "UPI, cards, and wallets via Razorpay checkout.",
-        right: <span style={{ fontSize: 14, fontWeight: 900, color: "#2d6df6", fontFamily: "sans-serif" }}>Razorpay</span>,
+        right: <span style={{ fontSize: 14, fontWeight: 600, color: PRIMARY_MID, fontFamily: "sans-serif" }}>Razorpay</span>,
       },
       { id: "cod", label: "Cash on Delivery" },
     ];
 
     return (
-      <div style={{ display: "flex", gap: 16, flexDirection: "column" }} className="cart-layout">
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="cart-layout">
+        <div className="checkout-main-col" style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
           <AddressBar address={currentAddress} empty={addressEmpty} onChangeAddress={() => setShowAddressModal(true)} />
-          <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 16 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: "#1f2937", marginBottom: 14 }}>Payment Method</h3>
+          <div style={{ background: "white", borderRadius: 12, border: "1px solid #D7E7F5", padding: 16 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 600, color: "#202124", marginBottom: 14 }}>Payment Method</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {methods.map(pm => (
                 <div key={pm.id} onClick={() => setPayMethod(pm.id)}
                   style={{
                     borderRadius: 10, padding: 12, cursor: "pointer",
-                    border: `1px solid ${payMethod === pm.id ? PRIMARY_MID : "#e5e7eb"}`,
-                    background: payMethod === pm.id ? "#f0fdf4" : "white",
+                    border: `1px solid ${payMethod === pm.id ? PRIMARY_MID : "#D7E7F5"}`,
+                    background: payMethod === pm.id ? "#EAF4FF" : "white",
                     transition: "all 0.15s",
                   }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                     <div style={{
                       width: 16, height: 16, borderRadius: "50%",
-                      border: `2px solid ${payMethod === pm.id ? PRIMARY_MID : "#d1d5db"}`,
+                      border: `2px solid ${payMethod === pm.id ? PRIMARY_MID : "#D7E7F5"}`,
                       display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                     }}>
                       {payMethod === pm.id && <div style={{ width: 8, height: 8, borderRadius: "50%", background: BTN_GRAD }} />}
                     </div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#1f2937", flex: 1 }}>{pm.label}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#202124", flex: 1 }}>{pm.label}</span>
                     {pm.right}
                   </div>
                   {pm.sub && (
-                    <p style={{ margin: "6px 0 0 26px", fontSize: 11, color: "#6b7280" }}>{pm.sub}</p>
+                    <p style={{ margin: "6px 0 0 26px", fontSize: 11, color: "#5D757A" }}>{pm.sub}</p>
                   )}
                 </div>
               ))}
@@ -1114,11 +1121,12 @@ export default function CartCheckout({
             <p style={{ color: "#dc2626", fontSize: 12, marginTop: 8 }}>{orderError}</p>
           )}
           <button
+            className="cart-primary-button"
             onClick={placeOrder}
             disabled={placing || !items.length || addressesLoading}
             style={{
               marginTop: 12, width: "100%", border: "none", borderRadius: 10, padding: "12px 16px",
-              background: BTN_GRAD, color: "white", fontWeight: 700, fontSize: 13, cursor: placing ? "wait" : "pointer",
+              background: BTN_GRAD, color: "#FFFFFF", fontWeight: 600, fontSize: 13, cursor: placing ? "wait" : "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: placing ? 0.7 : 1,
             }}
           >
@@ -1142,24 +1150,24 @@ export default function CartCheckout({
           </div>
           <div style={{
             display: "inline-block", padding: "3px 14px", borderRadius: 99, fontSize: 11,
-            fontWeight: 600, background: "#f0fdf4", color: "#059669", border: "1px solid #d1fae5", marginBottom: 16,
+            fontWeight: 600, background: "#EAF4FF", color: "#89CFF0", border: "1px solid #D7E7F5", marginBottom: 16,
           }}>
             Order Confirmed
           </div>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: "#1f2937", margin: "0 0 4px" }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600, color: "#202124", margin: "0 0 4px" }}>
             Your order of {formatPrice(placedAmount || itemTotal)}
           </h2>
-          <p style={{ fontSize: 16, fontWeight: 700, color: "#1f2937", margin: "0 0 32px" }}>has been successfully placed!</p>
+          <p style={{ fontSize: 16, fontWeight: 600, color: "#202124", margin: "0 0 32px" }}>has been successfully placed!</p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
             <button
               onClick={onBack ?? (() => goToStep(0))}
               style={{
                 display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10,
-                border: "2px solid #e5e7eb", fontSize: 13, fontWeight: 700, color: "#374151",
+                border: "2px solid #D7E7F5", fontSize: 13, fontWeight: 600, color: "#202124",
                 background: "white", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
               }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = PRIMARY_MID; (e.currentTarget as HTMLElement).style.color = PRIMARY_MID; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "#e5e7eb"; (e.currentTarget as HTMLElement).style.color = "#374151"; }}>
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "#D7E7F5"; (e.currentTarget as HTMLElement).style.color = "#202124"; }}>
               <ShoppingBag size={14} /> Back to Home
             </button>
             <a href="/orders" style={{ textDecoration: "none" }}>
@@ -1176,16 +1184,37 @@ export default function CartCheckout({
   return (
     <div ref={pageRef} style={{  }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
         * { box-sizing: border-box; }
-        .cart-layout { display: flex; flex-direction: column; gap: 16px; }
-        .sidebar-col { width: 100%; }
-        @media (min-width: 768px) {
-          .cart-layout { flex-direction: row; }
-          .sidebar-col { width: 280px; min-width: 280px; flex-shrink: 0; }
+        .cart-layout { display: grid !important; grid-template-columns: minmax(0, 1fr) 360px; align-items: start; gap: 24px; width: 100%; }
+        .checkout-main-col { grid-column: 1; width: 100%; }
+        .sidebar-col { grid-column: 2; width: 100%; min-width: 0; position: sticky; top: 16px; }
+        .cart-panel, .cart-sidebar-card {
+          border-radius: 18px !important;
+          border-color: #D7E7F5 !important;
+          background: #FFFFFF !important;
+          box-shadow: 0 10px 30px rgba(137,207,240,0.065);
+          transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
         }
-        @media (min-width: 1024px) {
-          .sidebar-col { width: 300px; min-width: 300px; }
+        .cart-address-panel { padding: 18px 20px !important; }
+        .cart-sidebar-card { padding: 18px !important; }
+        .cart-item-card:hover { transform: translateY(-2px); border-color: #B8E3F7 !important; box-shadow: 0 14px 36px rgba(137,207,240,0.10); }
+        .cart-tabs { border: 1px solid #D7E7F5; box-shadow: 0 6px 20px rgba(137,207,240,0.05); }
+        .cart-tab { transition: background .2s ease, color .2s ease, box-shadow .2s ease, transform .2s ease; }
+        .cart-tab:hover { color: #89CFF0 !important; }
+        .cart-tab.is-active:hover { color: #FFFFFF !important; }
+        .cart-delivery-option { transition: background .2s ease, box-shadow .2s ease; }
+        .cart-delivery-option:hover { background: #F7FBFF !important; }
+        .cart-delivery-option.is-active { background: linear-gradient(90deg, #EAF4FF 0%, #FFFFFF 100%) !important; box-shadow: inset 4px 0 0 #89CFF0; }
+        .cart-primary-button:hover:not(:disabled) { opacity: 1 !important; transform: translateY(-1px); box-shadow: 0 12px 26px rgba(137,207,240,.25) !important; }
+        .cart-secondary-button { transition: background .18s ease, color .18s ease, transform .18s ease; }
+        .cart-secondary-button:hover { background: #89CFF0 !important; color: #FFFFFF !important; transform: translateY(-1px); }
+        .cart-action-button { transition: border-color .18s ease, background .18s ease, transform .18s ease; }
+        .cart-action-button:hover { border-color: #89CFF0 !important; background: #F7FBFF !important; transform: translateY(-1px); }
+        .cart-action-danger:hover { border-color: #dc2626 !important; background: #fff5f5 !important; }
+        @media (max-width: 900px) {
+          .cart-layout { grid-template-columns: minmax(0, 1fr); }
+          .checkout-main-col, .sidebar-col { grid-column: 1; }
+          .sidebar-col { position: static; }
         }
         input:focus {
           border-color: ${TEAL_ACCENT} !important;
@@ -1208,16 +1237,16 @@ export default function CartCheckout({
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#1f2937", margin: 0 }}>Change Delivery Address</h3>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: "#202124", margin: 0 }}>Change Delivery Address</h3>
               <button
                 onClick={() => setShowAddressModal(false)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", padding: 4, fontSize: 18, lineHeight: 1 }}>
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#5D757A", padding: 4, fontSize: 18, lineHeight: 1 }}>
                 ✕
               </button>
             </div> 
-            <p style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Saved Addresses</p>
+            <p style={{ fontSize: 11, fontWeight: 600, color: "#5D757A", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Saved Addresses</p>
             {addressesLoading ? (
-              <p style={{ fontSize: 12, color: "#6b7280", padding: "12px 0" }}>Loading saved addresses...</p>
+              <p style={{ fontSize: 12, color: "#5D757A", padding: "12px 0" }}>Loading saved addresses...</p>
             ) : addressError ? (
               <p style={{ fontSize: 12, color: "#b91c1c", padding: "12px 0" }}>{addressError}</p>
             ) : addresses.length ? addresses.map((savedAddress) => {
@@ -1229,8 +1258,8 @@ export default function CartCheckout({
                   onClick={() => { selectAddress(savedAddress.id); setShowAddressModal(false); }}
                   style={{
                     display: "block", width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 8, cursor: "pointer",
-                    border: `1px solid ${active ? PRIMARY_MID : "#e5e7eb"}`,
-                    background: active ? "#f0fdfa" : "white", fontSize: 12, color: "#374151", textAlign: "left",
+                    border: `1px solid ${active ? PRIMARY_MID : "#D7E7F5"}`,
+                    background: active ? "#EAF4FF" : "white", fontSize: 12, color: "#202124", textAlign: "left",
                   }}
                 >
                   <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -1240,7 +1269,7 @@ export default function CartCheckout({
                 </button>
               );
             }) : (
-              <p style={{ fontSize: 12, color: "#6b7280", padding: "12px 0" }}>No saved addresses yet.</p>
+              <p style={{ fontSize: 12, color: "#5D757A", padding: "12px 0" }}>No saved addresses yet.</p>
             )}
 
             <PrimaryBtn
@@ -1252,7 +1281,7 @@ export default function CartCheckout({
         </div>
       )}
 
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "16px 12px" }}>
+      <div className="cart-checkout-shell" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 24px 48px" }}>
         {step < 2 && items.length > 0 && <Breadcrumb />}
         {step < 2 && <Stepper />}
         {step === 0 && <CartStep />}

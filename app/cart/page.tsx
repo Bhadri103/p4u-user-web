@@ -7,8 +7,8 @@ import CartCheckout from "@/app/cart/CartCheckout";
 
 export default function CartRoute() {
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
+    <div className="commerce-marketplace min-h-screen flex flex-col">
+      <Header variant="marketplace" />
       <main className="flex-1">
         <CartCheckout onBack={() => { window.location.href = "/shop"; }} />
       </main>

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
+import type { CSSProperties } from "react";
 import { useCart } from "@/providers/CartContext";
 import { takePostLoginAction } from "@/lib/postLoginAction";
 import { useAuth } from "@/providers/AuthContext";
@@ -12,7 +13,7 @@ import {
   MapPin, Search, ShoppingCart, User, ChevronDown, Menu, X,
   Navigation, Clock, Package, Heart, Gift,
   Store, LogOut, Wallet, Shield, ChevronRight,
-  ShoppingBag, Megaphone, Wrench, Building2, Newspaper, UtensilsCrossed,
+  ShoppingBag, Megaphone, Wrench, Building2, Newspaper, UtensilsCrossed, House,
 } from "lucide-react";
 import Image from "next/image";
 import logo from "../../images/logo.png";
@@ -21,20 +22,33 @@ import { usePathname } from "next/navigation";
 import { avatarLetterFromDisplayName } from "@/lib/resolveCustomerId";
 import { isFoodModuleEnabled } from "@/lib/features";
 
-const HEADER_TEAL = "#0a9a9a";
-const SELLER_ORANGE = "#f5a623";
+const HEADER_TEAL = "#EAF4FF";
+const PRIMARY_ACTION_BLUE = "#1976D2";
 
 interface HeaderProps {
   onCartOpen?: () => void;
+  variant?: "default" | "marketplace";
 }
 
-export default function Header({ onCartOpen }: HeaderProps) {
+type HeaderNavItem = {
+  icon: typeof ShoppingBag;
+  label: string;
+  href: string;
+  image?: string;
+  accent: string;
+  soft: string;
+};
+
+export default function Header({ onCartOpen, variant = "default" }: HeaderProps) {
+  const isMarketplace = variant === "marketplace";
+  const headerColor = HEADER_TEAL;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLoginDropdownOpen, setIsLoginDropdownOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [wishlistCount, setWishlistCount] = useState(0);
+  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [locationSearch, setLocationSearch] = useState("");
   const [locationStatus, setLocationStatus] = useState("");
   const { isLoggedIn, loggedPhone, displayName, isLoading, login, logout: authLogout } = useAuth();
@@ -49,20 +63,29 @@ export default function Header({ onCartOpen }: HeaderProps) {
   } = useAddresses();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const searchRef = useRef<HTMLDivElement>(null);
+  const desktopSearchRef = useRef<HTMLDivElement>(null);
+  const tabletSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { totalItems, addToCart } = useCart();
 
-  const navItems: Array<{ icon: typeof ShoppingBag; label: string; href: string }> = [
-    { icon: ShoppingBag, label: "Shop", href: "/shop" },
-    { icon: Megaphone, label: "Socio", href: "/socio" },
-    { icon: Wrench, label: "Services", href: "/service" },
-    { icon: Building2, label: "Find Home", href: "/find-home" },
-    { icon: Newspaper, label: "Classified Ads", href: "/classified" },
+  const navItems: HeaderNavItem[] = [
+    { icon: House, label: "Home", href: "/home", image: "/images/navigation/home-hub.png", accent: "#8FB8DE", soft: "#F2F8FD" },
+    { icon: ShoppingBag, label: "Shop", href: "/shop", image: "/images/navigation/shop-nav.png", accent: "#F2B93B", soft: "#FFF8E7" },
+    { icon: Megaphone, label: "Socio", href: "/socio", image: "/images/navigation/socio-nav.png", accent: "#EF8A7E", soft: "#FFF1EF" },
+    { icon: Wrench, label: "Services", href: "/service", image: "/images/navigation/services-nav.png", accent: "#7EB772", soft: "#F0F8ED" },
+    { icon: Building2, label: "Find Home", href: "/find-home", image: "/images/navigation/find-home-nav-v2.png", accent: "#EDA96B", soft: "#FFF4EA" },
+    { icon: Newspaper, label: "Classified Ads", href: "/classified", image: "/images/navigation/classified-nav.png", accent: "#E98B98", soft: "#FFF1F3" },
     ...(isFoodModuleEnabled
-      ? [{ icon: UtensilsCrossed, label: "Food", href: "/food" } as const]
+      ? [{ icon: UtensilsCrossed, label: "Food", href: "/food", accent: "#E9A23B", soft: "#FFF8E8" }]
       : []),
   ];
+  const mobileDockItems: HeaderNavItem[] = navItems;
+
+  const navStyle = (item: HeaderNavItem): CSSProperties => ({
+    "--nav-accent": item.accent,
+    "--nav-soft": item.soft,
+  } as CSSProperties);
 
   const pathname = usePathname();
   const isActive = (href: string) =>
@@ -119,7 +142,9 @@ export default function Header({ onCartOpen }: HeaderProps) {
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       const target = e.target as Node;
-      if (searchRef.current && !searchRef.current.contains(target)) {
+      const clickedInsideSearch = [desktopSearchRef, tabletSearchRef, mobileSearchRef]
+        .some((ref) => ref.current?.contains(target));
+      if (!clickedInsideSearch) {
         setIsSearchOpen(false);
       }
       const dropdown = document.getElementById("login-dropdown");
@@ -158,12 +183,13 @@ export default function Header({ onCartOpen }: HeaderProps) {
   useEffect(() => {
     if (!isLoggedIn) {
       setWishlistCount(0);
+      setProfileAvatar(null);
       return;
     }
-    profileApi
-      .getWishlist()
-      .then((rows) => setWishlistCount(rows.length))
-      .catch(() => setWishlistCount(0));
+    Promise.allSettled([profileApi.getWishlist(), profileApi.getMe()]).then(([wishlist, profile]) => {
+      setWishlistCount(wishlist.status === "fulfilled" ? wishlist.value.length : 0);
+      setProfileAvatar(profile.status === "fulfilled" ? profile.value.avatar ?? null : null);
+    });
   }, [isLoggedIn]);
 
   function handleCartClick() {
@@ -208,15 +234,56 @@ export default function Header({ onCartOpen }: HeaderProps) {
     router.push("/");
   }
 
+  function runProductSearch(query = searchQuery) {
+    const value = query.trim();
+    if (!value) return;
+    setSearchQuery(value);
+    setIsSearchOpen(false);
+    router.push(`/shop?q=${encodeURIComponent(value)}`);
+  }
+
+  function SearchSuggestions() {
+    return (
+      <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[1200] max-h-[360px] overflow-y-auto rounded-2xl border border-[#D7E7F5] bg-white p-2 shadow-[0_20px_50px_rgba(32,33,36,.2)]">
+        <div className="flex items-center justify-between px-2 pb-2 pt-1">
+          <span className="text-sm font-semibold text-[#202124]">Recent searches</span>
+          <button
+            type="button"
+            className="rounded-full px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+            onClick={() => { setSearchQuery(""); setIsSearchOpen(false); }}
+          >
+            Clear
+          </button>
+        </div>
+        <ul className="space-y-0.5">
+          {recentSearches.map((item) => (
+            <li key={item}>
+              <button
+                type="button"
+                onClick={() => runProductSearch(item)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-600 transition hover:bg-[#F3F9FF] hover:text-[#202124]"
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EAF4FF]">
+                  <Clock className="h-3.5 w-3.5 text-[#89CFF0]" />
+                </span>
+                <span>{item}</span>
+                <ChevronRight className="ml-auto h-4 w-4 text-slate-300" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
   function CartBadge({ size = "sm" }: { size?: "sm" | "lg" }) {
     if (totalItems <= 0) return null;
     const dim = size === "lg" ? "w-5 h-5" : "w-4 h-4";
     return (
       <div
-        className={`absolute -top-2 -right-2 rounded-full ${dim} flex items-center justify-center`}
-        style={{ backgroundColor: "#0E221F" }}
+        className={`cart-glow-badge absolute -top-2 -right-2 rounded-full ${dim} flex items-center justify-center border border-white bg-white shadow-lg`}
       >
-        <span className="text-white text-xs font-bold">
+        <span className="text-[#89CFF0] text-[10px] font-semibold">
           {totalItems > 99 ? "99+" : totalItems}
         </span>
       </div>
@@ -228,11 +295,13 @@ export default function Header({ onCartOpen }: HeaderProps) {
     const dim = compact ? "w-7 h-7 text-xs" : "w-8 h-8 text-xs";
     return (
       <div
-        className={`${dim} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ring-2 ring-white/30`}
-        style={{ background: "rgba(255,255,255,0.2)" }}
-        aria-hidden
+        className={`${dim} overflow-hidden rounded-full flex items-center justify-center text-[#89CFF0] font-semibold flex-shrink-0 ring-2 ring-white shadow-sm`}
+        style={{ background: "#EAF4FF" }}
+        aria-label={`${displayName} profile picture`}
       >
-        {letter}
+        {profileAvatar
+          ? <Image src={profileAvatar} alt="" width={32} height={32} unoptimized className="h-full w-full object-cover" />
+          : letter}
       </div>
     );
   }
@@ -242,7 +311,7 @@ export default function Header({ onCartOpen }: HeaderProps) {
       {isLoggedIn && isLoginDropdownOpen && (
         <div
           id="login-dropdown"
-          className="fixed overflow-hidden rounded-[18px] border border-slate-100 bg-white py-1 shadow-[0_10px_28px_rgba(15,23,42,0.16)]"
+          className="fixed overflow-hidden rounded-[18px] border border-slate-100 bg-white py-1 shadow-[0_10px_28px_rgba(32,33,36,0.16)]"
           style={{ top: "64px", right: "16px", zIndex: 999999, width: "268px" }}
         >
           {loginMenuItems.map(({ icon: Icon, label, href }, index) =>
@@ -260,9 +329,9 @@ export default function Header({ onCartOpen }: HeaderProps) {
                 key={label}
                 href={href}
                 onClick={() => setIsLoginDropdownOpen(false)}
-                className={`flex w-full items-center gap-4 px-5 py-3 text-[16px] font-normal text-slate-800 transition-colors hover:bg-slate-50 ${index === 5 ? "border-t border-slate-100" : ""}`}
+                className={`flex w-full items-center gap-4 px-5 py-3 text-[16px] font-normal text-neutral-800 transition-colors hover:bg-slate-50 ${index === 5 ? "border-t border-slate-100" : ""}`}
               >
-                <Icon className="h-5 w-5 flex-shrink-0 text-slate-800" strokeWidth={1.8} />
+                <Icon className="h-5 w-5 flex-shrink-0 text-neutral-800" strokeWidth={1.8} />
                 <span>{label}</span>
               </Link>
             )
@@ -273,11 +342,11 @@ export default function Header({ onCartOpen }: HeaderProps) {
       {/* Location Modal */}
       {isLocationModalOpen && (
         <div
-          className="fixed inset-0 z-[100] flex items-start justify-center pt-16"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
           style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
           onClick={() => setIsLocationModalOpen(false)}
         >
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 pt-5 pb-4">
               <h2 className="text-base font-semibold text-gray-900">Select Location</h2>
               <button onClick={() => setIsLocationModalOpen(false)} className="text-gray-400 hover:text-gray-600">
@@ -294,7 +363,7 @@ export default function Header({ onCartOpen }: HeaderProps) {
               <div className="flex items-center justify-between p-3 rounded-lg border border-gray-100 bg-gray-50">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: "#e8f5f1" }}>
-                    <Navigation className="w-4 h-4" style={{ color: "#0E221F" }} />
+                    <Navigation className="w-4 h-4" style={{ color: "#202124" }} />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-800">Use My Current Location</p>
@@ -329,7 +398,7 @@ export default function Header({ onCartOpen }: HeaderProps) {
                         }}
                       >
                         <div className="mb-1.5 flex items-center gap-2">
-                          <span className="rounded px-2 py-0.5 text-xs font-bold text-white" style={{ backgroundColor: "#0E221F" }}>P4U</span>
+                          <span className="rounded-full bg-[#EAF4FF] px-2 py-0.5 text-xs font-semibold text-[#202124]">P4U</span>
                           <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">{address.label || "Address"}</span>
                           {address.isDefault && <span className="text-[10px] font-semibold uppercase tracking-wide text-teal-700">Default</span>}
                           {active && <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-teal-700">Selected</span>}
@@ -353,15 +422,15 @@ export default function Header({ onCartOpen }: HeaderProps) {
         </div>
       )}
 
-      <header className="w-full sticky top-0 z-[1000] shadow-sm pointer-events-auto">
+      <header className={`relative z-[40] w-full shrink-0 shadow-sm pointer-events-auto ${isMarketplace ? "marketplace-header" : ""}`}>
 
         {/* ── Row 1: Teal top bar (desktop) ── */}
-        <div className="hidden min-[1200px]:block" style={{ backgroundColor: HEADER_TEAL }}>
-          <div className="max-w-[1400px] mx-auto px-4 xl:px-6 py-2.5">
+        <div className="p4u-header-surface fixed inset-x-0 top-0 z-[40] hidden overflow-visible min-[1200px]:block" style={{ backgroundColor: headerColor }}>
+          <div className="mx-auto w-full max-w-7xl px-4 py-2.5 xl:px-6">
             <div className="flex items-center gap-3 xl:gap-4">
 
-              <Link href="/" className="flex-shrink-0">
-                <div className="w-16 h-16 xl:w-20 xl:h-20 flex items-center justify-center relative overflow-hidden">
+              <Link href="/home" className="flex-shrink-0" aria-label="Planext4u home">
+                <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden">
                   <Image src={logo} alt="P4U" fill className="object-contain p-2" priority />
                 </div>
               </Link>
@@ -369,21 +438,20 @@ export default function Header({ onCartOpen }: HeaderProps) {
               <button
                 type="button"
                 onClick={() => setIsLocationModalOpen(true)}
-                className="flex items-center gap-2 rounded-full border border-[#7dd3a8] bg-[#7dd3a8]/20 px-3 xl:px-4 py-2 w-40 xl:w-52 flex-shrink-0 hover:bg-[#7dd3a8]/30 transition-colors"
+                className="p4u-address-button flex items-center gap-2 rounded-full border border-[#1976D2] bg-[#1976D2] px-3 xl:px-4 py-2 w-40 xl:w-52 flex-shrink-0 hover:bg-[#1565C0] transition-colors"
               >
-                <MapPin className="w-4 h-4 text-[#fde047] flex-shrink-0" strokeWidth={2.2} fill="#fde047" />
-                <span className="text-white text-xs xl:text-sm truncate font-medium" title={selectedAddress ? formatAddress(selectedAddress) : selectedAddressText}>{selectedAddressText}</span>
+                <MapPin className="w-4 h-4 text-[#7A879B] flex-shrink-0" strokeWidth={2.2} />
+                <span className="text-[#202124] text-xs xl:text-sm truncate font-medium" title={selectedAddress ? formatAddress(selectedAddress) : selectedAddressText}>{selectedAddressText}</span>
               </button>
 
-              <div className="flex-1 min-w-0 relative" ref={searchRef}>
+              <div className="relative min-w-0 flex-1" ref={desktopSearchRef}>
                 <div
-                  className="flex items-center gap-2 rounded-full px-4 py-2.5 transition-colors"
+                  className="flex h-11 items-center gap-2 rounded-full border border-white/70 bg-white px-4 shadow-sm transition-colors"
                   style={{
-                    backgroundColor: "rgba(255,255,255,0.18)",
                     ...(isSearchOpen ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : {}),
                   }}
                 >
-                  <Search className="text-white/80 w-5 h-5 flex-shrink-0" strokeWidth={2} />
+                  <Search className="h-5 w-5 flex-shrink-0 text-[#89CFF0]" strokeWidth={2} />
                   <input
                     type="text"
                     placeholder='Search for "Electronics"'
@@ -392,50 +460,24 @@ export default function Header({ onCartOpen }: HeaderProps) {
                     onFocus={() => setIsSearchOpen(true)}
                     onKeyDown={(e) => {
                       if (e.key !== "Enter") return;
-                      const q = searchQuery.trim();
-                      if (!q) return;
-                      setIsSearchOpen(false);
-                      router.push(`/shop?q=${encodeURIComponent(q)}`);
+                      runProductSearch();
                     }}
-                    className="bg-transparent outline-none text-white flex-1 text-sm placeholder:text-white/70 w-full min-w-0"
+                    className="header-search-input min-w-0 w-full flex-1 bg-transparent text-sm text-[#202124] outline-none placeholder:text-[#5D757A]"
                   />
                   {searchQuery && (
                     <button type="button" onClick={() => setSearchQuery("")}>
-                      <X className="w-4 h-4 text-white/70 hover:text-white" />
+                      <X className="h-4 w-4 text-slate-400 hover:text-slate-700" />
                     </button>
                   )}
                 </div>
-                {isSearchOpen && (
-                  <div className="absolute left-0 right-0 bg-white border border-gray-200 border-t-0 rounded-b-2xl shadow-lg z-50">
-                    <div className="px-4 pt-3 pb-2 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-700">Recent Search</span>
-                      <button type="button" className="text-xs font-medium text-gray-500 hover:text-gray-700" onClick={() => setIsSearchOpen(false)}>Clear all</button>
-                    </div>
-                    <ul className="pb-2">
-                      {recentSearches.map((item, i) => (
-                        <li
-                          key={i}
-                          className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 cursor-pointer group"
-                          onClick={() => {
-                            setSearchQuery(item);
-                            setIsSearchOpen(false);
-                            router.push(`/shop?q=${encodeURIComponent(item)}`);
-                          }}
-                        >
-                          <div className="flex items-center gap-3"><Clock className="w-4 h-4 text-gray-400" /><span className="text-sm text-gray-600">{item}</span></div>
-                          <button type="button" className="text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3.5 h-3.5" /></button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {isSearchOpen && <SearchSuggestions />}
               </div>
 
               <button
                 type="button"
                 onClick={goVendorRegister}
-                className="rounded-full px-5 xl:px-6 py-2.5 text-sm font-bold text-black whitespace-nowrap flex-shrink-0 hover:brightness-105 transition-all"
-                style={{ backgroundColor: SELLER_ORANGE }}
+                className="seller-cta rounded-full px-5 xl:px-6 py-2.5 text-sm font-semibold text-white whitespace-nowrap flex-shrink-0 hover:brightness-105 transition-all"
+                style={{ backgroundColor: PRIMARY_ACTION_BLUE }}
               >
                 Become a Seller
               </button>
@@ -449,7 +491,7 @@ export default function Header({ onCartOpen }: HeaderProps) {
                   <User className="w-5 h-5 animate-pulse" strokeWidth={2} />
                 ) : isLoggedIn ? (
                   <>
-                    <User className="w-5 h-5" strokeWidth={2} />
+                    <LoginAvatar />
                     <span className="text-sm font-medium max-w-[140px] truncate" title={displayName}>
                       {displayName}
                     </span>
@@ -482,41 +524,28 @@ export default function Header({ onCartOpen }: HeaderProps) {
         </div>
  
         {/* ── Row 1: Teal top bar (tablet) ── */}
-        <div className="hidden md:block min-[1200px]:hidden" style={{ backgroundColor: HEADER_TEAL }}>
+        <div className="p4u-header-surface fixed inset-x-0 top-0 z-[40] hidden overflow-visible md:block min-[1200px]:hidden" style={{ backgroundColor: headerColor }}>
           <div className="px-3 sm:px-4 py-2.5">
             <div className="flex items-center justify-between gap-2">
-              <Link href="/" className="flex-shrink-0">
+              <Link href="/home" className="flex-shrink-0" aria-label="Planext4u home">
                 <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center relative overflow-hidden">
                   <Image src={logo} alt="P4U" fill className="object-contain p-2" priority />
                 </div>
               </Link>
-              <div className="flex-[8] mx-1 relative" ref={searchRef}>
-                <div className="flex items-center gap-2 rounded-full px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.18)" }}>
-                  <Search className="text-white/80 w-4 h-4 flex-shrink-0" strokeWidth={2} />
+              <div className="relative mx-1 flex-[8]" ref={tabletSearchRef}>
+                <div className="flex h-10 items-center gap-2 rounded-full border border-white/70 bg-white px-3 shadow-sm">
+                  <Search className="h-4 w-4 flex-shrink-0 text-[#89CFF0]" strokeWidth={2} />
                   <input
                     type="text"
                     placeholder='Search for "Electronics"'
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => setIsSearchOpen(true)}
-                    className="bg-transparent outline-none text-white flex-1 text-sm placeholder:text-white/70 w-full"
+                    onKeyDown={(e) => { if (e.key === "Enter") runProductSearch(); }}
+                    className="header-search-input w-full flex-1 bg-transparent text-sm text-[#202124] outline-none placeholder:text-[#5D757A]"
                   />
                 </div>
-                {isSearchOpen && (
-                  <div className="absolute left-0 right-0 bg-white border border-gray-200 border-t-0 rounded-b-2xl shadow-lg z-50">
-                    <div className="px-4 pt-3 pb-2 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-700">Recent Search</span>
-                      <button type="button" className="text-xs text-gray-500 font-medium">Clear all</button>
-                    </div>
-                    <ul className="pb-2">
-                      {recentSearches.map((item, i) => (
-                        <li key={i} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 cursor-pointer group">
-                          <div className="flex items-center gap-3"><Clock className="w-4 h-4 text-gray-400" /><span className="text-sm text-gray-600">{item}</span></div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {isSearchOpen && <SearchSuggestions />}
               </div>
               <div className="flex items-center gap-1 flex-shrink-0 text-white">
                 <div id="login-btn" className="flex items-center p-2 cursor-pointer" onClick={handleLoginClick}>
@@ -536,12 +565,12 @@ export default function Header({ onCartOpen }: HeaderProps) {
             <button
               type="button"
               onClick={() => setIsLocationModalOpen(true)}
-              className="flex w-full min-w-0 items-center gap-2 rounded-full border border-[#7dd3a8] bg-[#7dd3a8]/20 px-3 py-2 text-left hover:bg-[#7dd3a8]/30"
+              className="p4u-address-button flex w-full min-w-0 items-center gap-2 rounded-full border border-[#1976D2] bg-[#1976D2] px-3 py-2 text-left hover:bg-[#1565C0]"
               aria-label="Select delivery or service address"
             >
-              <MapPin className="h-4 w-4 flex-shrink-0 text-[#fde047]" strokeWidth={2.2} fill="#fde047" />
-              <span className="truncate text-xs font-medium text-white" title={selectedAddress ? formatAddress(selectedAddress) : selectedAddressText}>{selectedAddressText}</span>
-              <ChevronRight className="ml-auto h-4 w-4 flex-shrink-0 text-white/80" />
+              <MapPin className="h-4 w-4 flex-shrink-0 text-[#7A879B]" strokeWidth={2.2} />
+              <span className="truncate text-xs font-medium text-[#202124]" title={selectedAddress ? formatAddress(selectedAddress) : selectedAddressText}>{selectedAddressText}</span>
+              <ChevronRight className="ml-auto h-4 w-4 flex-shrink-0 text-[#7A879B]" />
             </button>
           </div>
           {isMobileMenuOpen && (
@@ -550,13 +579,13 @@ export default function Header({ onCartOpen }: HeaderProps) {
                 <button
                   type="button"
                   onClick={goVendorRegister}
-                  className="text-left text-sm w-full py-3 px-4 rounded-full font-bold text-black flex items-center justify-center"
-                  style={{ backgroundColor: SELLER_ORANGE }}
+                  className="seller-cta text-left text-sm w-full py-3 px-4 rounded-full font-semibold text-white flex items-center justify-center"
+                  style={{ backgroundColor: PRIMARY_ACTION_BLUE }}
                 >
                   Become a Seller
                 </button>
                 <button type="button" className="text-left text-sm w-full py-3 px-4 rounded-xl border border-gray-200 flex items-center justify-between" onClick={() => setIsLocationModalOpen(true)}>
-                  <div className="flex min-w-0 items-center gap-2"><MapPin className="w-4 h-4 flex-shrink-0 text-[#0a9a9a]" strokeWidth={2} /><span className="truncate">{selectedAddressText}</span></div>
+                  <div className="flex min-w-0 items-center gap-2"><MapPin className="w-4 h-4 flex-shrink-0 text-[#89CFF0]" strokeWidth={2} /><span className="truncate">{selectedAddressText}</span></div>
                   <ChevronRight className="w-4 h-4" strokeWidth={2} />
                 </button>
               </nav>
@@ -565,26 +594,28 @@ export default function Header({ onCartOpen }: HeaderProps) {
         </div>
 
         {/* ── Row 1: Teal top bar (mobile) ── */}
-        <div className="block md:hidden" style={{ backgroundColor: HEADER_TEAL }}>
+        <div className="p4u-header-surface fixed inset-x-0 top-0 z-[40] block overflow-visible md:hidden" style={{ backgroundColor: headerColor }}>
           <div className="px-3 py-2.5">
             <div className="flex items-center justify-between gap-2">
-              <Link href="/" className="flex-shrink-0">
+              <Link href="/home" className="flex-shrink-0" aria-label="Planext4u home">
                 <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center relative overflow-hidden">
                   <Image src={logo} alt="P4U" fill className="object-contain p-2" priority />
                 </div>
               </Link>
-              <div className="flex-[8] relative" ref={searchRef}>
-                <div className="flex items-center gap-2 rounded-full px-3 py-2" style={{ backgroundColor: "rgba(255,255,255,0.18)" }}>
-                  <Search className="text-white/80 w-4 h-4 flex-shrink-0" strokeWidth={2} />
+              <div className="relative flex-[8]" ref={mobileSearchRef}>
+                <div className="flex h-10 items-center gap-2 rounded-full border border-white/70 bg-white px-3 shadow-sm">
+                  <Search className="h-4 w-4 flex-shrink-0 text-[#89CFF0]" strokeWidth={2} />
                   <input
                     type="text"
                     placeholder='Search...'
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => setIsSearchOpen(true)}
-                    className="bg-transparent outline-none text-white flex-1 text-sm placeholder:text-white/70 w-full"
+                    onKeyDown={(e) => { if (e.key === "Enter") runProductSearch(); }}
+                    className="header-search-input w-full flex-1 bg-transparent text-sm text-[#202124] outline-none placeholder:text-[#5D757A]"
                   />
                 </div>
+                {isSearchOpen && <SearchSuggestions />}
               </div>
               <div className="flex items-center gap-0.5 flex-shrink-0 text-white">
                 <div id="login-btn" className="p-2 cursor-pointer" onClick={handleLoginClick}>
@@ -604,12 +635,12 @@ export default function Header({ onCartOpen }: HeaderProps) {
             <button
               type="button"
               onClick={() => setIsLocationModalOpen(true)}
-              className="flex w-full min-w-0 items-center gap-2 rounded-full border border-[#7dd3a8] bg-[#7dd3a8]/20 px-3 py-2 text-left hover:bg-[#7dd3a8]/30"
+              className="p4u-address-button flex w-full min-w-0 items-center gap-2 rounded-full border border-[#1976D2] bg-[#1976D2] px-3 py-2 text-left hover:bg-[#1565C0]"
               aria-label="Select delivery or service address"
             >
-              <MapPin className="h-4 w-4 flex-shrink-0 text-[#fde047]" strokeWidth={2.2} fill="#fde047" />
-              <span className="truncate text-xs font-medium text-white" title={selectedAddress ? formatAddress(selectedAddress) : selectedAddressText}>{selectedAddressText}</span>
-              <ChevronRight className="ml-auto h-4 w-4 flex-shrink-0 text-white/80" />
+              <MapPin className="h-4 w-4 flex-shrink-0 text-[#7A879B]" strokeWidth={2.2} />
+              <span className="truncate text-xs font-medium text-[#202124]" title={selectedAddress ? formatAddress(selectedAddress) : selectedAddressText}>{selectedAddressText}</span>
+              <ChevronRight className="ml-auto h-4 w-4 flex-shrink-0 text-[#7A879B]" />
             </button>
           </div>
           {isMobileMenuOpen && (
@@ -618,8 +649,8 @@ export default function Header({ onCartOpen }: HeaderProps) {
                 <button
                   type="button"
                   onClick={goVendorRegister}
-                  className="w-full py-3 px-4 rounded-full font-bold text-black text-sm"
-                  style={{ backgroundColor: SELLER_ORANGE }}
+                  className="seller-cta w-full py-3 px-4 rounded-full font-semibold text-white text-sm"
+                  style={{ backgroundColor: PRIMARY_ACTION_BLUE }}
                 >
                   Become a Seller
                 </button>
@@ -642,55 +673,71 @@ export default function Header({ onCartOpen }: HeaderProps) {
           )}
         </div>
  
+        <div aria-hidden="true" className="h-[110px] md:h-[118px] min-[1200px]:h-[84px]" />
+
         {/* ── Row 2: Category navigation (white) ── */}
-        <nav className="hidden w-full border-b border-gray-100 bg-white md:block relative z-[1001] pointer-events-auto">
-          <div className="max-w-[1400px] mx-auto px-4 xl:px-6">
-            <div className="hidden min-[1200px]:block py-3">
-              <div className="flex items-center justify-between gap-3">
-                {navItems.map(({ icon: Icon, label, href }) => {
-                  const active = isActive(href);
-                  return (
-                    <Link
-                      key={label}
-                      href={href}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap transition-all duration-200 font-medium text-base"
-                      style={
-                        active
-                          ? { backgroundColor: HEADER_TEAL, color: "#ffffff", border: `1.5px solid ${HEADER_TEAL}` }
-                          : { backgroundColor: "#ffffff", color: HEADER_TEAL, border: `1.5px solid ${HEADER_TEAL}` }
-                      }
-                    >
-                      <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
-                      <span>{label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="min-[1200px]:hidden py-2.5 overflow-x-auto" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-              <style>{`div::-webkit-scrollbar { display: none; }`}</style>
-              <div className="flex gap-2.5 px-1">
-                {navItems.map(({ icon: Icon, label, href }) => {
-                  const active = isActive(href);
-                  return (
-                    <Link
-                      key={label}
-                      href={href}
-                      className="flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap flex-shrink-0 font-medium text-sm transition-all"
-                      style={
-                        active
-                          ? { backgroundColor: HEADER_TEAL, color: "#fff", border: `1.5px solid ${HEADER_TEAL}` }
-                          : { backgroundColor: "#fff", color: HEADER_TEAL, border: `1.5px solid ${HEADER_TEAL}` }
-                      }
-                    >
-                      <Icon className="w-4 h-4" strokeWidth={2} />
-                      <span>{label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
+        <nav className="relative z-[1] hidden w-full border-b border-[#E5E7EB] bg-white pointer-events-auto md:block" aria-label="Primary navigation">
+          <div className="mx-auto w-full max-w-7xl px-3 py-2 sm:px-4 xl:px-6">
+            <div
+              className="grid w-full items-stretch gap-1.5 min-[900px]:gap-2.5 min-[1200px]:gap-3"
+              style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
+            >
+              {navItems.map((item) => {
+                const { icon: Icon, image, label, href } = item;
+                const active = isActive(href);
+                return (
+                  <Link
+                    key={label}
+                    href={href}
+                    className={`p4u-nav-tile flex min-w-0 flex-col items-center justify-center gap-1.5 px-1 py-1.5 text-[10px] font-medium leading-none whitespace-nowrap transition-all duration-200 min-[900px]:px-2 min-[900px]:text-[11px] min-[1200px]:px-3 min-[1200px]:text-xs ${active ? "p4u-nav-active" : "p4u-nav-item"}`}
+                    style={navStyle(item)}
+                  >
+                    {image ? (
+                      <span className={`p4u-nav-artwork relative h-11 w-11 flex-shrink-0 rounded-xl min-[1200px]:h-[52px] min-[1200px]:w-[52px] min-[1200px]:rounded-2xl ${label === "Find Home" ? "p4u-find-home-artwork" : ""}`}>
+                        <span className="p4u-nav-artwork-image flex h-full w-full items-center justify-center overflow-hidden rounded-xl min-[1200px]:rounded-2xl">
+                          <Image src={image} alt="" width={52} height={52} className="h-full w-full object-contain" />
+                        </span>
+                      </span>
+                    ) : (
+                      <Icon className="h-5 w-5 flex-shrink-0 text-[#7A879B]" strokeWidth={2} />
+                    )}
+                    <span className="max-w-full truncate">{label}</span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
+        </nav>
+
+        <nav
+          className="mobile-app-dock fixed inset-x-3 bottom-3 z-[1200] grid grid-cols-6 rounded-[22px] border border-[#D7E7F5] bg-white/95 p-1.5 shadow-[0_16px_45px_rgba(137,207,240,.2)] backdrop-blur-xl md:hidden"
+          aria-label="Primary mobile navigation"
+        >
+          {mobileDockItems.slice(0, 6).map((item) => {
+            const { icon: Icon, image, label, href } = item;
+            const active = isActive(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                style={navStyle(item)}
+                className={`p4u-mobile-nav-link flex min-w-0 flex-col items-center justify-center rounded-2xl px-1 py-2 text-[9px] font-semibold transition-all duration-300 ${
+                  active
+                    ? "is-active text-[#202124]"
+                    : "text-[#7A879B] hover:bg-[#F3F9FF] hover:text-[#5D757A]"
+                }`}
+              >
+                {image ? (
+                  <span className="mb-1 h-7 w-7 overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-black/5">
+                    <Image src={image} alt="" width={28} height={28} className="h-full w-full object-cover" />
+                  </span>
+                ) : (
+                  <Icon className="mb-1 h-[18px] w-[18px] text-[#7A879B]" strokeWidth={2.1} />
+                )}
+                <span className="max-w-full truncate">{label === "Classified Ads" ? "Ads" : label === "Find Home" ? "Homes" : label}</span>
+              </Link>
+            );
+          })}
         </nav>
       </header>
 

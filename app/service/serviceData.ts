@@ -73,13 +73,13 @@ export interface Seller {
   vendorId: string;
 }
 
-export const TEAL = "#009999";
+export const TEAL = "#89CFF0";
 
 // Optional subtle gradient (teal only, no green)
-export const TEAL_GRAD = "linear-gradient(135deg, #009999, #007777)";
+export const TEAL_GRAD = "linear-gradient(135deg, #89CFF0, #89CFF0)";
 
 // Replace dark gradient with plain dark teal
-export const TEAL_DARK = "#006666";
+export const TEAL_DARK = "#89CFF0";
 export const RATING_OPTS = [
   { label: "4★ & above", min: 4.0 },
   { label: "3★ & above", min: 3.0 },

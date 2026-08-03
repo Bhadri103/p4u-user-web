@@ -6,7 +6,7 @@ import VendorRegisterView from "@/components/vendor/VendorRegisterView";
 
 export default function VendorRegisterPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#f8fafc]">
+    <div className="min-h-screen flex flex-col bg-[#F7FBFF]">
       <Header />
       <main className="flex-1">
         <VendorRegisterView />

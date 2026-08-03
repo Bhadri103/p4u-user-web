@@ -29,26 +29,17 @@ export default function PurchaseActionButton({
       {...props}
       onClick={handleClick}
       className={[
-        "inline-flex min-w-0 items-center justify-center gap-2 rounded-full border font-bold leading-none",
-        "whitespace-nowrap transition duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60",
+        "purchase-action-button inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border font-semibold leading-none",
+        "whitespace-nowrap shadow-sm transition-all duration-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60",
         compact ? "h-9 px-3 text-xs" : "h-11 px-5 text-sm",
-        isCart
-          ? "border-[#009f9b] bg-white text-[#008f8c] hover:bg-[#009f9b]/5"
-          : "border-transparent text-white shadow-sm hover:brightness-[0.98]",
+        "border-[#1976D2] bg-[#1976D2] text-white hover:-translate-y-0.5 hover:bg-[#1565C0] hover:shadow-[0_10px_24px_rgba(25,118,210,0.24)]",
         className,
       ].join(" ")}
-      style={
-        isCart
-          ? props.style
-          : {
-              background: "linear-gradient(90deg, #08a7a0 0%, #13b3a5 48%, #f2ae21 100%)",
-              ...props.style,
-            }
-      }
+      style={props.style}
     >
       <Icon
         aria-hidden="true"
-        className={`${compact ? "h-4 w-4" : "h-[18px] w-[18px]"} shrink-0 ${isCart ? "" : "fill-white"}`}
+        className={`${compact ? "h-4 w-4" : "h-[18px] w-[18px]"} shrink-0`}
         strokeWidth={2.4}
       />
       <span className="inline-flex items-center leading-none">

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -29,8 +29,8 @@ export default function FoodBrowseView() {
   }, [search, vegOnly]);
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-8 md:px-6">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-r from-[#087f7f] to-[#11a6a6] px-6 py-9 text-white md:px-10">
+    <div className="mx-auto w-full max-w-7xl bg-white  px-4 py-8 md:px-6">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-r from-[#89CFF0] to-[#89CFF0] px-6 py-9 text-white md:px-10">
         <div className="max-w-2xl">
           <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-teal-100">Planext4u Food</p>
           <h1 className="text-3xl font-bold md:text-5xl">Good food, delivered fresh</h1>
@@ -49,10 +49,10 @@ export default function FoodBrowseView() {
 
       <div className="mt-8 flex items-end justify-between gap-3">
         <div><h2 className="text-2xl font-bold text-gray-900">Restaurants</h2><p className="text-sm text-gray-500">{loading ? "Finding kitchens…" : `${restaurants.length} available`}</p></div>
-        <Link href="/food/orders" className="text-sm font-semibold text-[#087f7f] hover:underline">My food orders</Link>
+        <Link href="/food/orders" className="text-sm font-semibold text-[#202124] hover:underline">My food orders</Link>
       </div>
 
-      {loading && <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-[#0a9a9a]" /></div>}
+      {loading && <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-[#89CFF0]" /></div>}
       {!loading && error && <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">{error}</div>}
       {!loading && !error && restaurants.length === 0 && (
         <div className="mt-6 rounded-3xl border border-dashed border-gray-300 bg-white py-16 text-center"><UtensilsCrossed className="mx-auto h-10 w-10 text-gray-300" /><p className="mt-3 font-semibold text-gray-700">No restaurants match this search</p></div>
@@ -65,7 +65,7 @@ export default function FoodBrowseView() {
               <span className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-bold ${restaurant.status === "open" ? "bg-green-600 text-white" : restaurant.status === "busy" ? "bg-amber-500 text-white" : "bg-gray-800 text-white"}`}>{restaurant.status}</span>
             </div>
             <div className="p-5">
-              <div className="flex items-start justify-between gap-3"><div><h3 className="text-lg font-bold text-gray-900 group-hover:text-[#087f7f]">{restaurant.name}</h3><p className="mt-1 line-clamp-1 text-sm text-gray-500">{restaurant.cuisine?.join(" • ") || restaurant.tagline || "Freshly prepared"}</p></div><span className="flex items-center gap-1 rounded-lg bg-green-600 px-2 py-1 text-xs font-bold text-white"><Star className="h-3 w-3 fill-current" />{Number(restaurant.rating).toFixed(1)}</span></div>
+              <div className="flex items-start justify-between gap-3"><div><h3 className="text-lg font-bold text-gray-900 group-hover:text-[#202124]">{restaurant.name}</h3><p className="mt-1 line-clamp-1 text-sm text-gray-500">{restaurant.cuisine?.join(" • ") || restaurant.tagline || "Freshly prepared"}</p></div><span className="flex items-center gap-1 rounded-lg bg-green-600 px-2 py-1 text-xs font-bold text-white"><Star className="h-3 w-3 fill-current" />{Number(restaurant.rating).toFixed(1)}</span></div>
               <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-500"><span className="flex items-center gap-1"><Clock3 className="h-4 w-4" />{restaurant.avgPrepMinutes} min</span><span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{restaurant.distanceKm != null ? `${restaurant.distanceKm} km` : restaurant.address}</span></div>
             </div>
           </Link>

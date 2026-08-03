@@ -11,7 +11,7 @@ import { catalogApi, type Category, type ServiceItem } from "@/lib/api/catalog";
 import { pickServiceImage, pickCategoryImage } from "@/lib/media";
 import { addServiceWishlist, getServiceWishlist, removeServiceWishlist } from "@/lib/serviceWishlist";
 
-const TEAL = "#009999";
+const TEAL = "#89CFF0";
 
 const SORT_OPTIONS = [
   { value: "nearest", label: "Nearest First" },
@@ -76,7 +76,7 @@ function SubCircle({
     <button type="button" onClick={onClick} className="group flex w-[72px] shrink-0 flex-col items-center gap-1.5 text-center outline-none">
       <span
         className={`flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 bg-white transition-all ${
-          active ? "border-[#009999] shadow-[0_6px_16px_rgba(0,153,153,0.18)]" : "border-slate-200 group-hover:border-[#7fd0ce]"
+          active ? "border-[#89CFF0] shadow-[0_6px_16px_rgba(137,207,240,0.16)]" : "border-slate-200 group-hover:border-[#B8E3F7]"
         }`}
       >
         {image ? (
@@ -86,7 +86,7 @@ function SubCircle({
           <span className="h-full w-full bg-slate-100" />
         )}
       </span>
-      <span className={`block w-full truncate text-[11px] leading-tight ${active ? "font-semibold text-[#009999]" : "font-medium text-slate-600"}`}>
+      <span className={`block w-full truncate text-[11px] leading-tight ${active ? "font-semibold text-[#89CFF0]" : "font-medium text-slate-600"}`}>
         {label}
       </span>
     </button>
@@ -105,12 +105,12 @@ function ServiceCard({ s, fav, onToggleFav, onClick, busy }: {
   return (
     <div
       onClick={busy ? undefined : onClick}
-      className={`group flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition ${busy ? "cursor-wait opacity-70" : "cursor-pointer hover:-translate-y-0.5 hover:shadow-md"}`}
+      className={`group flex flex-col overflow-hidden rounded-2xl border border-[#D7E7F5] bg-white shadow-[0_10px_28px_rgba(137,207,240,0.07)] transition ${busy ? "cursor-wait opacity-70" : "cursor-pointer hover:-translate-y-1 hover:border-[#B8E3F7] hover:shadow-[0_18px_38px_rgba(137,207,240,0.12)]"}`}
     >
-      <div className="relative aspect-[16/10] overflow-hidden bg-gray-100">
+      <div className="relative aspect-[16/10] overflow-hidden bg-[#F7FBFF]">
         {img ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={img} alt={s.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+          <img src={img} alt={s.title} className="h-full w-full object-contain p-3 transition-transform duration-300 group-hover:scale-[1.02]" onError={(e) => { e.currentTarget.style.display = "none"; }} />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">No image</div>
         )}
@@ -137,18 +137,18 @@ function ServiceCard({ s, fav, onToggleFav, onClick, busy }: {
           {s.provider ? <span className="text-xs font-medium lowercase" style={{ color: TEAL }}>{s.provider}</span> : null}
           {s.available ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">Available</span> : null}
         </div>
-        <h3 className="text-[17px] font-bold leading-snug text-gray-900">{s.title}</h3>
+        <h3 className="line-clamp-2 font-semibold leading-snug text-gray-900">{s.title}</h3>
         {s.description ? <p className="mt-0.5 truncate text-sm text-gray-500">{s.description}</p> : null}
 
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
           <span className="flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /><span className="font-semibold text-gray-700">{s.rating}</span> ({s.reviews ?? 0})</span>
           {s.duration ? <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {s.duration}</span> : null}
-          {locationText ? <span className="flex items-center gap-1" style={{ color: TEAL }}><MapPin className="h-3.5 w-3.5" /> {locationText}</span> : null}
+          {locationText ? <span className="flex items-center gap-1 text-gray-500"><MapPin className="h-3.5 w-3.5 text-slate-500" /> {locationText}</span> : null}
         </div>
 
         <div className="mt-3 flex items-end justify-between">
           <div className="flex items-baseline gap-2">
-            <span className="text-[17px] font-bold text-gray-900">{formatInr(s.price)}</span>
+            <span className="text-xl font-semibold text-gray-900">{formatInr(s.price)}</span>
             {s.originalPrice && s.originalPrice > s.price ? (
               <span className="text-sm text-gray-400 line-through">{formatInr(s.originalPrice)}</span>
             ) : null}
@@ -184,7 +184,7 @@ function FiltersDrawer({ open, onClose, ratingFilter, setRatingFilter, offersOnl
               const active = ratingFilter === r;
               return (
                 <label key={r} className="flex cursor-pointer items-center gap-3" onClick={() => setRatingFilter(active ? null : r)}>
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full border-2" style={active ? { borderColor: "#f59e0b", background: "#f59e0b" } : { borderColor: "#d1d5db" }}>
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full border-2" style={active ? { borderColor: "#B8E3F7", background: "#B8E3F7" } : { borderColor: "#D7E7F5" }}>
                     {active && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
                   </span>
                   <span className="flex items-center gap-1 text-sm font-medium text-gray-700">
@@ -198,7 +198,7 @@ function FiltersDrawer({ open, onClose, ratingFilter, setRatingFilter, offersOnl
         <div className="rounded-xl border border-gray-100 p-4">
           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Offers</p>
           <label className="flex cursor-pointer items-center gap-3" onClick={() => setOffersOnly(!offersOnly)}>
-            <span className="flex h-4 w-4 items-center justify-center rounded border-2" style={offersOnly ? { borderColor: TEAL, background: TEAL } : { borderColor: "#d1d5db" }}>
+            <span className="flex h-4 w-4 items-center justify-center rounded border-2" style={offersOnly ? { borderColor: TEAL, background: TEAL } : { borderColor: "#D7E7F5" }}>
               {offersOnly && <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
             </span>
             <span className="text-sm font-medium text-gray-700">Show deals only</span>
@@ -354,13 +354,13 @@ export default function ServiceListPage({ onSelectSeller, busyServiceId }: Servi
   };
 
   return (
-    <div className="min-h-screen bg-[#f7fafc]">
-      <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-8">
+    <div className="min-h-screen ">
+      <div className="mx-auto flex w-full max-w-7xl bg-white  flex-col px-4 py-5 md:px-6 lg:py-4">
         {/* Header */}
-        <div className="mb-5 flex items-start justify-between gap-4">
+        <div className="mb-4 flex shrink-0 items-start justify-between gap-4">
           <div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">
-              <Wrench className="h-6 w-6" style={{ color: TEAL }} /> {title}
+            <h1 className="flex items-center gap-2 font-semibold text-gray-900">
+              <Wrench className="h-6 w-6 text-slate-600" /> {title}
             </h1>
             <p className="mt-1 text-sm text-gray-400">Showing services near your selected location</p>
           </div>
@@ -368,7 +368,7 @@ export default function ServiceListPage({ onSelectSeller, busyServiceId }: Servi
         </div>
 
         {/* Toolbar */}
-        <div className="mb-6 flex flex-wrap items-center gap-3">
+        <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3 rounded-2xl border border-white/80 bg-white/85 p-2.5 shadow-[0_12px_32px_rgba(137,207,240,0.08)] backdrop-blur-xl">
           <button type="button" onClick={() => setFiltersOpen(true)} className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:border-gray-300">
             <SlidersHorizontal className="h-4 w-4" /> Filters
             {(offersOnly || ratingFilter) && <span className="ml-0.5 h-2 w-2 rounded-full" style={{ background: TEAL }} />}
@@ -385,7 +385,7 @@ export default function ServiceListPage({ onSelectSeller, busyServiceId }: Servi
         </div>
 
         {/* Category pills */}
-        <div className="mb-4 flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mb-4 flex shrink-0 gap-3 overflow-x-auto rounded-2xl border border-blue-100/80 bg-white/70 p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <CategoryPill label="All" image={null} isAll active={!parentCategoryId} onClick={() => { setParentCategoryId(""); setSubcategoryId(""); }} />
           {rootCategories.map((c) => (
             <CategoryPill key={c.id} label={c.name} image={pickCategoryImage(c)} active={parentCategoryId === c.id} onClick={() => { setParentCategoryId(c.id); setSubcategoryId(""); }} />
@@ -394,9 +394,9 @@ export default function ServiceListPage({ onSelectSeller, busyServiceId }: Servi
 
         {/* Subcategories */}
         {parentCategoryId && subcategories.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-4 shrink-0">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">Browse {parentCat?.name} services</h2>
+              <h2 className="font-semibold text-gray-900">Browse {parentCat?.name} services</h2>
               {subcategoryId ? (
                 <button type="button" onClick={() => setSubcategoryId("")} className="text-sm font-medium" style={{ color: TEAL }}>Clear</button>
               ) : null}
@@ -409,13 +409,21 @@ export default function ServiceListPage({ onSelectSeller, busyServiceId }: Servi
           </div>
         )}
 
+        <div className="service-results-layout">
+          <aside className="service-filter-sidebar marketplace-scroll-panel">
+            <h2>Filters</h2>
+            <section><h3>Customer rating</h3>{[4.5, 4, 3.5].map((rating) => <button key={rating} type="button" className={ratingFilter === rating ? "active" : ""} onClick={() => setRatingFilter(ratingFilter === rating ? null : rating)}><Star className="h-4 w-4 text-slate-400" /> {rating} & up</button>)}</section>
+            <section><h3>Deals & discounts</h3><label><input type="checkbox" checked={offersOnly} onChange={(event) => setOffersOnly(event.target.checked)} /> Show deals only</label></section>
+            <section><h3>Availability</h3><p>Services available near your selected location</p></section>
+          </aside>
+          <div className="min-w-0 lg:pr-2">
         {/* Grid */}
         {loading ? (
           <div className="flex justify-center py-24"><Loader2 className="h-8 w-8 animate-spin text-teal-600" /></div>
         ) : filtered.length === 0 ? (
           <div className="rounded-2xl bg-white py-24 text-center text-gray-400 shadow-sm">No services found. Try another category or filter.</div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {filtered.map((s) => (
               <ServiceCard
                 key={String(s.id)}
@@ -428,6 +436,8 @@ export default function ServiceListPage({ onSelectSeller, busyServiceId }: Servi
             ))}
           </div>
         )}
+          </div>
+        </div>
       </div>
 
       <FiltersDrawer

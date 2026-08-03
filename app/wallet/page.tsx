@@ -11,9 +11,9 @@ export default function WalletPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-[#F9FAFB]">
+      <div className="min-h-screen bg-background text-foreground">
         <Header />
-        <main className="px-4">
+        <main className="bg-background px-4">
           <PageRewardPoints onBack={() => router.push("/profile")} />
         </main>
         <Footer />

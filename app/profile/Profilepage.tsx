@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import Image from "next/image";
 import { useAuth } from "@/providers/AuthContext";
 import { useAddresses } from "@/providers/AddressContext";
 import AuthGuard from "@/providers/AuthGuard";
@@ -83,7 +84,7 @@ const IcDollarSign = ({ s = 60 }) => <Ic size={s} d='<line x1="12" y1="1" x2="12
 
 
 const PRIMARY_GRADIENT = "radial-gradient(at 60% 25%, rgb(26,74,58) 0%, rgb(14,34,31) 55%, rgb(8,24,18) 100%)";
-const PRIMARY_SOLID = "#1a4a3a";
+const PRIMARY_SOLID = "#89CFF0";
 
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
@@ -174,7 +175,7 @@ const Input: React.FC<InputProps> = ({ label, error, icon, className = "", ...pr
     {label && <label className="text-xs text-slate-500">{label}</label>}
     <div className="relative">
       <input {...props}
-        className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 bg-white outline-none transition-all
+        className={`w-full px-3 py-2.5 rounded-xl border text-sm text-neutral-800 bg-white outline-none transition-all
           ${error ? "border-red-400 focus:ring-1 focus:ring-red-200" : "border-slate-200 focus:border-emerald-700 focus:ring-1 focus:ring-emerald-100"}
           ${icon ? "pr-9" : ""} ${className}`} />
       {icon && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">{icon}</span>}
@@ -190,7 +191,7 @@ const Select: React.FC<SelectProps> = ({ label, error, options, ...props }) => (
   <div className="flex flex-col gap-1 w-full">
     {label && <label className="text-xs text-slate-500">{label}</label>}
     <select {...props}
-      className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 bg-white outline-none transition-all cursor-pointer
+      className={`w-full px-3 py-2.5 rounded-xl border text-sm text-neutral-800 bg-white outline-none transition-all cursor-pointer
         ${error ? "border-red-400 focus:ring-1 focus:ring-red-200" : "border-slate-200 focus:border-emerald-700 focus:ring-1 focus:ring-emerald-100"}`}>
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
@@ -205,7 +206,7 @@ const Textarea: React.FC<TextareaProps> = ({ label, error, className = "", ...pr
   <div className="flex flex-col gap-1 w-full">
     {label && <label className="text-xs text-slate-500">{label}</label>}
     <textarea {...props}
-      className={`w-full px-3 py-2.5 rounded-xl border text-sm text-slate-800 bg-white outline-none resize-none transition-all
+      className={`w-full px-3 py-2.5 rounded-xl border text-sm text-neutral-800 bg-white outline-none resize-none transition-all
         ${error ? "border-red-400 focus:ring-1 focus:ring-red-200" : "border-slate-200 focus:border-emerald-700 focus:ring-1 focus:ring-emerald-100"}
         ${className}`} />
     {error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}
@@ -228,7 +229,7 @@ function TabBar<T extends string>({ tabs, active, onSelect }: { tabs: T[]; activ
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-100">
     <div className="w-1 h-5 rounded-full" style={{ background: PRIMARY_GRADIENT }} />
-    <h2 className="text-base font-semibold text-slate-800">{children}</h2>
+    <h2 className="text-base font-semibold text-neutral-800">{children}</h2>
   </div>
 );
 
@@ -281,7 +282,7 @@ const GhostBtn = ({
 const Modal = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => (
   <div className="fixed inset-0 bg-black/50 z-[300] flex items-center justify-center p-4"
     onClick={e => e.target === e.currentTarget && onClose()}>
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">{children}</div>
+    <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl bg-white shadow-2xl">{children}</div>
   </div>
 );
 
@@ -533,7 +534,7 @@ function ProfileCompletenessCard({
   return (
     <div className="mb-8 rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-[16px] font-bold text-slate-950">Profile Completeness</p>
+        <p className="text-[16px] font-bold text-neutral-950">Profile Completeness</p>
         <p className="text-[16px] font-bold text-teal-600">{percent}%</p>
       </div>
       <div className="h-3 overflow-hidden rounded-full bg-teal-50">
@@ -872,7 +873,7 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
       )}
 
       <div className="mb-6 rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <h2 className="mb-5 text-[16px] font-bold text-slate-950">Personal Information</h2>
+        <h2 className="mb-5 text-[16px] font-bold text-neutral-950">Personal Information</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input label="Full Name *" placeholder="Enter your name" value={form.name} onChange={(e) => setField("name", e.target.value)} error={errors.name} />
           <Input label="Email *" placeholder="your@email.com" type="email" value={form.email} onChange={(e) => setField("email", e.target.value)} error={errors.email} />
@@ -889,13 +890,13 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
       </div>
 
       <div className="mb-6 rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <h2 className="mb-4 text-[16px] font-bold text-slate-950">About</h2>
+        <h2 className="mb-4 text-[16px] font-bold text-neutral-950">About</h2>
         <SimpleRichTextEditor value={form.about} onChange={(html) => setField("about", html)} maxLength={1000} />
       </div>
 
       <div className="mb-8 rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-[16px] font-bold text-slate-950">Saved Addresses</h2>
+          <h2 className="text-[16px] font-bold text-neutral-950">Saved Addresses</h2>
           <button
             type="button"
             onClick={() => {
@@ -928,7 +929,7 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
             {addresses.map((a) => (
               <div key={String(a.id)} className="flex items-start gap-3 rounded-[14px] border border-slate-100 px-4 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-sm font-semibold text-neutral-900">
                     {a.label || "Address"}
                     {a.isDefault ? <span className="ml-2 text-xs text-teal-600">Default</span> : null}
                   </p>
@@ -979,10 +980,10 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
 function AccountPageHeader({ title, onBack }: { title: string; onBack?: () => void }) {
   return (
     <div className="mb-8 flex items-center gap-8">
-      <button type="button" onClick={onBack ?? (() => window.location.assign("/profile"))} className="rounded-full p-2 text-slate-900 hover:bg-slate-100" aria-label="Go back">
+      <button type="button" onClick={onBack ?? (() => window.location.assign("/profile"))} className="rounded-full p-2 text-neutral-900 hover:bg-slate-100" aria-label="Go back">
         <IcChevronL s={24} />
       </button>
-      <h1 className="text-[24px] font-bold text-slate-950">{title}</h1>
+      <h1 className="text-[24px] font-bold text-neutral-950">{title}</h1>
     </div>
   );
 }
@@ -1041,7 +1042,7 @@ function PageProfile({ setActive }: { setActive: (p: ActivePage) => void }) {
         <div className="flex items-center gap-5">
           <ProfileAvatar name={name} src={avatar} size="md" />
           <div>
-            <p className="text-[17px] font-bold text-slate-950">{name}</p>
+            <p className="text-[17px] font-bold text-neutral-950">{name}</p>
             {(profile?.phone || profile?.email) && (
               <p className="mt-1 text-[13px] text-slate-500">{[profile?.phone, profile?.email].filter(Boolean).join(" • ")}</p>
             )}
@@ -1052,13 +1053,13 @@ function PageProfile({ setActive }: { setActive: (p: ActivePage) => void }) {
             )}
           </div>
         </div>
-        <button type="button" onClick={() => setActive("edit-profile")} className="rounded-[14px] border border-slate-200 px-5 py-2 text-[13px] font-semibold text-slate-950">Edit</button>
+        <button type="button" onClick={() => setActive("edit-profile")} className="rounded-[14px] border border-slate-200 px-5 py-2 text-[13px] font-semibold text-neutral-950">Edit</button>
       </div>
 
       <div className="mb-6 grid grid-cols-3 gap-4">
         {[{ label: "Points", value: points }, { label: "Orders", value: orderCount }, { label: "Referrals", value: referralCount }].map((stat) => (
           <div key={stat.label} className="rounded-[16px] bg-white py-5 text-center shadow-sm ring-1 ring-slate-200">
-            <p className="text-[20px] font-bold text-slate-950 first:text-teal-600">{stat.value}</p>
+            <p className="text-[20px] font-bold text-neutral-950 first:text-teal-600">{stat.value}</p>
             <p className="text-[12px] text-slate-500">{stat.label}</p>
           </div>
         ))}
@@ -1073,7 +1074,7 @@ function PageProfile({ setActive }: { setActive: (p: ActivePage) => void }) {
               if (row.href) router.push(row.href);
               else if (row.page) setActive(row.page);
             }}
-            className={`flex h-[50px] w-full items-center gap-4 px-5 text-left ${index < rows.length - 1 ? "border-b border-slate-100" : ""} ${row.danger ? "text-red-500" : "text-slate-950"}`}
+            className={`flex h-[50px] w-full items-center gap-4 px-5 text-left ${index < rows.length - 1 ? "border-b border-slate-100" : ""} ${row.danger ? "text-red-500" : "text-neutral-950"}`}
           >
             <span className={row.danger ? "text-red-500" : "text-slate-500"}>{row.icon}</span>
             <span className="min-w-0 flex-1 text-[14px] font-semibold">{row.label}</span>
@@ -1245,7 +1246,7 @@ export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
           }}
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <span className="text-sm font-semibold text-slate-800">Add address</span>
+            <span className="text-sm font-semibold text-neutral-800">Add address</span>
             <button
               type="button"
               onClick={() => {
@@ -1288,7 +1289,7 @@ export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
       <ProfileCompletenessCard percent={completeness} onKycClick={() => window.location.hash = "kyc"} />
       <div className="mb-6 rounded-[18px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
       <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-[16px] font-bold text-slate-950">Saved Addresses</h2>
+        <h2 className="text-[16px] font-bold text-neutral-950">Saved Addresses</h2>
         <button
           type="button"
           onClick={() => {
@@ -1296,7 +1297,7 @@ export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
             setEditId(null);
             setAddrErrors({});
           }}
-          className="inline-flex items-center gap-2 rounded-[14px] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-950"
+          className="inline-flex items-center gap-2 rounded-[14px] border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-950"
         >
           <IcPlus /> Add Address
         </button>
@@ -1385,7 +1386,7 @@ export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-semibold text-slate-900">{a.label || "Address"}</p>
+                <p className="text-sm font-semibold text-neutral-900">{a.label || "Address"}</p>
                 {a.isDefault && (
                   <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                     Default
@@ -1483,7 +1484,7 @@ function PageNotification() {
       <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100">
         <div className="flex items-center gap-2">
           <div className="w-1 h-5 rounded-full" style={{ background: PRIMARY_GRADIENT }} />
-          <h2 className="text-base font-semibold text-slate-800">All Notifications</h2>
+          <h2 className="text-base font-semibold text-neutral-800">All Notifications</h2>
           {unread > 0 && <span className="px-2 py-0.5 rounded-full text-xs text-white" style={{ background: PRIMARY_GRADIENT }}>{unread} new</span>}
         </div>
         {unread > 0 && <button onClick={markAllRead} className="text-xs cursor-pointer font-medium" style={{ color: PRIMARY_SOLID }}>Mark all read</button>}
@@ -1498,7 +1499,7 @@ function PageNotification() {
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${n.iconBg}`}>{n.icon}</div>
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
-                <p className={`text-sm leading-snug ${n.read ? "text-slate-700" : "text-slate-900 font-medium"}`}>{n.title}</p>
+                <p className={`text-sm leading-snug ${n.read ? "text-slate-700" : "text-neutral-900 font-medium"}`}>{n.title}</p>
                 <span className="text-[10px] text-slate-400 shrink-0">{n.time}</span>
               </div>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">{n.body}</p>
@@ -1523,12 +1524,12 @@ function OrderCard({ item }: { item: typeof SHOP_ORDERS[0] }) {
       <ProductImg src={item.img} alt={item.title} className="w-16 h-20 shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-xs text-slate-400 font-medium">{item.id}</p>
-        <p className="text-sm font-medium text-slate-800 leading-snug mt-0.5">{item.title}</p>
+        <p className="text-sm font-medium text-neutral-800 leading-snug mt-0.5">{item.title}</p>
         <p className="text-xs text-slate-400">{item.sub}</p>
         <p className="text-xs text-slate-400">Vendor: {item.vendor}</p>
         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
           <span className="text-xs text-slate-300 line-through">{item.orig}</span>
-          <span className="text-sm font-semibold text-slate-800">{item.price}</span>
+          <span className="text-sm font-semibold text-neutral-800">{item.price}</span>
           <span className="text-xs font-medium" style={{ color: PRIMARY_SOLID }}>{item.off}</span>
         </div>
         <div className="flex items-center justify-between mt-2 flex-wrap gap-1">
@@ -1597,12 +1598,12 @@ function PageYourOrders() {
             const itemCount = lines.reduce((s: number, l: any) => s + (l.quantity || 1), 0);
             const statusColor =
               o.status === "delivered" || o.status === "completed"
-                ? "#22c55e"
+                ? "#89CFF0"
                 : o.status === "cancelled"
                   ? "#ef4444"
                   : o.status === "created" || o.status === "pending"
-                    ? "#f59e0b"
-                    : "#3b82f6";
+                    ? "#B8E3F7"
+                    : "#89CFF0";
             const orderRef = String(o.orderRef || o.id);
             const pid = lines[0]?.productId != null ? String(lines[0].productId) : "";
             const fromCatalog = pid ? thumbByProductId[pid] : null;
@@ -1725,7 +1726,7 @@ function PageMyBookings() {
           return (
             <div key={b.id} className="p-4 rounded-xl border border-slate-100 bg-white flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-800">
+                <p className="text-sm font-semibold text-neutral-800">
                   {serviceNames[String((b as any).serviceId || "").trim()] || "Service Booking"}
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -1850,7 +1851,7 @@ function PageReviews() {
           {[1, 2, 3, 4, 5].map(n => (
             <button key={n} onClick={() => { setRating(n); setErrors(e => ({ ...e, rating: undefined })); }}
               className="text-3xl transition-transform hover:scale-110 border-none bg-transparent cursor-pointer"
-              style={{ color: n <= rating ? "#f59e0b" : "#e2e8f0" }}>★</button>
+              style={{ color: n <= rating ? "#B8E3F7" : "#D7E7F5" }}>★</button>
           ))}
         </div>
         {rating > 0 && <p className="text-xs font-medium text-emerald-700">{ratingLabels[rating]}</p>}
@@ -1884,9 +1885,9 @@ function PageReviews() {
           <div key={r.id} className="flex gap-3 p-4 rounded-xl border border-slate-100 bg-white hover:shadow-sm transition-all">
             <ProductImg src={r.img} alt={r.title} className="w-14 h-16 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-800 leading-snug">{r.title}</p>
+              <p className="text-sm font-medium text-neutral-800 leading-snug">{r.title}</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-white text-xs" style={{ background: "#22c55e" }}>{ratingValue}.0 ★</span>
+                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-white text-xs" style={{ background: "#89CFF0" }}>{ratingValue}.0 ★</span>
                 <span className="text-xs text-slate-500">{labelValue}</span>
               </div>
               <p className="text-xs text-slate-500 mt-1">{commentValue}</p>
@@ -1960,12 +1961,12 @@ function PageFavourites() {
           <div key={item.id} className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 bg-white hover:shadow-sm transition-all">
             <ProductImg src={item.img} alt={item.title} className="w-16 h-16 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-800 leading-snug">{item.title}</p>
+              <p className="text-sm font-medium text-neutral-800 leading-snug">{item.title}</p>
               <p className="text-xs text-slate-400">{item.sub}</p>
               <p className="text-xs text-slate-400">Vendor: {item.vendor}</p>
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 <span className="text-xs text-slate-300 line-through">{item.orig}</span>
-                <span className="text-sm font-semibold text-slate-800">{item.price}</span>
+                <span className="text-sm font-semibold text-neutral-800">{item.price}</span>
                 <span className="text-xs font-medium" style={{ color: PRIMARY_SOLID }}>{item.off}</span>
               </div>
             </div>
@@ -2029,7 +2030,7 @@ function PageReferEarn() {
         <div className="flex rounded-xl overflow-hidden border-2" style={{ borderColor: PRIMARY_SOLID }}>
           <div className="flex-1 px-5 py-3 bg-white">
             <p className="text-[10px] text-slate-400 mb-0.5">Referral Code</p>
-            <p className="text-lg font-semibold text-slate-800 tracking-widest">{code}</p>
+            <p className="text-lg font-semibold text-neutral-800 tracking-widest">{code}</p>
           </div>
           <button onClick={handleCopy}
             className="px-5 py-3 text-white text-sm font-medium flex items-center gap-2 cursor-pointer transition-all"
@@ -2072,17 +2073,17 @@ export function PageReferralsReference({ onBack }: { onBack: () => void }) {
       <AccountPageHeader title="Referrals" onBack={onBack} />
       <div className="mb-7 rounded-[18px] border border-orange-200 bg-gradient-to-r from-orange-100 via-orange-50 to-white px-8 py-8 text-center">
         <div className="mx-auto mb-4 text-orange-500"><IcGift s={44} /></div>
-        <h2 className="text-[18px] font-bold text-slate-950">Refer & Earn 1 Point</h2>
+        <h2 className="text-[18px] font-bold text-neutral-950">Refer & Earn 1 Point</h2>
         <p className="mt-3 text-[13px] text-slate-500">Share your code with friends. Get 1 wallet point when they complete their first order!</p>
         <p className="mt-2 text-[10px] text-slate-500">Points are credited only after your friend&apos;s first successful order · One reward per referred user</p>
         <p className="mt-3 text-[11px] font-semibold text-teal-600">Refer 4+ friends who order this month - Platform Fee becomes FREE!</p>
         <div className="mt-7 flex justify-center gap-3">
-          <div className="rounded-[16px] border border-slate-200 bg-white px-8 py-4 text-[18px] font-bold tracking-[0.2em] text-slate-950">{code || "—"}</div>
+          <div className="rounded-[16px] border border-slate-200 bg-white px-8 py-4 text-[18px] font-bold tracking-[0.2em] text-neutral-950">{code || "—"}</div>
           <button type="button" onClick={handleCopy} className="rounded-[14px] border border-slate-200 bg-white px-4 text-slate-700">
             <IcCopy s={22} />
           </button>
         </div>
-        <button type="button" onClick={handleCopy} className="mt-5 inline-flex items-center gap-3 rounded-[14px] bg-orange-500 px-7 py-3 text-[14px] font-bold text-slate-950">
+        <button type="button" onClick={handleCopy} className="mt-5 inline-flex items-center gap-3 rounded-[14px] bg-orange-500 px-7 py-3 text-[14px] font-bold text-neutral-950">
           <IcUsers s={20} /> {copied ? "Copied!" : "Share with Friends"}
         </button>
       </div>
@@ -2094,7 +2095,7 @@ export function PageReferralsReference({ onBack }: { onBack: () => void }) {
           </div>
         ))}
       </div>
-      <h2 className="mb-4 text-[16px] font-bold text-slate-950">Referral History</h2>
+      <h2 className="mb-4 text-[16px] font-bold text-neutral-950">Referral History</h2>
       <div className="space-y-3">
         {referrals.length === 0 ? (
           <div className="rounded-[16px] bg-white px-5 py-8 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">No referrals yet.</div>
@@ -2103,7 +2104,7 @@ export function PageReferralsReference({ onBack }: { onBack: () => void }) {
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-50 text-teal-500"><IcCheckCircle s={22} /></div>
               <div>
-                <p className="text-[14px] font-bold text-slate-950">{referral.name || `Referral #${referral.id}`}</p>
+                <p className="text-[14px] font-bold text-neutral-950">{referral.name || `Referral #${referral.id}`}</p>
                 <p className="text-[10px] text-teal-500">First order placed</p>
                 <p className="text-[10px] text-slate-500">{referral.joinedAt ? new Date(referral.joinedAt).toLocaleDateString("en-IN") : ""}</p>
               </div>
@@ -2158,26 +2159,26 @@ export function PageRewardPoints({ onBack }: { onBack: () => void }) {
   const amountByType = (type: string) =>
     history.filter((h) => h.type === type && h.points > 0).reduce((sum, h) => sum + h.points, 0);
   const buckets = [
-    { label: "Welcome Bonus", type: "welcome_bonus", icon: <IcGift s={20} />, tone: "bg-teal-50 text-teal-600" },
-    { label: "Post Share", type: "post_share", icon: <IcShare2 s={20} />, tone: "bg-blue-50 text-blue-500" },
-    { label: "Vendor Referral", type: "referral_bonus", icon: <IcStore s={20} />, tone: "bg-emerald-50 text-emerald-600" },
-    { label: "Customer Referral", type: "customer_referral", icon: <IcUsers s={20} />, tone: "bg-emerald-50 text-emerald-600" },
-    { label: "Post Liked", type: "post_like", icon: <IcHeart s={20} />, tone: "bg-rose-50 text-rose-500" },
-    { label: "Story Liked", type: "story_like", icon: <IcHeart s={20} />, tone: "bg-rose-50 text-rose-500" },
+    { label: "Welcome Bonus", type: "welcome_bonus", image: "/images/rewards/welcome-bonus.png" },
+    { label: "Post Share", type: "post_share", image: "/images/rewards/post-share.png" },
+    { label: "Vendor Referral", type: "referral_bonus", image: "/images/rewards/vendor-referral.png" },
+    { label: "Customer Referral", type: "customer_referral", image: "/images/rewards/customer-referral.png" },
+    { label: "Post Liked", type: "post_like", image: "/images/rewards/post-liked.png" },
+    { label: "Story Liked", type: "story_like", image: "/images/rewards/story-liked.png" },
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[760px] py-7">
+    <div className="mx-auto w-full max-w-[760px] overflow-x-clip bg-white py-5 text-foreground sm:py-7">
       <AccountPageHeader title="My Wallet" onBack={onBack} />
 
-      <div className="mb-5 rounded-[16px] bg-gradient-to-br from-teal-500 to-teal-600 p-5 text-white shadow-sm">
+      <div className="mb-5 rounded-[16px] bg-primary p-5 text-primary-foreground shadow-sm">
         <div className="mb-3 flex items-center gap-2 text-[12px] font-medium">
           <IcWallet s={18} /> Total Points
         </div>
         <p className="text-[30px] font-bold leading-none">{totalPoints}</p>
         <div className="mt-5 grid grid-cols-2 gap-3">
-          <button type="button" className="h-9 rounded-[12px] bg-white text-[12px] font-bold text-slate-800">Redeem</button>
-          <button type="button" className="h-9 rounded-[12px] bg-white text-[12px] font-bold text-slate-800">Refer & Earn</button>
+          <button type="button" className="h-9 rounded-[12px] bg-primary-foreground text-[12px] font-bold text-primary transition hover:opacity-90">Redeem</button>
+          <button type="button" className="h-9 rounded-[12px] bg-primary-foreground text-[12px] font-bold text-primary transition hover:opacity-90">Refer & Earn</button>
         </div>
       </div>
 
@@ -2185,59 +2186,65 @@ export function PageRewardPoints({ onBack }: { onBack: () => void }) {
         {[
           { value: `+${totalEarned}`, label: "Total Earned", color: "text-emerald-600" },
           { value: `-${totalRedeemed}`, label: "Total Redeemed", color: "text-rose-500" },
-          { value: totalPoints, label: "Balance", color: "text-teal-600" },
+          { value: totalPoints, label: "Balance", color: "text-primary" },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-[14px] bg-white py-4 text-center shadow-sm ring-1 ring-slate-200">
+          <div key={stat.label} className="rounded-[14px] border border-border bg-card py-4 text-center text-card-foreground shadow-sm">
             <p className={`text-[16px] font-bold ${stat.color}`}>{stat.value}</p>
-            <p className="text-[10px] text-slate-500">{stat.label}</p>
+            <p className="text-[10px] text-muted-foreground">{stat.label}</p>
           </div>
         ))}
       </div>
 
-      <div className="mb-3 rounded-[12px] border border-orange-200 bg-orange-50 px-4 py-3">
+      <div className="mb-3 rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/40">
         <p className="text-[12px] font-bold text-orange-600">Points expiring soon!</p>
         <p className="text-[10px] text-orange-500">Use your points before they expire during checkout.</p>
       </div>
-      <div className="mb-4 rounded-[12px] border border-blue-200 bg-blue-50 px-4 py-3">
-        <p className="text-[12px] font-bold text-blue-600">Points on cooling period</p>
-        <p className="text-[10px] text-blue-500">Newly earned points will be available after the cooling period.</p>
+      <div className="mb-4 rounded-[12px] border border-primary/20 bg-accent/60 px-4 py-3">
+        <p className="text-[12px] font-bold text-primary">Points on cooling period</p>
+        <p className="text-[10px] text-primary/80">Newly earned points will be available after the cooling period.</p>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-3">
+      <div className="mb-4 grid min-w-0 grid-cols-2 gap-2 sm:gap-3">
         {buckets.map((bucket) => (
-          <div key={bucket.label} className={`rounded-[14px] px-4 py-5 text-center ${bucket.tone}`}>
-            <p className="mb-3 text-[12px] font-bold text-slate-950">{bucket.label}</p>
-            <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/70">{bucket.icon}</div>
-            <p className="text-[24px] font-bold text-slate-950">{amountByType(bucket.type)}</p>
-            <p className="text-[11px] text-slate-500">Points</p>
+          <div key={bucket.label} className="flex min-w-0 flex-col items-center rounded-[14px] border border-primary/15 bg-accent/50 px-2 py-4 text-center text-primary sm:px-4 sm:py-5">
+            <p className="min-h-[1.25rem] w-full truncate text-[11px] font-bold text-card-foreground sm:text-[12px]">{bucket.label}</p>
+            <Image
+              src={bucket.image}
+              alt={`${bucket.label} reward`}
+              width={80}
+              height={80}
+              className="my-1 h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20"
+            />
+            <p className="text-[22px] font-bold leading-none text-card-foreground sm:text-[24px]">{amountByType(bucket.type)}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground sm:text-[11px]">Points</p>
           </div>
         ))}
       </div>
 
-      <button type="button" className="mb-5 flex h-10 w-full items-center justify-between rounded-[12px] bg-white px-4 text-left text-[12px] shadow-sm ring-1 ring-slate-200">
-        <span className="flex items-center gap-2 text-slate-950"><IcWallet s={16} /> Wallet Points Structure</span>
+      <button type="button" className="mb-5 flex h-10 w-full items-center justify-between rounded-[12px] border border-border bg-card px-4 text-left text-[12px] text-card-foreground shadow-sm transition hover:bg-muted">
+        <span className="flex items-center gap-2"><IcWallet s={16} /> Wallet Points Structure</span>
         <IcChevronR s={16} />
       </button>
 
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[14px] font-bold text-slate-950">Transaction History</h2>
-        <span className="text-[10px] text-slate-500">{totalTransactions || history.length} transactions</span>
+        <h2 className="text-[14px] font-bold text-foreground">Transaction History</h2>
+        <span className="text-[10px] text-muted-foreground">{totalTransactions || history.length} transactions</span>
       </div>
 
       <div className="space-y-3">
         {history.length === 0 ? (
-          <div className="rounded-[14px] bg-white px-5 py-10 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
+          <div className="rounded-[14px] border border-border bg-card px-5 py-10 text-center text-sm text-muted-foreground shadow-sm">
             No wallet transactions yet.
           </div>
         ) : history.map((entry) => (
-          <div key={entry.id} className="flex items-center justify-between rounded-[14px] bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200">
+          <div key={entry.id} className="flex items-center justify-between rounded-[14px] border border-border bg-card px-4 py-3 shadow-sm">
             <div className="flex min-w-0 items-center gap-3">
               <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${entry.points >= 0 ? "bg-emerald-50 text-emerald-500" : "bg-rose-50 text-rose-500"}`}>
                 {entry.points >= 0 ? <IcCheckCircle s={18} /> : <IcHeart s={18} />}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-[12px] font-bold text-slate-950">{entry.description || labelForType(entry.type)}</p>
-                <p className="text-[10px] text-slate-500">{new Date(entry.createdAt).toLocaleString("en-IN")}</p>
+                <p className="truncate text-[12px] font-bold text-card-foreground">{entry.description || labelForType(entry.type)}</p>
+                <p className="text-[10px] text-muted-foreground">{new Date(entry.createdAt).toLocaleString("en-IN")}</p>
               </div>
             </div>
             <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${entry.points >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
@@ -2247,10 +2254,10 @@ export function PageRewardPoints({ onBack }: { onBack: () => void }) {
         ))}
       </div>
       {history.length > 0 && (
-        <div className="mt-5 flex items-center justify-center gap-3 text-[11px] text-slate-500">
-          <button type="button" className="rounded-full border border-slate-200 px-2 py-1"><IcChevronL s={14} /></button>
+        <div className="mt-5 flex items-center justify-center gap-3 text-[11px] text-muted-foreground">
+          <button type="button" className="rounded-full border border-border px-2 py-1 hover:bg-muted"><IcChevronL s={14} /></button>
           Page 1 of 1
-          <button type="button" className="rounded-full border border-slate-200 px-2 py-1"><IcChevronR s={14} /></button>
+          <button type="button" className="rounded-full border border-border px-2 py-1 hover:bg-muted"><IcChevronR s={14} /></button>
         </div>
       )}
     </div>
@@ -2277,12 +2284,12 @@ export function PageRewardPoints({ onBack }: { onBack: () => void }) {
         ) : (
           <div className="flex flex-col gap-2">
             {earned.map((e) => (
-              <div key={e.id} className="rounded-xl p-3 flex items-center justify-between border" style={{ borderColor: "#e5e7eb", background: "#f9fafb" }}>
+              <div key={e.id} className="rounded-xl p-3 flex items-center justify-between border" style={{ borderColor: "#D7E7F5", background: "#FFFFFF" }}>
                 <div>
                   <p className="text-sm font-semibold text-slate-700">{labelForType(e.type)}</p>
                   <p className="text-xs text-slate-400">{new Date(e.createdAt).toLocaleString()}</p>
                 </div>
-                <span className="text-sm font-semibold" style={{ color: "#059669" }}>+{e.points}</span>
+                <span className="text-sm font-semibold" style={{ color: "#89CFF0" }}>+{e.points}</span>
               </div>
             ))}
           </div>
@@ -2344,7 +2351,7 @@ function PageBecomeVendor() {
   if (done) return (
     <div className="p-5 sm:p-6 flex flex-col items-center justify-center min-h-64 gap-4">
       <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600"><IcPartyPopper s={32} /></div>
-      <p className="text-base font-semibold text-slate-800">Application Submitted!</p>
+      <p className="text-base font-semibold text-neutral-800">Application Submitted!</p>
       <p className="text-sm text-slate-500 text-center">We&apos;ll review your application and get back to you within 2-3 business days.</p>
     </div>
   );
@@ -2355,7 +2362,7 @@ function PageBecomeVendor() {
         <Modal onClose={() => setShowModal(false)}>
           <div className="p-7 text-center">
             <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4 text-emerald-600"><IcSmile s={32} /></div>
-            <h3 className="text-base font-semibold text-slate-800 mb-2">Ready to Become a Vendor?</h3>
+            <h3 className="text-base font-semibold text-neutral-800 mb-2">Ready to Become a Vendor?</h3>
             <p className="text-sm text-slate-500 mb-6 leading-relaxed">Join thousands of sellers on our platform and start selling today.</p>
             <div className="flex gap-3">
               <GhostBtn onClick={() => setShowModal(false)} className="flex-1">Not Now</GhostBtn>
@@ -2425,7 +2432,7 @@ function PageAccountPrivacy() {
         <Modal onClose={() => setShowConfirm(false)}>
           <div className="p-7 text-center">
             <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4 text-red-500"><IcAlert /></div>
-            <h3 className="text-base font-semibold text-slate-800 mb-2">Delete Account?</h3>
+            <h3 className="text-base font-semibold text-neutral-800 mb-2">Delete Account?</h3>
             <p className="text-sm text-slate-500 mb-6 leading-relaxed">This is permanent. All your data, orders, and preferences will be removed and cannot be recovered.</p>
             <div className="flex gap-3">
               <GhostBtn onClick={() => { setShowConfirm(false); setDeleteConsent(false); }} className="flex-1">Cancel</GhostBtn>
@@ -2540,7 +2547,7 @@ export function PageKycVerification({ onBack }: { onBack: () => void }) {
       <div className="mb-8 flex gap-5 rounded-[18px] border border-teal-200 bg-teal-50/70 p-7 text-slate-600">
         <span className="text-teal-600"><IcShield s={28} /></span>
         <div>
-          <p className="text-[17px] font-bold text-slate-950">Identity Verification</p>
+          <p className="text-[17px] font-bold text-neutral-950">Identity Verification</p>
           <p className="mt-2 text-[14px] leading-snug">Submit either Aadhaar or PAN card. Upload clear JPG, PNG, or PDF files (max 2MB each). Admin will verify within 24-48 hours.</p>
         </div>
       </div>
@@ -2553,7 +2560,7 @@ export function PageKycVerification({ onBack }: { onBack: () => void }) {
                 <div className="flex items-center gap-5">
                   <div className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-50 text-slate-500"><IcFileText s={28} /></div>
                   <div>
-                    <p className="text-[16px] font-bold text-slate-950">{doc.label}</p>
+                    <p className="text-[16px] font-bold text-neutral-950">{doc.label}</p>
                     {docs?.[doc.key]?.url && (
                       <a href={docs[doc.key]!.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-teal-600 hover:underline">View uploaded file</a>
                     )}
@@ -2581,7 +2588,7 @@ export function PageKycVerification({ onBack }: { onBack: () => void }) {
                 type="button"
                 onClick={() => fileRefs.current[doc.key]?.click()}
                 disabled={busyDoc === doc.key}
-                className="h-[52px] w-full rounded-[16px] border border-slate-200 text-[15px] font-bold text-slate-950 disabled:opacity-60"
+                className="h-[52px] w-full rounded-[16px] border border-slate-200 text-[15px] font-bold text-neutral-950 disabled:opacity-60"
               >
                 {busyDoc === doc.key ? "Uploading…" : "Submit Document"}
               </button>
@@ -2622,7 +2629,7 @@ function PageLogout({ onCancel }: { onCancel: () => void }) {
     <div className="p-5 sm:p-6 flex items-center justify-center min-h-72">
       <div className="bg-white rounded-2xl p-8 w-full max-w-xs shadow-sm border border-slate-100 text-center">
         <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-500"><IcLogOutBig /></div>
-        <h3 className="text-base font-semibold text-slate-800 mb-2">Leaving so soon?</h3>
+        <h3 className="text-base font-semibold text-neutral-800 mb-2">Leaving so soon?</h3>
         <p className="text-sm text-slate-500 mb-6 leading-relaxed">You&apos;re about to end your session. Come back anytime!</p>
         <div className="flex gap-3">
           <GhostBtn onClick={onCancel} className="flex-1">Stay</GhostBtn>
@@ -2642,7 +2649,7 @@ function ProfileHeader({ avatarUrl, onAvatarChange }: { avatarUrl: string | null
     reader.readAsDataURL(f); e.target.value = "";
   };
   return (
-    <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100" style={{ background: "linear-gradient(to right,#f0fdf4,#f8fafc)" }}>
+    <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100" style={{ background: "linear-gradient(to right,#EAF4FF,#F7FBFF)" }}>
       <div className="flex items-center gap-3">
         <div className="relative cursor-pointer" onClick={() => ref.current?.click()}>
           {avatarUrl
@@ -2653,7 +2660,7 @@ function ProfileHeader({ avatarUrl, onAvatarChange }: { avatarUrl: string | null
           </div>
         </div>
         <div>
-          <p className="text-sm font-semibold text-slate-800">Planext4u</p>
+          <p className="text-sm font-semibold text-neutral-800">Planext4u</p>
           <p className="text-xs text-slate-400">One App Infinite Solutions</p>
         </div>
       </div>
@@ -2738,7 +2745,7 @@ const { isLoggedIn } = useAuth();
   const activeLabel = SIDEBAR_ITEMS.find(s => s.id === activePage)?.label || "Profile";
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-[#F9FAFB] px-4">
+      <div className="min-h-screen bg-[#F7FBFF] px-4">
         {renderPage()}
       </div>
     </AuthGuard>

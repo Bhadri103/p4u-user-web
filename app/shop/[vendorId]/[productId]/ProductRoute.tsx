@@ -95,11 +95,11 @@ export default function ProductRoute({
               name: r.userId ? `User #${r.userId}` : "Anonymous",
               verified: true,
               rating: r.rating,
-              title: "",
+              title: r.title ?? "",
               comment: r.comment ?? "",
               date: new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
               helpful: 0,
-              images: [],
+              images: r.imageUrls ?? [],
             }));
             setProduct((prev) => {
               if (!prev) return prev;
@@ -145,8 +145,8 @@ export default function ProductRoute({
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
+    <div className="commerce-marketplace min-h-screen flex flex-col">
+      <Header variant="marketplace" />
       <main className="flex-1">
         <ProductDetailPage
           product={product}

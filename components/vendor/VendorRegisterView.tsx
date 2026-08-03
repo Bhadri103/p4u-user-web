@@ -10,9 +10,9 @@ import {
   type VendorKindChoice,
 } from "@/lib/vendor/registerPayload";
 
-const TEAL = "#17a2b8";
+const TEAL = "#89CFF0";
 const STEPS = ["Personal", "Business", "KYC", "Bank", "Review"] as const;
-const inputClass = "h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none focus:border-[#17a2b8] focus:ring-2 focus:ring-[#17a2b8]/20";
+const inputClass = "h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none focus:border-[#89CFF0] focus:ring-2 focus:ring-[#89CFF0]/20";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className="block"><span className="mb-2 block text-sm font-medium text-gray-700">{label}</span>{children}</label>;

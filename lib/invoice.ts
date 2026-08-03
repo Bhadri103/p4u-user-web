@@ -53,13 +53,13 @@ export function downloadOrderInvoice(order: InvoiceOrder, items: InvoiceItem[], 
     <meta charset="utf-8" />
     <title>${escapeHtml(invoiceTitle)}</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 24px; color: #1f2937; }
+      body { font-family: Arial, sans-serif; margin: 24px; color: #202124; }
       .head { display:flex; justify-content:space-between; margin-bottom: 16px; }
       .title { font-size: 20px; font-weight: 700; }
-      .muted { color:#6b7280; font-size:12px; }
+      .muted { color:#5D757A; font-size:12px; }
       table { width:100%; border-collapse: collapse; margin-top: 12px; }
-      th, td { border:1px solid #e5e7eb; padding:8px; font-size: 12px; text-align:left; }
-      th { background:#f9fafb; }
+      th, td { border:1px solid #D7E7F5; padding:8px; font-size: 12px; text-align:left; }
+      th { background:#F7FBFF; }
       .total { margin-top: 12px; text-align:right; font-size: 14px; font-weight: 700; }
     </style>
   </head>

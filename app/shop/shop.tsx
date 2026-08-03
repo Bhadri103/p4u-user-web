@@ -16,8 +16,9 @@ import { profileApi } from "@/lib/api/profile";
 import PurchaseActionButton from "@/components/shop/PurchaseActionButton";
 
 const SHOP_CARD_PLACEHOLDER = "https://placehold.co/600x400/f3f4f6/64748b?text=P4U";
-const TEAL = "#009999";
+const TEAL = "#89CFF0";
 const PAGE_SIZE = 24;
+const ALL_CATEGORIES_COUNT_KEY = "__all__";
 
 type ShopItem = {
   id: string | number;
@@ -63,8 +64,8 @@ function CircleThumb({
       <span
         className={`flex items-center justify-center overflow-hidden rounded-full border-2 bg-white transition-all ${
           active
-            ? "border-[#009999] shadow-[0_6px_16px_rgba(0,153,153,0.18)]"
-            : "border-slate-200 group-hover:border-[#7fd0ce]"
+            ? "border-[#89CFF0] shadow-[0_6px_16px_rgba(137,207,240,0.16)]"
+            : "border-slate-200 group-hover:border-[#B8E3F7]"
         }`}
         style={{ height: size, width: size }}
       >
@@ -79,7 +80,7 @@ function CircleThumb({
       </span>
       <span
         className={`block w-full truncate text-[11px] leading-tight ${
-          active ? "font-semibold text-[#009999]" : "font-medium text-slate-600"
+          active ? "font-semibold text-[#89CFF0]" : "font-medium text-slate-600"
         }`}
       >
         {label}
@@ -144,13 +145,17 @@ function ProductCard({
     setTriedAlt(false);
   }, [initial]);
 
+  const discount = item.originalPrice > item.price
+    ? Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)
+    : 0;
+
   const ImageBox = (
-    <div className={`relative overflow-hidden bg-gray-100 ${view === "list" ? "h-full w-full" : "aspect-[4/3]"}`}>
+    <div className={`relative overflow-hidden bg-gradient-to-br from-[#F7FBFF] to-[#EAF4FF]/60 ${view === "list" ? "h-full w-full" : "aspect-[4/3]"}`}>
       <Image
         src={src}
         alt={item.title}
         fill
-        className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+        className="object-contain p-3 transition-transform duration-300 group-hover:scale-[1.02]"
         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
         loading="lazy"
         onError={() => {
@@ -174,7 +179,7 @@ function ProductCard({
         <Heart className={`h-4 w-4 ${wished ? "fill-rose-500 text-rose-500" : "text-slate-500"}`} />
       </button>
       {item.imageCount > 1 && (
-        <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+        <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full bg-[#89CFF0]/85 px-2 py-1 text-[10px] font-semibold text-white shadow-sm backdrop-blur">
           <Images className="h-3 w-3" /> {item.imageCount}
         </span>
       )}
@@ -182,16 +187,23 @@ function ProductCard({
   );
 
   const Details = (
-    <div className="flex flex-1 flex-col p-3.5">
-      <p className="truncate text-[11px] font-medium" style={{ color: TEAL }}>{item.vendor}</p>
-      <h3 className="mt-0.5 line-clamp-2 text-[15px] font-semibold leading-snug text-gray-900">{item.title}</h3>
+    <div className="flex flex-1 flex-col px-3 pb-4 pt-2.5">
+      {discount >= 25 ? <span className="mb-2 w-fit rounded-full border border-[#D7E7F5] bg-[#EAF4FF] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#202124]">Planext4u Choice</span> : null}
+      <h3 className="line-clamp-3 text-[15px] font-semibold leading-snug text-[#202124]">{item.title}</h3>
+      <p className="mt-1 truncate text-xs text-[#5D757A]">by {item.vendor}</p>
       <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
-        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+        <Star className="h-3.5 w-3.5 fill-[#B8E3F7] text-[#B8E3F7]" />
         <span className="font-semibold text-gray-700">{item.rating}</span>
         <span>({item.reviews})</span>
       </div>
-      <p className="mt-1.5 text-[17px] font-bold text-gray-900">{formatInr(item.price)}</p>
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="mt-2 flex flex-wrap items-end gap-2">
+        <p className="text-[22px] font-semibold leading-none text-[#202124]">{formatInr(item.price)}</p>
+        {item.originalPrice > item.price ? <p className="text-xs text-[#5D757A]">M.R.P: <span className="line-through">{formatInr(item.originalPrice)}</span></p> : null}
+        {discount > 0 ? <p className="text-xs font-semibold text-[#89CFF0]">({discount}% off)</p> : null}
+      </div>
+      <p className="mt-2 text-xs text-[#5D757A]">Inclusive of all taxes</p>
+      <p className="mt-1 text-xs text-[#5D757A]"><span className="font-semibold text-[#202124]">Quality verified</span> · Delivery shown at checkout</p>
+      <div className="mt-auto grid grid-cols-1 gap-2 pt-4 sm:grid-cols-2">
         <PurchaseActionButton action="cart" compact onClick={onCart} />
         <PurchaseActionButton action="buy" compact onClick={onBuy} />
       </div>
@@ -202,7 +214,7 @@ function ProductCard({
     return (
       <div
         onClick={onOpen}
-        className="group flex cursor-pointer overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"
+        className="shop-product-card group relative flex cursor-pointer overflow-hidden rounded-2xl border border-[#D7E7F5] bg-white shadow-[0_10px_30px_rgba(137,207,240,0.07)] transition-all duration-300 hover:-translate-y-1 hover:border-[#B8E3F7] hover:shadow-[0_20px_42px_rgba(137,207,240,0.13)]"
       >
         <div className="relative h-auto w-40 shrink-0 sm:w-52">{ImageBox}</div>
         {Details}
@@ -213,7 +225,7 @@ function ProductCard({
   return (
     <div
       onClick={onOpen}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      className="shop-product-card group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#D7E7F5] bg-white shadow-[0_10px_30px_rgba(137,207,240,0.07)] transition-all duration-300 hover:-translate-y-1 hover:border-[#B8E3F7] hover:shadow-[0_20px_42px_rgba(137,207,240,0.13)]"
     >
       {ImageBox}
       {Details}
@@ -247,7 +259,7 @@ function FiltersDrawer({
           </p>
           <label className="flex cursor-pointer items-center gap-3" onClick={() => setOffersOnly(!offersOnly)}>
             <span className="flex h-4 w-4 items-center justify-center rounded border-2"
-              style={offersOnly ? { borderColor: "#f59e0b", background: "#f59e0b" } : { borderColor: "#d1d5db" }}>
+              style={offersOnly ? { borderColor: "#B8E3F7", background: "#B8E3F7" } : { borderColor: "#D7E7F5" }}>
               {offersOnly && <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
             </span>
             <span className="text-sm font-medium text-gray-700">Show deals only</span>
@@ -264,7 +276,7 @@ function FiltersDrawer({
               return (
                 <label key={r} className="flex cursor-pointer items-center gap-3" onClick={() => setRatingFilter(active ? null : r)}>
                   <span className="flex h-4 w-4 items-center justify-center rounded-full border-2"
-                    style={active ? { borderColor: "#f59e0b", background: "#f59e0b" } : { borderColor: "#d1d5db" }}>
+                    style={active ? { borderColor: "#B8E3F7", background: "#B8E3F7" } : { borderColor: "#D7E7F5" }}>
                     {active && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
                   </span>
                   <span className="flex items-center gap-1 text-sm font-medium text-gray-700">
@@ -297,6 +309,7 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
   const { addToCart, clearCart } = useCart();
 
   const [rootCategories, setRootCategories] = useState<Category[]>([]);
+  const [categoryProductCounts, setCategoryProductCounts] = useState<Record<string, number>>({});
   const [subcategories, setSubcategories] = useState<Category[]>([]);
   const [parentCategoryId, setParentCategoryId] = useState("");
   const [subcategoryId, setSubcategoryId] = useState("");
@@ -306,6 +319,9 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const loadingMoreRef = useRef(false);
+  const productScrollRef = useRef<HTMLDivElement>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
 
   const [sortBy, setSortBy] = useState<string>("newest");
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -346,6 +362,47 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
       setRootCategories(list.filter((c) => !c.parentId));
     }).catch(() => {});
   }, []);
+
+  // Product totals for the category sidebar. Keep the requests bounded so a
+  // large category catalog does not flood the API all at once.
+  useEffect(() => {
+    if (rootCategories.length === 0) return;
+    let cancelled = false;
+    const categoriesToCount = [
+      { id: ALL_CATEGORIES_COUNT_KEY, categoryId: undefined },
+      ...rootCategories.map((category) => ({ id: category.id, categoryId: category.id })),
+    ];
+
+    const run = async () => {
+      const nextCounts: Record<string, number> = {};
+      let cursor = 0;
+      const worker = async () => {
+        while (!cancelled) {
+          const entry = categoriesToCount[cursor++];
+          if (!entry) return;
+          try {
+            const result = await catalogApi.browseProducts({
+              limit: 1,
+              offset: 0,
+              categoryId: entry.categoryId,
+            });
+            nextCounts[entry.id] = typeof result.total === "number"
+              ? result.total
+              : (result.data ?? []).length;
+            if (!cancelled) setCategoryProductCounts({ ...nextCounts });
+          } catch {
+            nextCounts[entry.id] = 0;
+          }
+        }
+      };
+
+      await Promise.all(Array.from({ length: Math.min(6, categoriesToCount.length) }, () => worker()));
+      if (!cancelled) setCategoryProductCounts({ ...nextCounts });
+    };
+
+    void run();
+    return () => { cancelled = true; };
+  }, [rootCategories]);
 
   // Wishlist ids (best-effort; only when logged in)
   useEffect(() => {
@@ -410,7 +467,8 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
   }, [parentCategoryId, subcategoryId, searchQ]);
 
   async function loadMore() {
-    if (loadingMore || !hasMore) return;
+    if (loadingMoreRef.current || !hasMore) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
       const params: { limit: number; offset: number; categoryId?: string; subcategoryId?: string } = {
@@ -432,9 +490,32 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
     } catch {
       setHasMore(false);
     } finally {
+      loadingMoreRef.current = false;
       setLoadingMore(false);
     }
   }
+
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel || loading || loadingMore || !hasMore || searchQ) return;
+
+    const desktopScrollRoot = window.matchMedia("(min-width: 1024px)").matches
+      ? productScrollRef.current
+      : null;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) void loadMore();
+      },
+      {
+        root: desktopScrollRoot,
+        rootMargin: "0px 0px 320px 0px",
+        threshold: 0,
+      },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, items.length, loading, loadingMore, parentCategoryId, searchQ, subcategoryId]);
 
   const filtered = useMemo(() => {
     let data = [...items];
@@ -444,7 +525,15 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
     else if (sortBy === "high") data.sort((a, b) => b.price - a.price);
     else if (sortBy === "newest") data.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
     return data;
-  }, [items, ratingFilter, sortBy]);
+  }, [items, offersOnly, ratingFilter, sortBy]);
+
+  const categoriesWithProducts = useMemo(
+    () => rootCategories.filter((category) => {
+      const productCount = categoryProductCounts[category.id];
+      return productCount === undefined || productCount > 0;
+    }),
+    [categoryProductCounts, rootCategories],
+  );
 
   const parentCat = rootCategories.find((c) => c.id === parentCategoryId);
   const subCat = subcategories.find((c) => c.id === subcategoryId);
@@ -488,20 +577,20 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
   }
 
   return (
-    <div className="min-h-screen bg-[#f7fafc] font-sans">
-      <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-8">
+    <div className="shop-page-shell min-h-screen font-sans">
+      <div className="mx-auto flex w-full max-w-7xl bg-white  flex-col px-4 py-5 md:px-6 lg:py-4">
         {/* Header row */}
-        <div className="mb-5 flex items-start justify-between gap-4">
+        <div className="mb-4 flex shrink-0 items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">{title}</h1>
+            <h1 className="font-semibold text-[#202124]">{title}</h1>
             <p className="mt-1 text-sm text-gray-400">Showing results near your selected location</p>
           </div>
           <span className="shrink-0 pt-1 text-sm text-gray-500">{total} products</span>
         </div>
 
         {/* Toolbar */}
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+        <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/80 bg-white/85 p-2.5 shadow-[0_12px_32px_rgba(137,207,240,0.08)] backdrop-blur-xl">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={() => setFiltersOpen(true)}
@@ -525,7 +614,7 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
             <button
               type="button"
               onClick={() => setView("grid")}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg ${view === "grid" ? "bg-[#009999]/10 text-[#009999]" : "text-gray-400"}`}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg ${view === "grid" ? "bg-[#89CFF0]/10 text-[#89CFF0]" : "text-gray-400"}`}
               aria-label="Grid view"
             >
               <LayoutGrid className="h-4 w-4" />
@@ -533,7 +622,7 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
             <button
               type="button"
               onClick={() => setView("list")}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg ${view === "list" ? "bg-[#009999]/10 text-[#009999]" : "text-gray-400"}`}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg ${view === "list" ? "bg-[#89CFF0]/10 text-[#89CFF0]" : "text-gray-400"}`}
               aria-label="List view"
             >
               <ListIcon className="h-4 w-4" />
@@ -542,15 +631,13 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
         </div>
 
         {/* Category circle rail */}
-        <CircleRail
-          categories={rootCategories}
-          selectedId={parentCategoryId}
-          onSelect={(id) => { setParentCategoryId(id); setSubcategoryId(""); }}
-        />
+        <div className="shrink-0 rounded-2xl border border-blue-100/80 bg-white/70 px-3 py-2 shadow-sm backdrop-blur">
+          <CircleRail categories={categoriesWithProducts} selectedId={parentCategoryId} onSelect={(id) => { setParentCategoryId(id); setSubcategoryId(""); }} />
+        </div>
 
         {/* Subcategories */}
         {showSubRail && (
-          <div className="mt-6">
+          <div className="mt-4 shrink-0">
             {showShopHeading && (
               <h2 className="mb-4 text-xl font-bold text-gray-900">Shop {parentCat?.name}</h2>
             )}
@@ -569,8 +656,34 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
           <h2 className="mb-4 mt-8 text-xl font-bold text-gray-900">All products</h2>
         )}
 
-        {/* Products */}
-        <div className={showAllProductsHeading ? "" : "mt-8"}>
+        {/* Products and desktop filters */}
+        <div className={`grid gap-5 lg:h-[min(70vh,760px)] lg:min-h-[520px] lg:grid-cols-[230px_minmax(0,1fr)] lg:overflow-hidden ${showAllProductsHeading ? "" : "mt-5"}`}>
+          <aside className="hidden rounded-2xl border border-blue-100 bg-white/90 p-5 shadow-[0_12px_35px_rgba(32,33,36,0.06)] lg:block lg:h-full lg:overflow-y-auto marketplace-scroll-panel">
+            <div className="space-y-6">
+              <div>
+                <h3 className="mb-3 text-sm font-bold text-neutral-950">Category</h3>
+                <button type="button" onClick={() => { setParentCategoryId(""); setSubcategoryId(""); }} className={`mb-2 flex w-full items-center justify-between gap-2 text-left text-sm ${!parentCategoryId ? "font-bold text-[#89CFF0]" : "text-slate-700 hover:text-[#89CFF0]"}`}>
+                  <span className="min-w-0 truncate">All products</span>
+                  <span className="shrink-0 rounded-full bg-[#89CFF0] px-2 py-0.5 text-[11px] font-semibold leading-4 text-white">{categoryProductCounts[ALL_CATEGORIES_COUNT_KEY] ?? 0}</span>
+                </button>
+                {categoriesWithProducts.map((category) => (
+                  <button key={category.id} type="button" onClick={() => { setParentCategoryId(category.id); setSubcategoryId(""); }} className={`mb-2 flex w-full items-center justify-between gap-2 text-left text-sm ${parentCategoryId === category.id ? "font-bold text-[#89CFF0]" : "text-slate-700 hover:text-[#89CFF0]"}`}>
+                    <span className="min-w-0 truncate" title={category.name}>{category.name}</span>
+                    <span className="shrink-0 rounded-full bg-[#89CFF0] px-2 py-0.5 text-[11px] font-semibold leading-4 text-white">{categoryProductCounts[category.id] ?? 0}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="border-t border-slate-200 pt-5">
+                <h3 className="mb-3 text-sm font-bold text-neutral-950">Customer rating</h3>
+                {[4, 3].map((rating) => <button key={rating} type="button" onClick={() => setRatingFilter(ratingFilter === rating ? null : rating)} className={`mb-2 flex items-center gap-1 text-sm ${ratingFilter === rating ? "font-bold text-[#89CFF0]" : "text-slate-700"}`}><span className="text-[#B8E3F7]">★★★★</span> & up</button>)}
+              </div>
+              <div className="border-t border-slate-200 pt-5">
+                <h3 className="mb-3 text-sm font-bold text-neutral-950">Deals</h3>
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={offersOnly} onChange={(e) => setOffersOnly(e.target.checked)} className="h-4 w-4 accent-[#B8E3F7]" /> Deals and discounts</label>
+              </div>
+            </div>
+          </aside>
+          <div ref={productScrollRef} className="marketplace-primary-scroll min-w-0 lg:h-full lg:overflow-y-auto lg:overscroll-contain lg:pr-2 marketplace-scroll-panel">
           {loading ? (
             <div className="flex justify-center py-24"><Loader2 className="h-8 w-8 animate-spin text-teal-600" /></div>
           ) : filtered.length === 0 ? (
@@ -578,7 +691,7 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
               No products found. Pick a category or adjust filters.
             </div>
           ) : view === "grid" ? (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2 xl:grid-cols-3">
               {filtered.map((item) => (
                 <ProductCard
                   key={item.id}
@@ -609,18 +722,21 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
             </div>
           )}
           {hasMore && (
-            <div className="mt-8 flex justify-center">
-              <button
-                type="button"
-                onClick={() => void loadMore()}
-                disabled={loadingMore}
-                className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:border-gray-300 disabled:opacity-60"
-              >
-                {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {loadingMore ? "Loading…" : "Load more products"}
-              </button>
+            <div
+              ref={loadMoreSentinelRef}
+              className="mt-5 flex min-h-12 items-center justify-center"
+              aria-live="polite"
+              aria-label={loadingMore ? "Loading more products" : "More products load automatically"}
+            >
+              {loadingMore ? (
+                <span className="inline-flex items-center gap-2 text-sm font-medium text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin text-[#89CFF0]" />
+                  Loading more products…
+                </span>
+              ) : null}
             </div>
           )}
+          </div>
         </div>
       </div>
 

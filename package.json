@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev",
+    "dev": "cross-env NEXT_DIST_DIR=.next-dev NODE_OPTIONS=--max-old-space-size=4096 next dev -p 3000",
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
     "build:gh-pages": "cross-env GITHUB_PAGES=true NODE_OPTIONS=--max-old-space-size=4096 next build",
     "start": "next start",

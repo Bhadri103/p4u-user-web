@@ -31,10 +31,16 @@ export default function NotificationsPage() {
     <AuthGuard>
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-          <Bell className="w-6 h-6" /> Notifications
-        </h1>
+      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6 sm:py-10">
+        <section className="mb-6 flex items-center gap-4 rounded-3xl border border-[#D7E7F5] bg-gradient-to-br from-[#EAF4FF] to-white p-5 shadow-[0_14px_36px_rgba(137,207,240,.08)] sm:p-7">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#89CFF0] text-white shadow-[0_10px_24px_rgba(137,207,240,.22)]">
+            <Bell className="h-7 w-7" />
+          </span>
+          <div>
+            <h1 className="text-2xl font-semibold sm:text-3xl">Notifications</h1>
+            <p className="mt-1 text-sm text-[#5D757A]">Your latest account, order, service, and Socio updates.</p>
+          </div>
+        </section>
 
         {loading && (
           <div className="flex justify-center py-20">
@@ -52,10 +58,10 @@ export default function NotificationsPage() {
 
         <div className="space-y-3">
           {notifications.map((n) => (
-            <div
+            <article
               key={n.id}
-              className={`p-4 rounded-xl border transition ${
-                n.isRead ? "bg-white border-gray-200" : "bg-teal-50 border-teal-200"
+              className={`rounded-2xl border p-4 shadow-[0_8px_26px_rgba(137,207,240,.06)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_15px_34px_rgba(137,207,240,.11)] sm:p-5 ${
+                n.isRead ? "border-[#D7E7F5] bg-white" : "border-[#B8E3F7] bg-[#EAF4FF]"
               }`}
             >
               <div className="flex justify-between items-start gap-4">
@@ -76,7 +82,7 @@ export default function NotificationsPage() {
                   </button>
                 )}
               </div>
-            </div>
+            </article>
           ))}
         </div>
       </main>

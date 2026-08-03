@@ -46,7 +46,7 @@ export default function TopServicer() {
        <div
   className="rounded-2xl sm:rounded-3xl overflow-hidden"
   style={{
-   background: "#009999",
+   background: "#89CFF0",
   }}
 >
 
@@ -177,7 +177,7 @@ export default function TopServicer() {
                       {service.description}
                     </p>
                     {service.price > 0 && (
-                      <p className="text-sm font-semibold text-slate-900 mb-3">From ₹{service.price.toLocaleString("en-IN")}</p>
+                      <p className="text-sm font-semibold text-neutral-900 mb-3">From ₹{service.price.toLocaleString("en-IN")}</p>
                     )}
 <button
   type="button"
@@ -186,7 +186,7 @@ export default function TopServicer() {
   style={{
     borderRadius: "10px",
     background:
-      "radial-gradient(ellipse at 60% 25%, #1a4a3a 0%, #0E221F 55%, #081812 100%)",
+      "radial-gradient(ellipse at 60% 25%, #89CFF0 0%, #89CFF0 55%, #89CFF0 100%)",
   }}
 >
   Book now

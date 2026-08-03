@@ -99,7 +99,7 @@ function VideoModal({ item, onClose }: { item: Product; onClose: () => void }) {
             pointerEvents: "none",
           }}
         >
-          <p style={{ margin: 0, color: "#fff", fontWeight: 700, fontSize: "0.92rem", fontFamily: "'Segoe UI', sans-serif" }}>
+          <p style={{ margin: 0, color: "#fff", fontWeight: 600, fontSize: "0.92rem", fontFamily: "'Segoe UI', sans-serif" }}>
             {item.username}
           </p>
           <p style={{ margin: "3px 0 0", color: "rgba(255,255,255,0.8)", fontSize: "0.82rem", fontFamily: "'Segoe UI', sans-serif" }}>
@@ -201,7 +201,7 @@ function VideoCard({ item, onOpen }: { item: Product; onOpen: (item: Product) =>
           pointerEvents: "none",
         }}
       >
-        <p style={{ margin: 0, color: "#ffffff", fontWeight: 700, fontSize: "0.82rem", fontFamily: "'Segoe UI', sans-serif" }}>
+        <p style={{ margin: 0, color: "#ffffff", fontWeight: 600, fontSize: "0.82rem", fontFamily: "'Segoe UI', sans-serif" }}>
           {item.username}
         </p>
         <p style={{ margin: "2px 0 0", color: "rgba(255,255,255,0.8)", fontSize: "0.74rem", fontFamily: "'Segoe UI', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -285,7 +285,7 @@ export default function BestProducts() {
     >
     <div
       style={{
-  background: "#009999",
+  background: "#89CFF0",
         padding: "28px 24px 32px",
         maxWidth: "1400px",
      
@@ -320,7 +320,7 @@ export default function BestProducts() {
         style={{
           margin: "0 0 24px",
           color: "#ffffff",
-          fontWeight: 700,
+          fontWeight: 600,
           fontSize: "clamp(1.1rem, 2.5vw, 1.55rem)",
           letterSpacing: "-0.01em",
           position: "relative",

@@ -1,37 +1,28 @@
 import Header from '@/components/layout/Header';
 import HeroSlider from '@/components/home/HeroSlider';
 import HomepageCmsBlocks from '@/components/home/HomepageCmsBlocks';
-import ServiceCards from '@/components/home/ServiceCards';
-import BestProducts from '@/components/home/BestProducts';
-import BrandSections from '@/components/home/BrandSections';
-import PickupSection from '@/components/home/PickupSection';
-import TopServicer from '@/components/catalog/TopServicer';
-import MostBookedServices from '@/components/catalog/MostBookedServices';
-import SubscriptionNewsletter from '@/components/home/SubscriptionNewsletter';
+import MarketplaceHome from '@/components/home/MarketplaceHome';
 import Footer from '@/components/layout/Footer';
-import ClassifiedResale from '@/components/catalog/ClassifiedResale';
-import ReelsVideo from '@/components/catalog/ReelsVideo';
-import { HomeCategoryGrid, HomeCategoryRail, HomeRideActions, HomeServiceCategories } from '@/components/home/HomeCategorySections';
+import { HomeCategoryRail } from '@/components/home/HomeCategorySections';
+import { Headphones, MapPin, ShieldCheck, Sparkles } from 'lucide-react';
+
+const confidenceItems = [
+  { icon: ShieldCheck, title: 'Trusted choices', copy: 'Verified sellers and providers' },
+  { icon: MapPin, title: 'Made for your area', copy: 'Useful discoveries close to you' },
+  { icon: Sparkles, title: 'One simple experience', copy: 'Shop, services, homes and community' },
+  { icon: Headphones, title: 'Support when needed', copy: 'Help throughout your journey' },
+];
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen">
-      <Header />
-      <HomeCategoryRail />
+    <div className="marketplace-home home-storefront min-h-screen overflow-x-clip">
+      <Header variant="marketplace" />
       <HeroSlider />
+      <section className="mx-auto mt-4 max-w-7xl bg-white  px-4 sm:px-6 lg:px-8" aria-label="Why choose Planext4u">
+      </section>
       <HomepageCmsBlocks />
-      <HomeRideActions />
-      <BestProducts />
-      <HomeCategoryGrid />
-      <BrandSections />
-      <PickupSection />
-      <TopServicer />
-      <MostBookedServices />
-      <HomeServiceCategories />
-      <ServiceCards />
-      <ReelsVideo />
-      <ClassifiedResale />
-      <SubscriptionNewsletter />
+      <HomeCategoryRail />
+      <MarketplaceHome />
       <Footer />
     </div>
   );

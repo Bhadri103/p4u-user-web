@@ -1,74 +1,76 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowRight,
-  BadgeAlert,
-  Briefcase,
-  Home as HomeIcon,
-  LifeBuoy,
-  ShoppingBag,
-  Tag,
-  UsersRound,
-  User,
-  Wallet,
-  Zap,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import AuthModal from "@/components/auth/Authmodal";
 import logo from "./icon.png";
 import { profileApi } from "@/lib/api/profile";
-import { avatarLetterFromDisplayName } from "@/lib/resolveCustomerId";
 import { useAuth } from "@/providers/AuthContext";
 
 export default function Home() {
   const router = useRouter();
-  const { isLoggedIn, isLoading, displayName, login } = useAuth();
+  const { isLoggedIn, isLoading, login } = useAuth();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [walletAmount, setWalletAmount] = useState<number | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
-  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
 
   const sections = [
     {
       title: "Shop",
       body: "Find everything you need",
       href: "/shop",
-      icon: ShoppingBag,
+      image: "/images/navigation/shop-nav.png",
+      accent: "#B8E3F7",
+      soft: "#EAF4FF",
     },
     {
       title: "Socio",
       body: "Connect with your community",
       href: "/socio",
-      icon: UsersRound,
+      image: "/images/navigation/socio-nav.png",
+      accent: "#89CFF0",
+      soft: "#EAF4FF",
     },
     {
       title: "Services",
       body: "Book trusted services",
       href: "/service",
-      icon: Briefcase,
+      image: "/images/navigation/services-nav.png",
+      accent: "#89CFF0",
+      soft: "#D8ECFF",
+    },
+    {
+      title: "Find Home",
+      body: "Discover verified homes near you",
+      href: "/find-home",
+      image: "/images/navigation/find-home-nav-v2.png",
+      accent: "#B8E3F7",
+      soft: "#F7FBFF",
     },
     {
       title: "Classifieds",
       body: "Buy, sell & discover near you",
       href: "/classified",
-      icon: Tag,
+      image: "/images/navigation/classified-nav.png",
+      accent: "#89CFF0",
+      soft: "#EAF4FF",
     },
   ];
 
   const quickLinks = [
-    { label: "Emergency", href: "/service?category=emergency", icon: BadgeAlert },
-    { label: "Help", href: "/service?category=help", icon: LifeBuoy },
-    { label: "Quick Assist", href: "/service?category=quick-assist", icon: Zap },
+    { label: "Emergency", href: "/service?category=emergency", image: "/images/navigation/emergency-hub.png" },
+    { label: "Help", href: "/service?category=help", image: "/images/navigation/help-hub.png" },
+    { label: "Quick Assist", href: "/service?category=quick-assist", image: "/images/navigation/quick-assist-hub.png" },
   ];
 
   useEffect(() => {
     if (!isLoggedIn) {
       setWalletAmount(null);
       setWalletLoading(false);
-      setProfileAvatar(null);
       return;
     }
 
@@ -92,19 +94,11 @@ export default function Home() {
     }
 
     loadWallet();
-    profileApi
-      .getMe()
-      .then((profile) => {
-        if (!cancelled) setProfileAvatar(profile.avatar ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setProfileAvatar(null);
-      });
-
     return () => {
       cancelled = true;
     };
   }, [isLoggedIn]);
+
 
   function handleAuthSuccess(phone: string) {
     login(phone);
@@ -119,14 +113,6 @@ export default function Home() {
     setIsAuthOpen(true);
   }
 
-  function handleAccountClick() {
-    if (isLoggedIn) {
-      router.push("/profile");
-      return;
-    }
-    setIsAuthOpen(true);
-  }
-
   const walletLabel =
     isLoading || walletLoading
       ? "..."
@@ -134,87 +120,68 @@ export default function Home() {
         ? `\u20B9${Math.max(0, Math.floor(walletAmount ?? 0)).toLocaleString("en-IN")}`
         : "";
 
-  function AccountAvatar() {
-    if (isLoading) return null;
-    if (!isLoggedIn) return <User className="h-8 w-8" strokeWidth={2.2} />;
-    if (profileAvatar) {
-      return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={profileAvatar}
-          alt="Profile"
-          className="h-full w-full rounded-full object-cover"
-          onError={() => setProfileAvatar(null)}
-        />
-      );
-    }
-    return <span>{avatarLetterFromDisplayName(displayName)}</span>;
-  }
-
   return (
-    <main className="welcome-hub min-h-dvh overflow-hidden text-[#06233a]">
+    <main className="welcome-hub min-h-dvh overflow-hidden text-[#202124]">
       <div className="welcome-hub__shade" />
-      <section className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[440px] flex-col px-4 pb-4 pt-7 min-[390px]:px-5 min-[390px]:pt-[50px] sm:max-w-[430px]">
-        <div className="flex items-start justify-between px-1">
-          <div className="h-[70px] w-[70px] overflow-hidden rounded-2xl border border-[#eed36a]/80 bg-[#0e6b76] p-1 shadow-[0_8px_22px_rgba(0,0,0,0.22)]">
-            <Image src={logo} alt="P4U" className="h-full w-full object-contain" priority />
+      <div className="welcome-orb welcome-orb--one" />
+      <div className="welcome-orb welcome-orb--two" />
+      <section className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[440px] flex-col px-4 pb-8 pt-10 min-[390px]:px-5 min-[390px]:pt-14 sm:max-w-[880px] sm:px-8 lg:max-w-[1180px] lg:px-10 lg:pt-12">
+        <div className="welcome-intro">
+          <div className="welcome-intro__brand">
+            <Link href="/home" className="welcome-intro__logo" aria-label="Open Planext4u home">
+              <Image src={logo} alt="Planext4u" priority className="h-full w-full object-contain" />
+            </Link>
+            <div className="welcome-intro__copy">
+              <span className="welcome-intro__eyebrow" aria-hidden="true">
+                <i /><i /><i /><i />
+              </span>
+              <h1 className="text-[34px] font-semibold leading-none text-[#202124] min-[390px]:text-[38px]">Welcome!</h1>
+              <p className="mt-3 text-[17px] font-medium leading-tight text-[#5D687A] min-[390px]:text-[19px]">
+                Everything you need, in one place.
+              </p>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={handleAccountClick}
-            className="flex h-[70px] w-[70px] items-center justify-center overflow-hidden rounded-full border-[3px] border-white bg-[#0daea9] text-xl font-bold text-white shadow-[0_8px_22px_rgba(0,0,0,0.22)]"
-            aria-label={isLoggedIn ? "Open profile" : "Login"}
-          >
-            <AccountAvatar />
-          </button>
+          <div className="welcome-intro__icons" aria-hidden="true">
+            {sections.map(({ title, image }, index) => (
+              <span key={title} style={{ animationDelay: `${index * 180}ms` }}>
+                <Image src={image} alt="" width={58} height={58} className="h-full w-full object-cover" />
+              </span>
+            ))}
+          </div>
         </div>
 
-        <div className="mt-5">
-          <h1 className="text-[32px] font-bold leading-none text-white drop-shadow-md">Welcome!</h1>
-          <p className="mt-2 text-[18px] font-medium leading-tight text-white drop-shadow-sm">
-            Everything you need, in one place.
-          </p>
-        </div>
-
-        <div className="relative mt-7 grid grid-cols-2 gap-3 min-[390px]:mt-8 min-[390px]:gap-4">
-          {sections.map(({ title, body, href, icon: Icon }) => (
+        <div className="relative mt-6 grid grid-cols-2 gap-3 min-[390px]:mt-7 min-[390px]:gap-4 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
+          {sections.map(({ title, body, href, image, accent, soft }, index) => (
             <Link
               key={title}
               href={href}
-              className="welcome-card group flex h-[212px] flex-col items-center justify-center rounded-[26px] px-4 text-center min-[390px]:h-[236px] min-[390px]:rounded-[28px] min-[390px]:px-5"
+              style={{ animationDelay: `${100 + index * 90}ms`, "--welcome-accent": accent, "--welcome-soft": soft } as CSSProperties}
+              className={`welcome-card welcome-reveal group flex min-h-[220px] flex-col items-center justify-center rounded-[26px] px-4 py-5 text-center transition-all duration-300 min-[390px]:min-h-[236px] min-[390px]:rounded-[28px] min-[390px]:px-5 lg:min-h-[244px] ${index === sections.length - 1 ? "col-span-2 sm:col-span-1" : ""}`}
             >
-              <span className="flex h-[66px] w-[66px] items-center justify-center rounded-full border-2 border-white/85 text-white min-[390px]:h-[78px] min-[390px]:w-[78px]">
-                <Icon className="h-8 w-8 min-[390px]:h-9 min-[390px]:w-9" strokeWidth={2} />
+              <span className="welcome-card__art flex h-[78px] w-[78px] items-center justify-center overflow-hidden rounded-2xl shadow-[0_10px_25px_rgba(32,33,36,.12)] min-[390px]:h-[88px] min-[390px]:w-[88px]">
+                <Image src={image} alt="" width={90} height={90} className="h-full w-full object-contain" />
               </span>
-              <span className="mt-3 text-[22px] font-bold leading-none tracking-normal text-[#06233a] min-[390px]:text-[24px]">
+              <span className="mt-3 text-[22px] font-bold leading-none tracking-normal text-[#202124] min-[390px]:text-[24px]">
                 {title}
               </span>
-              <span className="mt-2 min-h-[38px] max-w-[130px] text-[15px] font-normal leading-[1.15] text-[#06233a] min-[390px]:mt-3 min-[390px]:min-h-[42px] min-[390px]:text-[16px]">
+              <span className="mt-2 min-h-[38px] max-w-[130px] text-[15px] font-normal leading-[1.15] text-[#202124] min-[390px]:mt-3 min-[390px]:min-h-[42px] min-[390px]:text-[16px]">
                 {body}
               </span>
-              <span className="mt-3 flex h-8 w-8 items-center justify-center rounded-full border border-white/80 bg-white/20 text-[#009999] transition-transform group-hover:translate-x-1 min-[390px]:mt-4 min-[390px]:h-9 min-[390px]:w-9">
+              <span className="mt-3 flex h-8 w-8 items-center justify-center rounded-full border border-[#D7E2EA] bg-white text-[#5D687A] transition-transform group-hover:translate-x-1 min-[390px]:mt-4 min-[390px]:h-9 min-[390px]:w-9">
                 <ArrowRight className="h-5 w-5 min-[390px]:h-6 min-[390px]:w-6" />
               </span>
             </Link>
           ))}
-
-          <Link
-            href="/home"
-            className="absolute left-1/2 top-1/2 z-20 flex h-[96px] w-[96px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-[7px] border-white/55 bg-[#08aaa3] text-white shadow-[0_0_0_2px_rgba(255,255,255,0.55),0_12px_24px_rgba(0,0,0,0.24)] min-[390px]:h-[110px] min-[390px]:w-[110px] min-[390px]:border-[8px]"
-            aria-label="Open home page"
-          >
-            <HomeIcon className="h-8 w-8 min-[390px]:h-9 min-[390px]:w-9" strokeWidth={2.4} />
-            <span className="mt-1 text-[14px] font-black">Home</span>
-          </Link>
         </div>
 
         <button
           type="button"
           onClick={handleWalletClick}
-          className="welcome-wallet mt-4 flex min-h-[104px] items-center gap-3 rounded-[24px] border-2 border-white px-4 py-4 text-[#06233a] min-[390px]:min-h-[118px] min-[390px]:gap-4 min-[390px]:rounded-[26px] min-[390px]:px-5"
+          style={{ animationDelay: "480ms" }}
+          className="welcome-wallet welcome-reveal mt-4 flex min-h-[104px] items-center gap-3 rounded-[24px] border-2 border-white px-4 py-4 text-[#202124] min-[390px]:min-h-[118px] min-[390px]:gap-4 min-[390px]:rounded-[26px] min-[390px]:px-5"
         >
-          <span className="flex h-[62px] w-[62px] shrink-0 items-center justify-center rounded-full bg-[#0daea9] text-white shadow-sm min-[390px]:h-[72px] min-[390px]:w-[72px]">
-            <Wallet className="h-8 w-8 min-[390px]:h-9 min-[390px]:w-9" />
+          <span className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-[0_8px_22px_rgba(32,33,36,.12)] min-[390px]:h-[82px] min-[390px]:w-[82px]">
+            <Image src="/images/navigation/wallet-hub.png" alt="" width={82} height={82} className="h-full w-full object-cover" />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-[22px] font-bold leading-none min-[390px]:text-[24px]">Wallet</span>
@@ -224,21 +191,21 @@ export default function Home() {
           </span>
           <span className="flex shrink-0 flex-col items-center gap-4 min-[390px]:gap-5">
             {isLoggedIn && (
-              <span className="min-w-[58px] rounded-full border border-white/75 bg-white/20 px-2.5 py-1 text-center text-[16px] font-bold text-[#009999] min-[390px]:px-3 min-[390px]:text-[18px]">
+              <span className="min-w-[58px] rounded-full border border-[#CFE6D6] bg-[#F1F8F2] px-2.5 py-1 text-center text-[16px] font-semibold text-[#3F7D5A] min-[390px]:px-3 min-[390px]:text-[18px]">
                 {walletLabel}
               </span>
             )}
-            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/80 bg-white/20 text-[#009999]">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#D7E2EA] bg-white text-[#5D687A]">
               <ArrowRight className="h-5 w-5" />
             </span>
           </span>
         </button>
 
         <div className="mt-5 grid grid-cols-3 gap-3 px-2 min-[390px]:gap-5 min-[390px]:px-5">
-          {quickLinks.map(({ label, href, icon: Icon }) => (
-            <Link key={label} href={href} className="flex flex-col items-center text-center">
-              <span className="flex h-[66px] w-[66px] items-center justify-center rounded-full border-[4px] border-white/50 bg-[#0daea9] text-white shadow-[0_7px_18px_rgba(0,0,0,0.18)] min-[390px]:h-[76px] min-[390px]:w-[76px] min-[390px]:border-[5px]">
-                <Icon className="h-8 w-8 min-[390px]:h-9 min-[390px]:w-9" />
+          {quickLinks.map(({ label, href, image }, index) => (
+            <Link key={label} href={href} style={{ animationDelay: `${580 + index * 90}ms` }} className="welcome-quick-link welcome-reveal flex flex-col items-center text-center">
+              <span className="flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-2xl bg-white shadow-[0_8px_22px_rgba(32,33,36,.14)] min-[390px]:h-[82px] min-[390px]:w-[82px]">
+                <Image src={image} alt="" width={82} height={82} className="h-full w-full object-cover" />
               </span>
               <span className="mt-2 whitespace-nowrap text-[13px] font-bold leading-none min-[390px]:text-[15px]">
                 {label}

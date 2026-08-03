@@ -24,8 +24,8 @@ interface AuthModalProps {
   onSuccess?: (phone: string) => void;
 }
 
-const TEAL = "#0d9488";
-const TEAL_DARK = "#0f766e";
+const TEAL = "#89CFF0";
+const TEAL_DARK = "#89CFF0";
 const OTP_LEN = 6;
 const RESEND_S = 30;
 const RECAPTCHA_ID = "p4u-recaptcha";
@@ -78,7 +78,7 @@ const inputRowStyle = (hasError: boolean): CSSProperties => ({
   gap: 8,
   padding: "10px 12px",
   borderRadius: 8,
-  border: `1.5px solid ${hasError ? "#ef4444" : "#e5e7eb"}`,
+  border: `1.5px solid ${hasError ? "#ef4444" : "#D7E7F5"}`,
   background: "white",
 });
 
@@ -86,7 +86,7 @@ const bareInput: CSSProperties = {
   border: "none",
   outline: "none",
   fontSize: 13,
-  color: "#111827",
+  color: "#202124",
   background: "transparent",
   flex: 1,
   fontFamily: "inherit",
@@ -211,7 +211,7 @@ function PhoneStep({
           marginBottom: 14,
           padding: 3,
           borderRadius: 10,
-          background: "#f3f4f6",
+          background: "#FFFFFF",
           gap: 4,
         }}
       >
@@ -232,7 +232,7 @@ function PhoneStep({
             cursor: "pointer",
             fontFamily: "inherit",
             background: tab === "signin" ? "white" : "transparent",
-            color: tab === "signin" ? TEAL : "#6b7280",
+            color: tab === "signin" ? TEAL : "#5D757A",
             boxShadow: tab === "signin" ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
           }}
         >
@@ -255,7 +255,7 @@ function PhoneStep({
             cursor: "pointer",
             fontFamily: "inherit",
             background: tab === "signup" ? "white" : "transparent",
-            color: tab === "signup" ? TEAL : "#6b7280",
+            color: tab === "signup" ? TEAL : "#5D757A",
             boxShadow: tab === "signup" ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
           }}
         >
@@ -263,10 +263,10 @@ function PhoneStep({
         </button>
       </div>
 
-      <h2 style={{ fontSize: 16, fontWeight: 600, color: "#111827", margin: "0 0 4px" }}>
+      <h2 style={{ fontSize: 16, fontWeight: 600, color: "#202124", margin: "0 0 4px" }}>
         {tab === "signin" ? "Sign in with your mobile" : "Create your account"}
       </h2>
-      <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 16px" }}>
+      <p style={{ fontSize: 12, color: "#5D757A", margin: "0 0 16px" }}>
         {tab === "signin"
           ? "We'll send a 6-digit OTP to your phone."
           : "Enter your details, then we'll verify your mobile with a 6-digit OTP."}
@@ -274,7 +274,7 @@ function PhoneStep({
 
       {tab === "signup" && (
         <>
-          <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: "#202124", marginBottom: 4 }}>
             Full name *
           </label>
           <div style={{ ...inputRowStyle(fieldErr && !fullName.trim()), marginBottom: 10 }}>
@@ -291,7 +291,7 @@ function PhoneStep({
             />
           </div>
 
-          <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: "#202124", marginBottom: 4 }}>
             Email *
           </label>
           <div style={{ ...inputRowStyle(fieldErr && !!validateEmail(email)), marginBottom: 10 }}>
@@ -308,7 +308,7 @@ function PhoneStep({
             />
           </div>
 
-          <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: "#202124", marginBottom: 4 }}>
             Occupation
           </label>
           <div style={{ ...inputRowStyle(false), marginBottom: 6 }}>
@@ -335,7 +335,7 @@ function PhoneStep({
               ))}
             </select>
           </div>
-          <label style={{ fontSize: 11, fontWeight: 500, color: "#6b7280", marginBottom: 4 }}>
+          <label style={{ fontSize: 11, fontWeight: 500, color: "#5D757A", marginBottom: 4 }}>
             Or type your own
           </label>
           <div style={{ ...inputRowStyle(false), marginBottom: 4 }}>
@@ -353,17 +353,17 @@ function PhoneStep({
               style={{ ...bareInput, minWidth: 0 }}
             />
           </div>
-          <p style={{ fontSize: 10, color: "#9ca3af", margin: "0 0 10px", lineHeight: 1.35 }}>
+          <p style={{ fontSize: 10, color: "#5D757A", margin: "0 0 10px", lineHeight: 1.35 }}>
             Choose a configured job, or type your own (shown on your profile like in admin).
           </p>
         </>
       )}
 
-      <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+      <label style={{ fontSize: 11, fontWeight: 600, color: "#202124", marginBottom: 4 }}>
         Mobile number
       </label>
       <div style={inputRowStyle(fieldErr && !!validatePhone(phone))}>
-        <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 500 }}>+91</span>
+        <span style={{ fontSize: 13, color: "#5D757A", fontWeight: 500 }}>+91</span>
         <input
           ref={inputRef}
           type="tel"
@@ -393,7 +393,7 @@ function PhoneStep({
             gap: 8,
             marginTop: 12,
             fontSize: 11,
-            color: "#4b5563",
+            color: "#5D757A",
             lineHeight: 1.45,
             cursor: "pointer",
           }}
@@ -422,7 +422,7 @@ function PhoneStep({
           padding: "11px 0",
           borderRadius: 8,
           border: "none",
-          background: loading ? "#9ca3af" : TEAL,
+          background: loading ? "#5D757A" : TEAL,
           color: "white",
           fontSize: 14,
           fontWeight: 600,
@@ -449,7 +449,7 @@ function PhoneStep({
         )}
       </button>
 
-      <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 14, textAlign: "center" }}>
+      <p style={{ fontSize: 11, color: "#5D757A", marginTop: 14, textAlign: "center" }}>
         By continuing you agree to our Terms of Service and Privacy Policy.
       </p>
 
@@ -604,21 +604,21 @@ function OtpStep({
         style={{
           fontSize: 16,
           fontWeight: 600,
-          color: "#111827",
+          color: "#202124",
           margin: "0 0 6px",
           textAlign: "center",
         }}
       >
         OTP Verification
       </h2>
-      <p style={{ fontSize: 11, color: "#9ca3af", textAlign: "center", margin: 0 }}>
+      <p style={{ fontSize: 11, color: "#5D757A", textAlign: "center", margin: 0 }}>
         Enter the 6-digit code sent to
       </p>
       <p
         style={{
           fontSize: 12,
           fontWeight: 600,
-          color: "#374151",
+          color: "#202124",
           margin: "2px 0 14px",
           textAlign: "center",
         }}
@@ -630,7 +630,7 @@ function OtpStep({
         style={{
           fontSize: 13,
           fontWeight: 600,
-          color: "#374151",
+          color: "#202124",
           margin: "0 0 14px",
           textAlign: "center",
         }}
@@ -666,16 +666,16 @@ function OtpStep({
               textAlign: "center",
               fontSize: 16,
               fontWeight: 600,
-              color: "#111827",
+              color: "#202124",
               border: `1.5px solid ${
-                digit ? TEAL : error ? "#ef4444" : "#e2e8f0"
+                digit ? TEAL : error ? "#ef4444" : "#D7E7F5"
               }`,
               borderRadius: 7,
               outline: "none",
               background: "white",
               transition: "all 0.13s",
               fontFamily: "inherit",
-              boxShadow: digit ? `0 0 0 3px rgba(13,148,136,0.08)` : "none",
+              boxShadow: digit ? `0 0 0 3px rgba(137,207,240,0.1)` : "none",
             }}
           />
         ))}
@@ -694,7 +694,7 @@ function OtpStep({
           marginTop: 14,
           borderRadius: 8,
           border: "none",
-          background: loading || !filled ? "#9ca3af" : TEAL,
+          background: loading || !filled ? "#9FB6C9" : TEAL,
           color: "white",
           fontSize: 13,
           fontWeight: 600,
@@ -704,7 +704,7 @@ function OtpStep({
           justifyContent: "center",
           gap: 7,
           fontFamily: "inherit",
-          boxShadow: `0 3px 12px rgba(13,148,136,0.28)`,
+          boxShadow: `0 8px 22px rgba(137,207,240,0.24)`,
         }}
       >
         {loading ? (
@@ -723,7 +723,7 @@ function OtpStep({
           background: "none",
           border: "none",
           cursor: "pointer",
-          color: "#9ca3af",
+          color: "#5D757A",
           fontSize: 11,
           fontFamily: "inherit",
           padding: 0,
@@ -763,7 +763,7 @@ function SuccessStep({
           height: 56,
           borderRadius: "50%",
           background:
-            "radial-gradient(at 60% 25%, #1a4a3a 0%, #0e221f 55%, #081812 100%)",
+            "radial-gradient(at 60% 25%, #89CFF0 0%, #89CFF0 55%, #89CFF0 100%)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -785,10 +785,10 @@ function SuccessStep({
           <path d="M20 6L9 17l-5-5" />
         </svg>
       </div>
-      <h3 style={{ fontSize: 15, fontWeight: 600, color: "#111827", margin: "0 0 4px" }}>
+      <h3 style={{ fontSize: 15, fontWeight: 600, color: "#202124", margin: "0 0 4px" }}>
         {variant === "register" ? "Welcome!" : "Verified!"}
       </h3>
-      <p style={{ fontSize: 11.5, color: "#9ca3af", margin: 0 }}>
+      <p style={{ fontSize: 11.5, color: "#5D757A", margin: 0 }}>
         {variant === "register"
           ? "Your account is ready. Redirecting…"
           : "Login successful. Redirecting…"}
@@ -888,7 +888,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
             borderRadius: 16,
             boxShadow: "0 24px 64px rgba(0,0,0,0.16), 0 4px 16px rgba(0,0,0,0.08)",
             overflow: "hidden",
-            minHeight: 430,
+            minHeight: "min(430px, calc(100dvh - 32px))",
+            maxHeight: "calc(100dvh - 32px)",
+            overflowY: "auto",
+            overscrollBehavior: "contain",
           }}
         >
           <div
@@ -941,7 +944,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-                  color: "#9ca3af",
+                  color: "#5D757A",
                   padding: 4,
                   borderRadius: 7,
                   display: "flex",

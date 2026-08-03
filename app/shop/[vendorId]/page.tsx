@@ -11,8 +11,8 @@ export function generateStaticParams() {
 
 export default function VendorRoute({ params }: { params: { vendorId: string } }) {
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
+    <div className="commerce-marketplace min-h-screen flex flex-col">
+      <Header variant="marketplace" />
       <main className="flex-1">
        <VendorDetailPage vendorId={params.vendorId} />
       </main>

@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, Home, ShoppingBag, Tags, Users, Wrench } from "lucide-react";
 import banner1 from "../../images/home-banner/banner1.png";
 import banner2 from "../../images/home-banner/banner2.jpg";
 import banner3 from "../../images/home-banner/banner3.png";
@@ -164,15 +165,23 @@ export default function HeroSlider() {
 
   if (slides.length === 0) {
     return (
-      <div className="w-full mx-auto max-w-[1400px] px-4 xl:px-6 mt-2 sm:mt-3 md:mt-4">
-        <div className="h-[180px] xs:h-[200px] sm:h-[250px] md:h-[320px] lg:h-[400px] xl:h-[450px] bg-gray-100 rounded-lg sm:rounded-xl md:rounded-2xl animate-pulse" />
+      <div className="mx-auto mt-6 w-full  max-w-7xl bg-white  px-4 sm:px-6 lg:mt-8 lg:px-8">
+        <div className="h-[200px] animate-pulse rounded-[28px] border border-[#D7E7F5] bg-slate-100 shadow-[0_18px_50px_rgba(31,74,125,.08)] sm:h-[280px] lg:h-[380px]" />
       </div>
     );
   }
 
+  const destinations = [
+    { label: "Shop products", description: "Everyday essentials", href: "/shop", icon: ShoppingBag },
+    { label: "Book services", description: "Trusted local experts", href: "/service", icon: Wrench },
+    { label: "Find a home", description: "Verified properties", href: "/find-home", icon: Home },
+    { label: "Join Socio", description: "Your community", href: "/socio", icon: Users },
+  ];
+
   return (
-    <div className="relative w-full overflow-hidden mx-auto max-w-[1400px] px-4 xl:px-6 mt-2 sm:mt-3 md:mt-4">
-      <div className="relative h-[180px] xs:h-[200px] sm:h-[250px] md:h-[320px] lg:h-[400px] xl:h-[450px] bg-gray-200 rounded-lg sm:rounded-xl md:rounded-2xl overflow-hidden">
+    <section className="relative mx-auto mt-5 w-full max-w-7xl bg-white  px-4 sm:px-6 lg:mt-7 lg:px-8" aria-label="Featured offers and quick destinations">
+      <div className="w-100 lg:gap-5">
+      <div className="relative h-[220px] overflow-hidden rounded-[24px] border border-[#D7E7F5] bg-slate-100 shadow-[0_18px_50px_rgba(31,74,125,.10)] sm:h-[320px] lg:h-[420px] lg:rounded-[30px]">
  
         <div
           className={`flex h-full ${isTransitioning ? 'transition-transform duration-700 ease-in-out' : ''}`}
@@ -192,7 +201,7 @@ export default function HeroSlider() {
                 alt={slide.alt}
                 fill
                 priority={index === 0}
-                className="object-cover object-top rounded-lg sm:rounded-xl md:rounded-2xl"
+                className="object-cover object-center"
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1400px"
               />
               {(slide.subtitle || slide.ctaText || slide.festivalTag) && (
@@ -215,7 +224,7 @@ export default function HeroSlider() {
                       className="inline-block px-3 py-1.5 sm:px-4 sm:py-2 rounded-md text-xs sm:text-sm font-semibold transition-opacity hover:opacity-90"
                       style={{
                         backgroundColor: slide.themeButtonColor || "#ffffff",
-                        color: "#111827",
+                        color: "#202124",
                       }}
                     >
                       {slide.ctaText}
@@ -263,6 +272,8 @@ export default function HeroSlider() {
           ))}
         </div>
       </div>
-    </div>
+     
+      </div>
+    </section>
   );
 }

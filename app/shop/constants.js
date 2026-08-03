@@ -1,3 +1,3 @@
-export const TEAL_GRADIENT = "#009999";
+export const TEAL_GRADIENT = "#89CFF0";
 
 export const ITEMS_PER_PAGE = 10;

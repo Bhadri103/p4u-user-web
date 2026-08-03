@@ -127,7 +127,7 @@ export default function OrdersPage() {
             }
           },
           modal: { ondismiss: () => resolve() },
-          theme: { color: "#009999" },
+          theme: { color: "#89CFF0" },
         });
         rzp.open();
       });
@@ -352,19 +352,19 @@ export default function OrdersPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen flex flex-col bg-[#F9FAFB]">
+      <div className="min-h-screen flex flex-col bg-[#F7FBFF]">
         <Header />
         <main className="flex-1 mx-auto w-full max-w-[1030px] px-4 py-8">
           <div className="mb-8 flex items-center gap-8">
             <button
               type="button"
               onClick={() => window.location.assign("/profile")}
-              className="rounded-full p-2 text-slate-900 hover:bg-slate-100"
+              className="rounded-full p-2 text-neutral-900 hover:bg-slate-100"
               aria-label="Go back"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <h1 className="text-[24px] font-bold text-slate-950">My Orders</h1>
+            <h1 className="text-[24px] font-bold text-neutral-950">My Orders</h1>
           </div>
 
           <div className="mb-6 rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200/80">
@@ -388,7 +388,7 @@ export default function OrdersPage() {
               type="button"
               onClick={() => setTab("products")}
               className={`rounded-[14px] py-3 text-[16px] font-medium ${
-                tab === "products" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"
+                tab === "products" ? "bg-white text-neutral-950 shadow-sm" : "text-slate-500"
               }`}
             >
               Product Orders ({orders.length})
@@ -397,7 +397,7 @@ export default function OrdersPage() {
               type="button"
               onClick={() => setTab("bookings")}
               className={`rounded-[14px] py-3 text-[16px] font-medium ${
-                tab === "bookings" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"
+                tab === "bookings" ? "bg-white text-neutral-950 shadow-sm" : "text-slate-500"
               }`}
             >
               Service Bookings ({bookings.length})
@@ -430,7 +430,7 @@ export default function OrdersPage() {
                 <div key={o.id} className="border-b border-slate-100 p-6 last:border-b-0">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="text-[17px] font-bold text-slate-950">
+                      <p className="text-[17px] font-bold text-neutral-950">
                         {String((o as any).orderRef || o.id)}
                       </p>
                       <p className="mt-1 text-[13px] text-slate-500">
@@ -457,7 +457,7 @@ export default function OrdersPage() {
                             ) : null}
                           </div>
                           <div className="min-w-0">
-                            <p className="truncate text-[15px] font-semibold text-slate-950">
+                            <p className="truncate text-[15px] font-semibold text-neutral-950">
                               {item.productName || "Product"}
                             </p>
                             <p className="mt-1 text-[13px] text-slate-500">
@@ -470,7 +470,7 @@ export default function OrdersPage() {
                   </div>
 
                   <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-                    <span className="text-[16px] font-bold text-slate-950">
+                    <span className="text-[16px] font-bold text-neutral-950">
                       &#8377;{Number(o.totalAmount || 0).toFixed(0)}
                     </span>
                     <div className="flex items-center gap-3">
@@ -528,7 +528,7 @@ export default function OrdersPage() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-[17px] font-bold text-slate-950">{b.serviceName}</p>
+                        <p className="truncate text-[17px] font-bold text-neutral-950">{b.serviceName}</p>
                         <p className="mt-1 text-[13px] text-slate-500">{b.vendorName}</p>
                         <div className="mt-2 flex flex-wrap items-center gap-3 text-[13px] text-slate-500">
                           <span className="inline-flex items-center gap-1">
@@ -548,7 +548,7 @@ export default function OrdersPage() {
                   </div>
 
                   <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                    <span className="text-[16px] font-bold text-slate-950">
+                    <span className="text-[16px] font-bold text-neutral-950">
                       {b.totalAmount > 0 ? <>&#8377;{b.totalAmount.toFixed(0)}</> : <span className="text-slate-400 font-medium">—</span>}
                     </span>
                     <Link

@@ -65,11 +65,32 @@ export interface SocioUserProfile {
   userName: string;
   userAvatar: string | null;
   bio: string | null;
+  displayName?: string;
+  username?: string;
+  website?: string | null;
+  pronouns?: "he/him" | "she/her" | "they/them" | "prefer_not" | "";
+  location?: string | null;
+  category?: string | null;
+  accountType?: "personal" | "creator" | "business";
+  isPrivate?: boolean;
   postCount: number;
   followerCount: number;
   followingCount: number;
   isFollowing: boolean;
   isSelf: boolean;
+}
+
+export interface UpdateSocioProfileInput {
+  displayName: string;
+  username: string;
+  bio: string;
+  website: string;
+  pronouns: "he/him" | "she/her" | "they/them" | "prefer_not" | "";
+  location: string;
+  category: string;
+  accountType: "personal" | "creator" | "business";
+  avatarUrl: string;
+  isPrivate: boolean;
 }
 
 export interface ActivityNotification {
@@ -143,6 +164,21 @@ export interface SocialSettings {
   language?: string;
   closeFriends?: string[];
   blockedUsers?: string[];
+  privacy?: {
+    profileVisibility?: "public" | "followers" | "private";
+    allowCommentsFrom?: "everyone" | "followers" | "nobody";
+    allowTags?: boolean;
+    showActivityStatus?: boolean;
+    hideLikeCounts?: boolean;
+  };
+  messaging?: {
+    allowMessagesFrom?: "everyone" | "followers" | "nobody";
+  };
+  security?: {
+    loginAlerts?: boolean;
+    unusualActivityAlerts?: boolean;
+    saveLoginInfo?: boolean;
+  };
 }
 
 export interface UserSummary {
@@ -184,8 +220,13 @@ function unwrapApiList(raw: unknown): Record<string, unknown>[] {
   return [];
 }
 
+function mediaStrings(...values: unknown[]): string[] {
+  const output:string[]=[]; const add=(value:unknown)=>{if(typeof value==="string"){const item=value.trim();if(!item)return;if(item.startsWith("[")){try{const parsed=JSON.parse(item);if(Array.isArray(parsed)){parsed.forEach(add);return;}}catch{}}output.push(item);}else if(Array.isArray(value))value.forEach(add);else if(value&&typeof value==="object"){const row=value as Record<string,unknown>;add(row.url??row.mediaUrl??row.media_url??row.imageUrl??row.image_url??row.path);}}; values.forEach(add); return Array.from(new Set(output));
+}
+
 function mapApiPost(row: Record<string, unknown>): Post {
-  const mediaUrls = (row.mediaUrls as string[] | null | undefined) ?? null;
+  const author = row.author && typeof row.author === "object" ? row.author as Record<string,unknown> : row.user && typeof row.user === "object" ? row.user as Record<string,unknown> : {};
+  const mediaUrls = mediaStrings(row.mediaUrls,row.media_urls,row.images,row.attachments,row.media,row.imageUrl,row.image_url);
   const firstImage = mediaUrls?.[0];
   const metadata =
     row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
@@ -194,27 +235,31 @@ function mapApiPost(row: Record<string, unknown>): Post {
   const linkedProductsRaw = Array.isArray(metadata.linkedProducts) ? metadata.linkedProducts : [];
   const rawAvatar =
     row.userAvatar ??
+    row.user_avatar ??
     row.avatarUrl ??
+    row.avatar_url ??
     row.avatar ??
     row.authorAvatar ??
-    row.authorAvatarUrl;
+    row.author_avatar ??
+    row.authorAvatarUrl ??
+    author.avatarUrl ?? author.avatar_url ?? author.avatar;
   return {
-    id: (row.id as string | number) ?? "",
-    userId: (row.authorId ?? row.userId) as string | number | undefined,
-    userName: (row.userName ?? row.authorName ?? row.fullName ?? row.name) as string | undefined,
+    id: (row.id ?? row.postId ?? row.post_id) as string | number ?? "",
+    userId: (row.authorId ?? row.author_id ?? row.userId ?? row.user_id ?? author.id) as string | number | undefined,
+    userName: (row.userName ?? row.user_name ?? row.username ?? row.authorName ?? row.author_name ?? row.fullName ?? row.name ?? author.name ?? author.username) as string | undefined,
     userAvatar: rawAvatar == null ? undefined : String(rawAvatar),
-    content: (row.contentText as string) ?? (row.content as string) ?? undefined,
-    imageUrl: firstImage ?? (row.imageUrl as string) ?? undefined,
-    mediaUrls: mediaUrls ?? undefined,
-    postType: row.postType as string | undefined,
-    likeCount: Number(row.likeCount) || 0,
-    commentCount: Number(row.commentCount) || 0,
-    shareCount: Number(row.shareCount) || 0,
-    isLiked: Boolean(row.isLiked),
-    isSaved: Boolean(row.isSaved),
+    content: (row.caption ?? row.contentText ?? row.content_text ?? row.content ?? row.body) as string | undefined,
+    imageUrl: firstImage ?? undefined,
+    mediaUrls: mediaUrls.length ? mediaUrls : undefined,
+    postType: (row.postType ?? row.post_type) as string | undefined,
+    likeCount: Number(row.likeCount ?? row.like_count ?? row.likesCount ?? row.likes_count) || 0,
+    commentCount: Number(row.commentCount ?? row.comment_count ?? row.commentsCount ?? row.comments_count) || 0,
+    shareCount: Number(row.shareCount ?? row.share_count ?? row.sharesCount ?? row.shares_count) || 0,
+    isLiked: Boolean(row.isLiked ?? row.is_liked ?? row.liked),
+    isSaved: Boolean(row.isSaved ?? row.is_saved ?? row.saved),
     isFollowing: Boolean(row.isFollowing ?? row.isFollowingAuthor ?? row.following),
     isSelf: Boolean(row.isSelf ?? row.self),
-    category: typeof metadata.category === "string" ? metadata.category : null,
+    category: typeof (row.category ?? metadata.category) === "string" ? String(row.category ?? metadata.category) : null,
     linkedProducts: linkedProductsRaw
       .map((item): LinkedProduct | null => {
         if (!item || typeof item !== "object") return null;
@@ -235,7 +280,47 @@ function mapApiPost(row: Record<string, unknown>): Post {
       metadata.commentPermission === "followers" || metadata.commentPermission === "none"
         ? metadata.commentPermission
         : "everyone",
-    createdAt: String(row.createdAt ?? ""),
+    createdAt: String(row.createdAt ?? row.created_at ?? ""),
+  };
+}
+
+function mapApiSocioProfile(raw: unknown): SocioUserProfile {
+  let row = raw && typeof raw === "object" && !Array.isArray(raw)
+    ? raw as Record<string, unknown>
+    : {};
+  for (let depth = 0; depth < 4; depth += 1) {
+    const nested = row.profile ?? row.user ?? row.data;
+    if (!nested || typeof nested !== "object" || Array.isArray(nested) || nested === row) break;
+    row = nested as Record<string, unknown>;
+  }
+  const displayName = firstString(row.displayName, row.display_name, row.userName, row.user_name, row.name);
+  const username = firstString(row.username, row.userName, row.user_name);
+  const rawPronouns = firstString(row.pronouns);
+  const pronouns = ["he/him", "she/her", "they/them", "prefer_not"].includes(rawPronouns)
+    ? rawPronouns as SocioUserProfile["pronouns"]
+    : "";
+  const rawAccountType = firstString(row.accountType, row.account_type);
+  const accountType = ["personal", "creator", "business"].includes(rawAccountType)
+    ? rawAccountType as NonNullable<SocioUserProfile["accountType"]>
+    : "personal";
+  return {
+    userId: firstString(row.userId, row.user_id, row.id),
+    userName: username || displayName || "user",
+    userAvatar: firstString(row.userAvatar, row.user_avatar, row.avatarUrl, row.avatar_url, row.avatar) || null,
+    displayName: displayName || username,
+    username,
+    bio: firstString(row.bio) || null,
+    website: firstString(row.website) || null,
+    pronouns,
+    location: firstString(row.location) || null,
+    category: firstString(row.category) || null,
+    accountType,
+    isPrivate: Boolean(row.isPrivate ?? row.is_private),
+    postCount: Number(row.postCount ?? row.post_count) || 0,
+    followerCount: Number(row.followerCount ?? row.follower_count) || 0,
+    followingCount: Number(row.followingCount ?? row.following_count) || 0,
+    isFollowing: Boolean(row.isFollowing ?? row.is_following),
+    isSelf: Boolean(row.isSelf ?? row.is_self),
   };
 }
 
@@ -282,8 +367,8 @@ function mapApiComment(row: Record<string, unknown>): Comment {
   return {
     id: (row.id as string | number) ?? "",
     postId: (row.postId as string | number) ?? (row.post_id as string | number) ?? "",
-    userId: (row.userId ?? row.authorId) as string | number | undefined,
-    userName: (row.userName ?? row.authorName ?? row.fullName ?? row.name) as string | undefined,
+    userId: (row.userId ?? row.user_id ?? row.authorId ?? row.author_id) as string | number | undefined,
+    userName: (row.userName ?? row.user_name ?? row.username ?? row.authorName ?? row.author_name ?? row.fullName ?? row.name) as string | undefined,
     userAvatar:
       row.userAvatar != null
         ? String(row.userAvatar)
@@ -292,9 +377,9 @@ function mapApiComment(row: Record<string, unknown>): Comment {
           : row.avatar != null
             ? String(row.avatar)
             : null,
-    content: String(row.contentText ?? row.content ?? ""),
+    content: String(row.contentText ?? row.content_text ?? row.content ?? row.body ?? ""),
     parentCommentId: (row.parentCommentId ?? row.parent_comment_id) as string | number | undefined,
-    createdAt: String(row.createdAt ?? ""),
+    createdAt: String(row.createdAt ?? row.created_at ?? ""),
   };
 }
 
@@ -590,11 +675,20 @@ export const socialApi = {
   },
 
   getMyProfile() {
-    return apiClient.get<SocioUserProfile>(`${BASE}/users/me/profile`);
+    return apiClient.get<unknown>(`${BASE}/users/me/profile`).then(mapApiSocioProfile);
   },
 
   getUserProfile(userId: string) {
-    return apiClient.get<SocioUserProfile>(`${BASE}/users/${userId}/profile`);
+    return apiClient.get<unknown>(`${BASE}/users/${userId}/profile`).then(mapApiSocioProfile);
+  },
+
+  updateMyProfile(data: UpdateSocioProfileInput) {
+    return apiClient
+      .patch<unknown>(`${BASE}/users/me/profile`, data)
+      .then((raw) => {
+        apiClient.clearGetCache(`${BASE}/users/`);
+        return mapApiSocioProfile(raw);
+      });
   },
 
   getUserPosts(userId: string, params?: { limit?: number; offset?: number }) {

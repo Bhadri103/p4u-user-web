@@ -38,7 +38,7 @@ export default function SubscriptionNewsletter() {
           priority
         />
       </div> 
-      <div className="max-w-7xl mx-auto relative z-10">
+      <div className="max-w-7xl bg-white  mx-auto relative z-10">
         <div className=" overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-0"> 
             <div className="p-6 md:p-8 lg:p-12 order-2 md:order-1">

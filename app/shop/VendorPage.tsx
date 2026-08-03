@@ -17,7 +17,7 @@ import { pickProductImage, pickVendorImage, resolveMediaUrl } from "@/lib/media"
 import { resolveCatalogDisplayOriginal, resolveCatalogUnitPrice } from "@/lib/catalog/resolvePrice";
 import PurchaseActionButton from "@/components/shop/PurchaseActionButton";
 
-const TEAL_SOLID = "#0d9488";
+const TEAL_SOLID = "#89CFF0";
  
 const FALLBACK_IMAGES: Record<string, string> = {
   Electronics: "https://placehold.co/400x400/1e3a5f/ffffff?text=Electronics",
@@ -74,7 +74,7 @@ function VendorAvatar({ logo, logoColor }: { logo: string; logoColor?: string })
   return (
     <div
       className="w-14 h-14 sm:w-[72px] sm:h-[72px] rounded-2xl flex items-center justify-center text-2xl sm:text-3xl shadow-sm shrink-0 overflow-hidden"
-      style={{ background: logoColor ?? "#f97316", border: `2px solid ${logoColor ?? "#f97316"}55` }}
+      style={{ background: logoColor ?? "#B8E3F7", border: `2px solid ${logoColor ?? "#B8E3F7"}55` }}
     >
       {url ? (
         <img src={url} alt="" className="w-full h-full object-cover" />
@@ -370,7 +370,7 @@ function ProductCard({ product, onProductClick, vendorId, vendorName, vendorCate
   return (
     <div
       className="bg-white rounded-2xl overflow-hidden flex flex-col cursor-pointer"
-      style={{ boxShadow: "0 2px 16px rgba(0,0,0,0.10)", border: "1px solid #f0f0f0", transition: "box-shadow 0.2s, transform 0.2s" }}
+      style={{ boxShadow: "0 2px 16px rgba(0,0,0,0.10)", border: "1px solid #F7FBFF", transition: "box-shadow 0.2s, transform 0.2s" }}
       onClick={() => onProductClick(product)}
       onMouseEnter={(e) => {
         e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.16)";
@@ -388,7 +388,7 @@ function ProductCard({ product, onProductClick, vendorId, vendorName, vendorCate
         {product.badge && (
           <div
             className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold"
-            style={{ border: "1.5px solid #3aaa8e", color: "#3aaa8e", background: "rgba(255,255,255,0.85)" }}
+            style={{ border: "1.5px solid #89CFF0", color: "#89CFF0", background: "rgba(255,255,255,0.85)" }}
           >
             {product.badge}
           </div>
@@ -412,7 +412,7 @@ function ProductCard({ product, onProductClick, vendorId, vendorName, vendorCate
                 key={c.name}
                 onClick={(e) => { e.stopPropagation(); setSelectedColor(c); }}
                 title={c.name}
-                style={{ width: 14, height: 14, borderRadius: 4, background: c.hex, border: selectedColor?.name === c.name ? "2px solid #3aaa8e" : "2px solid transparent", cursor: "pointer", outline: "none", transition: "border 0.15s" }}
+                style={{ width: 14, height: 14, borderRadius: 4, background: c.hex, border: selectedColor?.name === c.name ? "2px solid #89CFF0" : "2px solid transparent", cursor: "pointer", outline: "none", transition: "border 0.15s" }}
               />
             ))}
           </div>
@@ -435,9 +435,9 @@ function ProductCard({ product, onProductClick, vendorId, vendorName, vendorCate
         </div>
         <div className="border-t border-gray-100 mb-2 sm:mb-3" />
         <div className="flex items-center gap-1.5 mt-auto" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center rounded-xl overflow-hidden bg-white" style={{ border: "1.5px solid #e0e0e0" }}>
+          <div className="flex items-center rounded-xl overflow-hidden bg-white" style={{ border: "1.5px solid #D7E7F5" }}>
             <button onClick={() => setQty(Math.max(1, qty - 1))} className="flex items-center justify-center hover:bg-gray-50 transition-all" style={{ width: 26, height: 28, color: "#555" }}><Minus size={10} /></button>
-            <span className="text-xs font-semibold text-gray-900 text-center" style={{ minWidth: 20, padding: "4px 4px", borderLeft: "1px solid #e0e0e0", borderRight: "1px solid #e0e0e0" }}>{qty}</span>
+            <span className="text-xs font-semibold text-gray-900 text-center" style={{ minWidth: 20, padding: "4px 4px", borderLeft: "1px solid #D7E7F5", borderRight: "1px solid #D7E7F5" }}>{qty}</span>
             <button onClick={() => setQty(qty + 1)} className="flex items-center justify-center hover:bg-gray-50 transition-all" style={{ width: 26, height: 28, color: "#555" }}><Plus size={10} /></button>
           </div>
           <PurchaseActionButton action="cart" compact className="flex-1" onClick={handleAddToCart} />
@@ -466,10 +466,10 @@ function SidebarContent({ brands, selectedBrands, toggleBrand, offersOnly, setOf
             return (
               <label key={brand} className="flex items-center gap-3 cursor-pointer">
                 <div onClick={() => toggleBrand(brand)} className="w-4 h-4 rounded flex items-center justify-center transition-all shrink-0"
-                  style={active ? { background: TEAL_GRADIENT } : { border: "2px solid #d1d5db", backgroundColor: "#fafafa" }}>
+                  style={active ? { background: TEAL_GRADIENT } : { border: "2px solid #D7E7F5", backgroundColor: "#FFFFFF" }}>
                   {active && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                 </div>
-                <span className="text-sm font-medium" style={{ color: active ? TEAL_SOLID : "#4b5563" }}>{brand}</span>
+                <span className="text-sm font-medium" style={{ color: active ? TEAL_SOLID : "#5D757A" }}>{brand}</span>
               </label>
             );
           })}
@@ -481,10 +481,10 @@ function SidebarContent({ brands, selectedBrands, toggleBrand, offersOnly, setOf
         </p>
         <label className="flex items-center gap-3 cursor-pointer">
           <div onClick={() => setOffersOnly(!offersOnly)} className="w-4 h-4 rounded flex items-center justify-center transition-all shrink-0"
-            style={offersOnly ? { background: TEAL_GRADIENT } : { border: "2px solid #d1d5db", backgroundColor: "#fafafa" }}>
+            style={offersOnly ? { background: TEAL_GRADIENT } : { border: "2px solid #D7E7F5", backgroundColor: "#FFFFFF" }}>
             {offersOnly && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
           </div>
-          <span className="text-sm font-medium" style={{ color: offersOnly ? TEAL_SOLID : "#4b5563" }}>Show deals only</span>
+          <span className="text-sm font-medium" style={{ color: offersOnly ? TEAL_SOLID : "#5D757A" }}>Show deals only</span>
           {offersOnly && <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: TEAL_GRADIENT }}>ON</span>}
         </label>
       </div>
@@ -498,10 +498,10 @@ function SidebarContent({ brands, selectedBrands, toggleBrand, offersOnly, setOf
             return (
               <label key={r} className="flex items-center gap-3 cursor-pointer">
                 <div onClick={() => setRatingFilter(active ? null : r)} className="w-4 h-4 rounded-full flex items-center justify-center transition-all shrink-0"
-                  style={active ? { background: TEAL_GRADIENT, padding: "2px" } : { border: "2px solid #d1d5db", backgroundColor: "#fafafa" }}>
+                  style={active ? { background: TEAL_GRADIENT, padding: "2px" } : { border: "2px solid #D7E7F5", backgroundColor: "#FFFFFF" }}>
                   {active && <div className="w-full h-full rounded-full bg-white" style={{ opacity: 0.9 }} />}
                 </div>
-                <span className="text-sm font-medium flex items-center gap-1" style={{ color: active ? TEAL_SOLID : "#4b5563" }}>
+                <span className="text-sm font-medium flex items-center gap-1" style={{ color: active ? TEAL_SOLID : "#5D757A" }}>
                   {Array.from({ length: Math.floor(r) }).map((_, i) => <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />)}
                   <span>{r}+</span>
                 </span>
@@ -546,7 +546,7 @@ export default function VendorDetailPage({ vendorId, onBack }: VendorDetailPageP
       setVendor({
         id: String(v.id),
         name: (v as any).businessName || v.name,
-        logoColor: "#0d9488",
+        logoColor: "#89CFF0",
         logo: pickVendorImage(v as any) || "🏪",
         verified: true,
         since: "2024",
@@ -674,7 +674,7 @@ export default function VendorDetailPage({ vendorId, onBack }: VendorDetailPageP
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-[1400px] mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-5">
+      <div className="mx-auto max-w-7xl bg-white  px-3 py-4 sm:px-4 sm:py-5 md:px-6">
 
         <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs text-gray-400 mb-3 sm:mb-4 overflow-x-auto whitespace-nowrap pb-0.5">
           <span className="hover:text-gray-600 cursor-pointer" onClick={onBack}>Shop</span>
@@ -746,10 +746,10 @@ export default function VendorDetailPage({ vendorId, onBack }: VendorDetailPageP
               {vendor.tabs.map((tab, i) => (
                 <button key={tab} onClick={() => setActiveTab(i)}
                   className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-semibold border transition-all whitespace-nowrap shrink-0"
-                  style={activeTab === i ? { background: TEAL_GRADIENT, color: "white", borderColor: "transparent" } : { background: "#f9fafb", color: "#6b7280", borderColor: "#e5e7eb" }}>
+                  style={activeTab === i ? { background: TEAL_GRADIENT, color: "white", borderColor: "transparent" } : { background: "#FFFFFF", color: "#5D757A", borderColor: "#D7E7F5" }}>
                   {tab}
                   <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full"
-                    style={activeTab === i ? { background: "rgba(255,255,255,0.2)", color: "white" } : { background: "#f3f4f6", color: "#9ca3af" }}>
+                    style={activeTab === i ? { background: "rgba(255,255,255,0.2)", color: "white" } : { background: "#FFFFFF", color: "#5D757A" }}>
                     {vendor.tabCounts[i]}
                   </span>
                 </button>

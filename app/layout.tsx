@@ -1,14 +1,13 @@
 import './globals.css';
 import type { Metadata } from "next";
-import { Inter } from 'next/font/google';
 import { CartProvider } from "@/providers/CartContext";
 import { AuthProvider } from "@/providers/AuthContext";
 import UserSessionProvider from "@/providers/UserSessionProvider";
 import { AppLoadingProvider } from "@/providers/AppLoadingProvider";
 import GlobalPopupBanner from "@/components/content/GlobalPopupBanner";
 import { AddressProvider } from "@/providers/AddressContext";
-
-const inter = Inter({ subsets: ['latin'] });
+import PageTransition from "@/components/layout/PageTransition";
+import GlobalImageLoader from "@/components/layout/GlobalImageLoader";
 
 export const metadata: Metadata = {
   title: {
@@ -22,13 +21,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body>
+        <GlobalImageLoader />
         <AppLoadingProvider>
           <AuthProvider>
             <AddressProvider>
               <UserSessionProvider>
                 <CartProvider>
-                  {children}
+                  <PageTransition>{children}</PageTransition>
                   <GlobalPopupBanner />
                 </CartProvider>
               </UserSessionProvider>

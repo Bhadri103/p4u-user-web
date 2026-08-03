@@ -120,14 +120,21 @@ export const catalogApi = {
     return apiClient.get<{ status: string }>(`${BASE}/public/health`);
   },
 
-  getCategories(params?: {
+  async getCategories(params?: {
     limit?: number;
     offset?: number;
     includeInactive?: boolean;
     /** `product` = shop categories + subs; `service` = service categories only. */
     kind?: "product" | "service";
   }) {
-    return apiClient.get<PaginatedResponse<Category>>(`${BASE}/categories`, params as Record<string, string | number | boolean>);
+    const result = await apiClient.get<PaginatedResponse<Category> | Category[]>(
+      `${BASE}/categories`,
+      params as Record<string, string | number | boolean>,
+    );
+    if (Array.isArray(result)) {
+      return { data: result, total: result.length, limit: result.length, offset: 0 };
+    }
+    return result;
   },
 
   getCategoryChildren(

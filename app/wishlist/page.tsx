@@ -114,16 +114,16 @@ export default function WishlistPage() {
               className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-slate-100"
               aria-label="Go back"
             >
-              <ArrowLeft className="h-5 w-5 text-slate-900" />
+              <ArrowLeft className="h-5 w-5 text-neutral-900" />
             </button>
-            <h1 className="text-[24px] font-bold leading-none text-slate-950">My Wishlist</h1>
+            <h1 className="text-[24px] font-bold leading-none text-neutral-950">My Wishlist</h1>
           </div>
 
           <div className="mb-20 grid grid-cols-3 gap-1 rounded-[18px] bg-slate-100 p-1.5">
             <button
               onClick={() => setActiveTab("products")}
               className={`flex items-center justify-center gap-2 rounded-[14px] py-3 text-[16px] font-medium transition ${
-                activeTab === "products" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                activeTab === "products" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-500"
               }`}
             >
               <Heart className="h-5 w-5" /> Products ({count})
@@ -131,7 +131,7 @@ export default function WishlistPage() {
             <button
               onClick={() => setActiveTab("services")}
               className={`flex items-center justify-center gap-2 rounded-[14px] py-3 text-[16px] font-medium transition ${
-                activeTab === "services" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                activeTab === "services" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-500"
               }`}
             >
               <Wrench className="h-5 w-5" /> Services ({servicesCount})
@@ -139,7 +139,7 @@ export default function WishlistPage() {
             <button
               onClick={() => setActiveTab("sellers")}
               className={`flex items-center justify-center gap-2 rounded-[14px] py-3 text-[16px] font-medium transition ${
-                activeTab === "sellers" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                activeTab === "sellers" ? "bg-white text-neutral-900 shadow-sm" : "text-slate-500"
               }`}
             >
               <Store className="h-5 w-5" /> Sellers (0)
@@ -152,7 +152,7 @@ export default function WishlistPage() {
           {!loading && !error && ((isProductsTab && items.length === 0) || (isServicesTab && serviceItems.length === 0) || (!isProductsTab && !isServicesTab)) && (
             <div className="flex min-h-[280px] flex-col items-center justify-center text-center">
               <Heart className="mb-8 h-16 w-16 text-slate-500" strokeWidth={1.7} />
-              <p className="text-[24px] font-medium text-slate-950">No items yet</p>
+              <p className="text-[24px] font-medium text-neutral-950">No items yet</p>
               <p className="mt-4 text-[16px] text-slate-500">Browse products and tap the heart icon to save</p>
             </div>
           )}
@@ -171,7 +171,7 @@ export default function WishlistPage() {
                     ) : null}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium text-slate-900 truncate">{item.safeName}</p>
+                    <p className="font-medium text-neutral-900 truncate">{item.safeName}</p>
                     <p className="text-sm text-slate-600 mt-0.5">{formatINR(item.safePrice)}</p>
                     <Link
                       href={
@@ -223,7 +223,7 @@ export default function WishlistPage() {
                       {item.image ? <img src={resolveMediaUrl(item.image) || item.image} alt={item.title} className="w-full h-full object-cover" /> : null}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium text-slate-900 truncate">{item.title}</p>
+                      <p className="font-medium text-neutral-900 truncate">{item.title}</p>
                       <p className="text-xs text-slate-500 mt-0.5 truncate">{item.provider || "Service"}</p>
                       <p className="text-sm text-slate-600 mt-0.5">{formatINR(Number(item.price || 0))}</p>
                     </div>

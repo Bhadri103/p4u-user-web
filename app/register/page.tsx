@@ -13,7 +13,7 @@ import { useAuth } from "@/providers/AuthContext";
 import { INDIA_STATES, DISTRICTS_BY_STATE } from "@/lib/in-states";
 import logo from "@/images/logo.png";
 
-const TEAL = "#0d9488";
+const TEAL = "#89CFF0";
 
 /** Read JWT `exp` (seconds) without verifying signature — UI only. */
 function decodeJwtExpMs(jwt: string): number | null {
@@ -217,7 +217,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-[#f7fafa]">
-      <div className="bg-[#0d9488] pb-12 pt-8 text-center">
+      <div className="bg-[#89CFF0] pb-12 pt-8 text-center">
         <div className="mx-auto inline-flex items-center justify-center rounded-2xl bg-white/10 p-2">
           <Image src={logo} alt="Planext4u" width={56} height={56} priority />
         </div>
@@ -446,7 +446,7 @@ export default function RegisterPage() {
           border: none;
           outline: none;
           font-size: 14px;
-          color: #111827;
+          color: #202124;
           font-family: inherit;
         }
       `}</style>
@@ -489,7 +489,7 @@ function SelectField({
       <p className="mb-1.5 text-xs font-medium text-slate-500">{label}</p>
       <div className="rounded-2xl border border-slate-200 px-3 py-0.5 focus-within:border-teal-500">
         <select
-          className="h-10 w-full bg-transparent text-sm text-slate-800 outline-none disabled:cursor-not-allowed"
+          className="h-10 w-full bg-transparent text-sm text-neutral-800 outline-none disabled:cursor-not-allowed"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
@@ -526,7 +526,7 @@ function OccupationSelect({
       <p className="mb-1.5 text-xs font-medium text-slate-500">{label}</p>
       <div className="rounded-2xl border border-slate-200 px-3 py-0.5 focus-within:border-teal-500">
         <select
-          className="h-10 w-full bg-transparent text-sm text-slate-800 outline-none disabled:cursor-not-allowed disabled:opacity-70"
+          className="h-10 w-full bg-transparent text-sm text-neutral-800 outline-none disabled:cursor-not-allowed disabled:opacity-70"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}

@@ -4,11 +4,20 @@
 const useGhPagesBase = process.env.GITHUB_PAGES === 'true';
 
 const nextConfig = {
+  // Allow CI/verification builds to avoid a running development server's
+  // locked `.next` directory while preserving `.next` as the default.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   // output: 'export' removed — dynamic API-driven routes require server rendering
   basePath: useGhPagesBase ? '/p4u' : '',
   assetPrefix: useGhPagesBase ? '/p4u/' : '',
   eslint: {
     ignoreDuringBuilds: true,
+  },
+  // Keep production builds reliable on constrained Windows hosts where
+  // spawning several child processes can be blocked by the OS.
+  experimental: {
+    workerThreads: true,
+    cpus: 1,
   },
   images: { unoptimized: true },
   async redirects() {

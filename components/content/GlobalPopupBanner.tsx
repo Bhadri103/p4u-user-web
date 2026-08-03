@@ -125,7 +125,7 @@ export default function GlobalPopupBanner() {
 
   return (
     <div className="fixed inset-0 z-[1000] bg-black/50 flex items-center justify-center p-4">
-      <div className="relative bg-white rounded-xl shadow-2xl overflow-hidden w-full max-w-md">
+      <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl bg-white shadow-2xl">
         <button
           type="button"
           onClick={dismiss}

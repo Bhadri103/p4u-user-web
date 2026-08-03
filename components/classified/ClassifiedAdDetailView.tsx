@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Clock, Heart, MapPin, Share2, User } from "lucide-react";
+import { ArrowLeft, Clock, Flag, Heart, MapPin, MessageCircle, Phone, Share2, User } from "lucide-react";
 import { classifiedApi, type ClassifiedAd } from "@/lib/api/classified";
 import {
   classifiedShareUrl,
@@ -12,8 +11,27 @@ import {
   whatsAppHref,
 } from "@/lib/classified/format";
 import { resolveMediaUrl } from "@/lib/media";
+import { sampleClassifiedById } from "@/lib/classified/samples";
 
-const TEAL = "#17a2b8";
+const TEAL = "#89CFF0";
+
+function parseClassifiedDescription(value: string | null) {
+  const lines = (value || "").split(/\r?\n/);
+  const marker = lines.findIndex((line) => line.trim().toLowerCase() === "listing details");
+  const summary = (marker >= 0 ? lines.slice(0, marker) : lines).join("\n").trim();
+  const details: Record<string, string> = {};
+  (marker >= 0 ? lines.slice(marker + 1) : []).forEach((line) => {
+    const index = line.indexOf(":");
+    if (index > 0) details[line.slice(0, index).trim().toLowerCase()] = line.slice(index + 1).trim();
+  });
+  return { summary, details };
+}
+
+function DetailSection({ title, rows }: { title: string; rows: Array<[string, string | number | boolean | null | undefined]> }) {
+  const visible = rows.filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== "");
+  if (!visible.length) return null;
+  return <div className="rounded-2xl border border-gray-200 p-4"><h2 className="mb-3 text-lg font-semibold text-gray-900">{title}</h2><div className="grid gap-3 sm:grid-cols-2">{visible.map(([label,value]) => <div key={label} className="rounded-xl bg-slate-50 px-3 py-2"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-sm font-semibold capitalize text-neutral-900">{typeof value === "boolean" ? (value ? "Yes" : "No") : String(value).replaceAll("_", " ")}</p></div>)}</div></div>;
+}
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
@@ -29,12 +47,20 @@ export default function ClassifiedAdDetailView({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError("");
+      setSelectedImage(null);
+      const sample = sampleClassifiedById(id);
+      if (sample) {
+        if (!cancelled) setAd(sample);
+        if (!cancelled) setLoading(false);
+        return;
+      }
       try {
         const row = await classifiedApi.get(id);
         if (!cancelled) setAd(row);
@@ -52,7 +78,8 @@ export default function ClassifiedAdDetailView({ id }: { id: string }) {
     };
   }, [id]);
 
-  const image = resolveMediaUrl(ad?.image) || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=1200&h=800&fit=crop";
+  const image = resolveMediaUrl(selectedImage || ad?.image) || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=1200&h=800&fit=crop";
+  const parsed = parseClassifiedDescription(ad?.description ?? null);
   const waHref = useMemo(() => {
     if (!ad) return null;
     const msg = `Hi, I'm interested in your classified ad "${ad.title}" on Planext4U.`;
@@ -89,7 +116,8 @@ export default function ClassifiedAdDetailView({ id }: { id: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-4 md:py-6">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50/70 via-white to-white px-4 py-5 md:py-8">
+      <div className="mx-auto max-w-6xl">
       <button
         type="button"
         onClick={() => router.push("/classified")}
@@ -99,39 +127,45 @@ export default function ClassifiedAdDetailView({ id }: { id: string }) {
         Ad Details
       </button>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="aspect-[16/10] overflow-hidden bg-gray-100">
+      <div className="overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-[0_18px_60px_rgba(32,33,36,0.08)]">
+        <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+        <div className="bg-slate-50/70 p-3 sm:p-4">
+        <div className="aspect-[4/3] max-h-[520px] overflow-hidden rounded-2xl bg-gray-100">
           <img src={image} alt={ad.title} className="h-full w-full object-cover" />
         </div>
+        {ad.images.length > 1 ? <div className="flex gap-2 overflow-x-auto py-2.5">{ad.images.slice(0, 10).map((url,index) => <button key={`${url}-${index}`} type="button" onClick={() => setSelectedImage(url)} className={`h-14 w-20 shrink-0 overflow-hidden rounded-xl border-2 bg-white p-0.5 ${resolveMediaUrl(url) === image ? "border-blue-500" : "border-transparent hover:border-blue-200"}`} aria-label={`View photo ${index + 1}`}><img src={resolveMediaUrl(url) || url} alt={`Photo ${index + 1}`} className="h-full w-full rounded-lg object-cover"/></button>)}</div> : null}
 
-        <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-3 py-2.5 sm:px-4">
+          <button type="button" onClick={() => setSaved((value) => !value)} className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold ${saved ? "border-red-200 bg-red-50 text-red-500" : "border-gray-200 text-gray-700"}`}><Heart className={`h-3.5 w-3.5 ${saved ? "fill-current" : ""}`}/>Save</button>
           <button
             type="button"
             onClick={handleShare}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700"
             aria-label="Share ad"
           >
-            <Share2 className="h-4 w-4" />
+            <Share2 className="h-3.5 w-3.5" />
           </button>
+          <button type="button" onClick={() => alert("Thanks. This ad was reported.")} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 text-xs font-semibold text-gray-700"><Flag className="h-3.5 w-3.5"/>Report</button>
           {waHref ? (
             <a
               href={waHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white"
+              className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white"
               style={{ backgroundColor: TEAL }}
             >
-              <WhatsAppIcon className="h-5 w-5" />
+              <WhatsAppIcon className="h-4 w-4" />
               Chat on WhatsApp
             </a>
           ) : (
-            <div className="flex-1 rounded-xl bg-gray-100 px-4 py-3 text-center text-sm text-gray-500">
+            <div className="flex h-9 flex-1 items-center justify-center rounded-lg bg-gray-100 px-3 text-xs text-gray-500">
               Seller phone not available
             </div>
           )}
         </div>
+        </div>
 
-        <div className="space-y-5 p-5">
+        <div className="space-y-5 border-t border-gray-100 p-5 lg:border-l lg:border-t-0 lg:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">{ad.title}</h1>
@@ -170,9 +204,20 @@ export default function ClassifiedAdDetailView({ id }: { id: string }) {
           <div>
             <h2 className="mb-2 text-lg font-semibold text-gray-900">Description</h2>
             <p className="whitespace-pre-wrap text-sm leading-7 text-gray-600">
-              {ad.description || "No description provided."}
+              {parsed.summary || "No description provided."}
             </p>
           </div>
+
+          <DetailSection title="Product details" rows={[
+            ["Ad type", ad.adType || parsed.details["ad type"]], ["Condition", ad.condition || parsed.details.condition], ["Brand", ad.brand || parsed.details.brand], ["Model", ad.model || parsed.details.model], ["Manufacture year", ad.manufactureYear || parsed.details.year], ["Quantity", ad.quantity || parsed.details.quantity], ["Keywords", ad.tags?.join(", ") || parsed.details.keywords],
+          ]}/>
+          <DetailSection title="Price and availability" rows={[
+            ["Price negotiable", ad.negotiable ?? parsed.details.negotiable], ["Warranty", ad.warranty ?? parsed.details.warranty], ["Original invoice", ad.invoiceAvailable ?? parsed.details["invoice available"]], ["Delivery / shipping", ad.deliveryAvailable ?? parsed.details["delivery available"]],
+          ]}/>
+          <DetailSection title="Listing location" rows={[
+            ["State", ad.state || parsed.details.state], ["City", ad.city || parsed.details.city], ["Locality / area", ad.area || parsed.details["locality / area"]], ["PIN code", ad.pincode || parsed.details["pin code"]],
+          ]}/>
+          <DetailSection title="About this ad" rows={[["Ad ID", ad.id], ["Posted on", ad.createdAt ? formatClassifiedLongDate(ad.createdAt) : ""], ["Status", ad.status || "Approved"]]}/>
 
           <div className="rounded-2xl border border-gray-200 p-4">
             <div className="flex items-center gap-3">
@@ -180,7 +225,9 @@ export default function ClassifiedAdDetailView({ id }: { id: string }) {
                 <User className="h-5 w-5" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">{ad.postedBy || "Vendor"}</p>
+                <p className="font-semibold text-gray-900">{ad.sellerName || parsed.details["seller name"] || ad.postedBy || "Seller"}</p>
+                {ad.contactPhone ? <p className="text-sm text-gray-500">{ad.contactPhone}</p> : null}
+                {(ad.preferredContact || parsed.details["preferred contact"]) ? <p className="text-xs capitalize text-gray-500">Preferred: {(ad.preferredContact || parsed.details["preferred contact"])?.replaceAll("_", " ")}</p> : null}
                 <p className="text-sm text-gray-500">Member since {ad.memberSince || "2024"}</p>
               </div>
             </div>
@@ -195,19 +242,10 @@ export default function ClassifiedAdDetailView({ id }: { id: string }) {
             </ul>
           </div>
 
-          {waHref ? (
-            <a
-              href={waHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold text-white"
-              style={{ backgroundColor: TEAL }}
-            >
-              <WhatsAppIcon className="h-5 w-5" />
-              Chat on WhatsApp
-            </a>
-          ) : null}
+          <div className="grid grid-cols-2 gap-3"><a href={waHref || "#"} onClick={(e) => { if (!waHref) { e.preventDefault(); alert("Seller contact is not available."); } }} target={waHref ? "_blank" : undefined} rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3.5 text-sm font-semibold text-neutral-800"><MessageCircle className="h-5 w-5"/>Chat</a><a href={ad.contactPhone ? `tel:${ad.contactPhone}` : "#"} onClick={(e) => { if (!ad.contactPhone) { e.preventDefault(); alert("Seller contact is not available."); } }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#89CFF0] px-4 py-3.5 text-sm font-semibold text-white"><Phone className="h-5 w-5"/>Call seller</a></div>
         </div>
+        </div>
+      </div>
       </div>
     </div>
   );

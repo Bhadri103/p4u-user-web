@@ -25,7 +25,7 @@ interface CardInnerProps {
 const BG_COLORS = [
   "linear-gradient(135deg, #b2dfd6 0%, #d6f0ea 50%, #c5e8e0 100%)",
   "linear-gradient(135deg, #fde8c0 0%, #fff5e0 50%, #fde8c0 100%)",
-  "linear-gradient(135deg, #b8d4ed 0%, #dceefa 50%, #b8d4ed 100%)",
+  "linear-gradient(135deg, #D8ECFF 0%, #dceefa 50%, #D8ECFF 100%)",
 ];
 
 const FALLBACK_CARDS: CardType[] = [
@@ -121,7 +121,7 @@ function CardInner({ card, mobile }: CardInnerProps) {
  
       <div style={{
         flex:1,
-        background:"radial-gradient(ellipse at 60% 25%, #1a4a3a 0%, #0E221F 55%, #081812 100%)",
+        background:"radial-gradient(ellipse at 60% 25%, #89CFF0 0%, #89CFF0 55%, #89CFF0 100%)",
         position:"relative", overflow:"hidden",
         display:"flex", flexDirection:"column",
         alignItems:"center", justifyContent:"center",
@@ -146,7 +146,7 @@ function CardInner({ card, mobile }: CardInnerProps) {
         <div style={{
           width:badgeSize, height:badgeSize,
           borderRadius:"50%",
-          background:"linear-gradient(135deg, #1e5c48 0%, #0E221F 100%)",
+          background:"linear-gradient(135deg, #1e5c48 0%, #89CFF0 100%)",
           border:"2px solid rgba(100,220,170,0.4)",
           boxShadow:"0 0 20px rgba(80,200,150,0.35), inset 0 1px 0 rgba(255,255,255,0.1)",
           display:"flex", alignItems:"center", justifyContent:"center",
@@ -158,7 +158,7 @@ function CardInner({ card, mobile }: CardInnerProps) {
         <p style={{
           margin:0, color:"#ffffff",
           fontFamily:"'DM Serif Display', serif",
-          fontWeight:700, fontSize:titleSize,
+          fontWeight: 600, fontSize:titleSize,
           textAlign:"center", lineHeight:1.25, zIndex:1,
         }}>
           Take a breath.
@@ -233,7 +233,6 @@ export default function EmergencyCards() {
   return (
     <div className="w-full py-8 px-4 xl:px-6 max-w-[1400px] mx-auto">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600&display=swap');
         .ec-card {
           transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.35s ease;
         }
@@ -304,7 +303,7 @@ export default function EmergencyCards() {
               </div> 
               <div style={{
                 flex:1,
-                background:"radial-gradient(ellipse at 60% 20%, #1a4a3a 0%, #0E221F 55%, #081812 100%)",
+                background:"radial-gradient(ellipse at 60% 20%, #89CFF0 0%, #89CFF0 55%, #89CFF0 100%)",
                 position:"relative", overflow:"hidden",
                 display:"flex", flexDirection:"column",
                 alignItems:"center", justifyContent:"center",

@@ -39,16 +39,18 @@ export default function ServiceRoute() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1">
+    <div className="commerce-marketplace flex min-h-screen flex-col">
+      <Header variant="marketplace" />
+      <main className="min-h-0 flex-1">
         {view === "detail" && selected ? (
-          <ServiceDetailView
-            service={selected}
-            vendorId={vendorId}
-            categoryName={selected.category || undefined}
-            onBack={handleBack}
-          />
+          <div>
+            <ServiceDetailView
+              service={selected}
+              vendorId={vendorId}
+              categoryName={selected.category || undefined}
+              onBack={handleBack}
+            />
+          </div>
         ) : (
           <ServiceListPage
             onSelectSeller={handleSelectSeller}

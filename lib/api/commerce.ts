@@ -152,6 +152,8 @@ export interface Review {
   comment?: string;
   userId: number;
   createdAt: string;
+  title?: string;
+  imageUrls?: string[];
 }
 
 export interface ReviewSummary {
@@ -465,20 +467,22 @@ export const commerceApi = {
   },
 
   // Reviews
-  createReview(data: { targetType: string; targetId: string | number; rating: number; comment?: string }) {
+  createReview(data: { targetType: string; targetId: string | number; rating: number; comment?: string; title?: string; imageUrls?: string[] }) {
     return apiClient.post<Review>(`${BASE}/reviews`, {
       targetType: data.targetType,
       targetId: data.targetId,
       rating: data.rating,
       reviewText: data.comment,
+      title: data.title,
+      imageUrls: data.imageUrls ?? [],
     });
   },
 
   getReviews(targetType: string, targetId: string | number) {
     return apiClient
       .get<
-        | { items?: Array<Review & { reviewText?: string | null }>; data?: Array<Review & { reviewText?: string | null }> }
-        | Array<Review & { reviewText?: string | null }>
+        | { items?: Array<Review & { reviewText?: string | null; image_urls?: string[]; images?: string[] }>; data?: Array<Review & { reviewText?: string | null; image_urls?: string[]; images?: string[] }> }
+        | Array<Review & { reviewText?: string | null; image_urls?: string[]; images?: string[] }>
       >(`${BASE}/reviews`, { targetType, targetId })
       .then((payload) => {
         const rows = Array.isArray(payload)
@@ -487,6 +491,7 @@ export const commerceApi = {
         return rows.map((row) => ({
           ...row,
           comment: row.comment ?? row.reviewText ?? undefined,
+          imageUrls: row.imageUrls ?? row.image_urls ?? row.images ?? [],
         }));
       });
   },

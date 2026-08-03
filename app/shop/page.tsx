@@ -10,9 +10,9 @@ export default function ShopRoute() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1">
+    <div className="commerce-marketplace flex min-h-screen flex-col">
+      <Header variant="marketplace" />
+      <main className="min-h-0 flex-1">
         <ShopPage
           onVendorSelect={(vendorId: string) => {
             router.push(`/shop/${vendorId}`);

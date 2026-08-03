@@ -46,6 +46,9 @@ export function useSocialSettings() {
         ...(current?.notifications ?? DEFAULT_NOTIFICATION_SETTINGS),
         ...(partial.notifications ?? {}),
       },
+      privacy: { ...(current?.privacy ?? {}), ...(partial.privacy ?? {}) },
+      messaging: { ...(current?.messaging ?? {}), ...(partial.messaging ?? {}) },
+      security: { ...(current?.security ?? {}), ...(partial.security ?? {}) },
       closeFriends: partial.closeFriends ?? current?.closeFriends,
       blockedUsers: partial.blockedUsers ?? current?.blockedUsers,
     }));

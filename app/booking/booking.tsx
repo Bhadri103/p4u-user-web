@@ -17,9 +17,9 @@ type BookingStep =
   | "arrived";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const TEAL         = "#009999";
-const TEAL_DARK    = "#007777"; // slightly darker for hover / borders
-const BTN_GRAD     = "#009999"; // removed gradient → plain color
+const TEAL         = "#89CFF0";
+const TEAL_DARK    = "#89CFF0"; // slightly darker for hover / borders
+const BTN_GRAD     = "#89CFF0"; // removed gradient → plain color
 const PLATFORM_FEE = 10;
 
 const MONTHS = [
@@ -38,12 +38,12 @@ const responsiveStyles = `
   .hero-inputs {
     display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
     gap: 12px; background: white; padding: 16px; border-radius: 20px;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.1); border: 1px solid #D7E7F5;
     max-width: 860px; margin: 0 auto;
   }
   .tabs-wrapper {
     display: flex; gap: 4px; background: white; border-radius: 99px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08); border: 1px solid #D7E7F5;
     padding: 4px; overflow-x: auto; max-width: 100%;
   }
   .tabs-wrapper::-webkit-scrollbar { display: none; }
@@ -51,7 +51,7 @@ const responsiveStyles = `
   .calendar-container {
     position: absolute; top: calc(100% + 4px); left: 0; z-index: 100;
     background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-    border: 1px solid #e5e7eb; padding: 16px; min-width: 560px;
+    border: 1px solid #D7E7F5; padding: 16px; min-width: 560px;
   }
   .calendar-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
@@ -62,7 +62,7 @@ const responsiveStyles = `
   }
   .schedule-sidebar {
     width: 320px; flex-shrink: 0; background: white; padding: 24px;
-    display: flex; flex-direction: column; gap: 20px; border-right: 1px solid #e5e7eb;
+    display: flex; flex-direction: column; gap: 20px; border-right: 1px solid #D7E7F5;
   }
   .booking-layout {
     max-width: 1100px; margin: 0 auto; padding: 20px 16px 100px;
@@ -78,7 +78,7 @@ const responsiveStyles = `
     display: flex; flex-direction: row; flex-wrap: wrap; gap: 16px;
   }
   .car-details-border {
-    flex: 1; min-width: 200px; border-left: 1px solid #f3f4f6; padding-left: 16px;
+    flex: 1; min-width: 200px; border-left: 1px solid #F7FBFF; padding-left: 16px;
     display: flex; align-items: center; gap: 12px;
   }
   .action-buttons {
@@ -98,14 +98,14 @@ const responsiveStyles = `
     
     .schedule-layout { flex-direction: column; }
     .schedule-sidebar {
-      width: 100%; border-right: none; border-bottom: 1px solid #e5e7eb; padding: 20px 16px;
+      width: 100%; border-right: none; border-bottom: 1px solid #D7E7F5; padding: 20px 16px;
     }
     
     .booking-layout { flex-direction: column; padding: 16px 16px 120px; }
     .booking-left, .booking-right { flex: 1 1 100%; width: 100%; }
     
     .driver-assigned-card { flex-direction: column; gap: 12px; }
-    .car-details-border { border-left: none; padding-left: 0; border-top: 1px solid #f3f4f6; padding-top: 16px; }
+    .car-details-border { border-left: none; padding-left: 0; border-top: 1px solid #F7FBFF; padding-top: 16px; }
     
     .action-buttons { flex-direction: column; }
     .action-buttons > button { width: 100%; }
@@ -126,7 +126,7 @@ function PrimaryBtn({
       style={{
         background: BTN_GRAD, color: "white", border: "none",
         cursor: disabled ? "not-allowed" : "pointer", fontFamily: "inherit",
-        fontWeight: 700, borderRadius: 10,
+        fontWeight: 600, borderRadius: 10,
         transition: "opacity 0.15s, transform 0.1s",
         opacity: disabled ? 0.5 : 1, ...style,
       }}
@@ -204,24 +204,24 @@ function CalendarPicker({
     return (
       <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <span style={{ fontWeight: 700, fontSize: 13 }}>{MONTHS[month]}</span>
+          <span style={{ fontWeight: 600, fontSize: 13 }}>{MONTHS[month]}</span>
           {month === viewMonth && (
             <div style={{ display: "flex", gap: 4 }}>
               <button onClick={() => {
                 if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
                 else setViewMonth(m => m - 1);
-              }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#6b7280", padding: "2px 6px" }}>‹</button>
+              }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#5D757A", padding: "2px 6px" }}>‹</button>
               <button onClick={() => {
                 if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
                 else setViewMonth(m => m + 1);
-              }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#6b7280", padding: "2px 6px" }}>›</button>
+              }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#5D757A", padding: "2px 6px" }}>›</button>
             </div>
           )}
-          {month !== viewMonth && <span style={{ fontSize: 11, color: "#9ca3af" }}>{year}</span>}
+          {month !== viewMonth && <span style={{ fontSize: 11, color: "#5D757A" }}>{year}</span>}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2, marginBottom: 4 }}>
           {DAYS_SHORT.map(d => (
-            <div key={d} style={{ textAlign: "center", fontSize: 10, color: "#9ca3af", fontWeight: 600, padding: "2px 0" }}>{d}</div>
+            <div key={d} style={{ textAlign: "center", fontSize: 10, color: "#5D757A", fontWeight: 600, padding: "2px 0" }}>{d}</div>
           ))}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2 }}>
@@ -241,7 +241,7 @@ function CalendarPicker({
                   fontSize: 11, fontWeight: isSelected || isToday ? 700 : 400,
                   cursor: isPast ? "default" : "pointer",
                   background: isSelected ? TEAL : "transparent",
-                  color: isPast ? "#d1d5db" : isSelected ? "white" : isToday ? TEAL : "#374151",
+                  color: isPast ? "#D7E7F5" : isSelected ? "white" : isToday ? TEAL : "#202124",
                   transition: "all 0.1s",
                   outline: isToday && !isSelected ? `2px solid ${TEAL}` : "none",
                   opacity: isPast ? 0.4 : 1,
@@ -258,11 +258,11 @@ function CalendarPicker({
     <div className="calendar-container">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => onSelect(today)} style={{ fontSize: 11, background: "#f3f4f6", border: "none", borderRadius: 99, padding: "3px 10px", cursor: "pointer", fontWeight: 600 }}>Today</button>
+          <button onClick={() => onSelect(today)} style={{ fontSize: 11, background: "#FFFFFF", border: "none", borderRadius: 99, padding: "3px 10px", cursor: "pointer", fontWeight: 600 }}>Today</button>
         </div>
         <button onClick={() => {
           const c = new Date(today); onSelect(c); onClose();
-        }} style={{ fontSize: 11, color: "#9ca3af", background: "none", border: "none", cursor: "pointer" }}>Clear ×</button>
+        }} style={{ fontSize: 11, color: "#5D757A", background: "none", border: "none", cursor: "pointer" }}>Clear ×</button>
       </div>
       <div className="calendar-grid">
         {renderMonth(viewMonth, viewYear)}
@@ -279,35 +279,35 @@ function DriverModal({ onClose }: { onClose: () => void }) {
     <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
       <div style={{ background: "white", borderRadius: 16, width: "100%", maxWidth: 520, padding: 20, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 18 }}>×</button>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#5D757A", fontSize: 18 }}>×</button>
         </div>
         {/* Driver info */}
         <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 16 }}>
           <img src="https://i.pravatar.cc/100?img=11" style={{ width: 48, height: 48, borderRadius: "50%", border: `2px solid ${TEAL}` }} alt="driver" />
           <div style={{ flex: 1 }}>
-            <p style={{ fontWeight: 700, fontSize: 16, margin: 0 }}>Joseph Vijay</p>
-            <p style={{ fontSize: 11, color: "#9ca3af", margin: "2px 0" }}>Puducherry</p>
+            <p style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>Joseph Vijay</p>
+            <p style={{ fontSize: 11, color: "#5D757A", margin: "2px 0" }}>Puducherry</p>
             <div style={{ display: "flex", gap: 2, marginTop: 4 }}>
               {[1,2,3,4,5].map(s => <Star key={s} size={12} fill={TEAL} color={TEAL} />)}
-              <span style={{ fontSize: 10, color: "#6b7280", marginLeft: 4 }}>(310+ Ratings & Reviews)</span>
+              <span style={{ fontSize: 10, color: "#5D757A", marginLeft: 4 }}>(310+ Ratings & Reviews)</span>
             </div>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
-            <button style={{ width: 32, height: 32, borderRadius: "50%", background: "#f0fdf4", border: `1px solid ${TEAL}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <button style={{ width: 32, height: 32, borderRadius: "50%", background: "#EAF4FF", border: `1px solid ${TEAL}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <Phone size={14} color={TEAL} />
             </button>
-            <button style={{ width: 32, height: 32, borderRadius: "50%", background: "#f0fdf4", border: `1px solid ${TEAL}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <button style={{ width: 32, height: 32, borderRadius: "50%", background: "#EAF4FF", border: `1px solid ${TEAL}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <MessageSquare size={14} color={TEAL} />
             </button>
           </div>
         </div>
         {/* Car */}
-        <div style={{ display: "flex", gap: 16, padding: 12, background: "#f9fafb", borderRadius: 12, marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 16, padding: 12, background: "#FFFFFF", borderRadius: 12, marginBottom: 16 }}>
           <div style={{ fontSize: 40 }}>🚗</div>
           <div>
-            <p style={{ fontWeight: 700, fontSize: 14, margin: 0 }}>Car Details</p>
-            <p style={{ fontSize: 12, color: "#6b7280", margin: "2px 0" }}>Hyundai i20 Elite</p>
-            <span style={{ fontSize: 12, fontWeight: 700, background: "#e5e7eb", padding: "2px 8px", borderRadius: 6 }}>TN 99 PU 9090</span>
+            <p style={{ fontWeight: 600, fontSize: 14, margin: 0 }}>Car Details</p>
+            <p style={{ fontSize: 12, color: "#5D757A", margin: "2px 0" }}>Hyundai i20 Elite</p>
+            <span style={{ fontSize: 12, fontWeight: 600, background: "#D7E7F5", padding: "2px 8px", borderRadius: 6 }}>TN 99 PU 9090</span>
           </div>
         </div>
         {/* Trip details */}
@@ -320,9 +320,9 @@ function DriverModal({ onClose }: { onClose: () => void }) {
             { label: "Payment type", val: "Cash" },
             { label: "Fare", val: "₹ 279.89" },
           ].map(({ label, val }) => (
-            <div key={label} style={{ background: "#f9fafb", borderRadius: 8, padding: "8px 10px" }}>
-              <p style={{ fontSize: 10, color: "#9ca3af", margin: 0 }}>{label}</p>
-              <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", margin: "2px 0 0" }}>{val}</p>
+            <div key={label} style={{ background: "#FFFFFF", borderRadius: 8, padding: "8px 10px" }}>
+              <p style={{ fontSize: 10, color: "#5D757A", margin: 0 }}>{label}</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "#202124", margin: "2px 0 0" }}>{val}</p>
             </div>
           ))}
         </div>
@@ -345,37 +345,37 @@ function PaymentSidebar({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {/* Redeem */}
-      <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 16 }}>
-        <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Redeem Points</p>
+      <div style={{ background: "white", borderRadius: 12, border: "1px solid #D7E7F5", padding: 16 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Redeem Points</p>
         <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
           <input value={redeemInput} onChange={e => setRedeemInput(e.target.value)}
             placeholder="Enter Points"
-            style={{ flex: 1, border: "1px solid #e5e7eb", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+            style={{ flex: 1, border: "1px solid #D7E7F5", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
           <PrimaryBtn onClick={() => {
             const p = parseInt(redeemInput) || 0;
             if (p > 0) { setRedeemAmt(p); setRedeemApplied(true); }
           }} style={{ padding: "7px 14px", fontSize: 12, borderRadius: 8, flexShrink: 0 }}>Apply</PrimaryBtn>
         </div>
         {redeemApplied
-          ? <p style={{ fontSize: 10, color: "#059669", fontWeight: 600 }}>Applied: ₹{redeemAmt} off</p>
+          ? <p style={{ fontSize: 10, color: "#89CFF0", fontWeight: 600 }}>Applied: ₹{redeemAmt} off</p>
           : <p style={{ fontSize: 10, color: TEAL }}>You have 3104 reward points</p>
         }
       </div>
       {/* Summary */}
-      <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 16 }}>
-        <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Payment summary</p>
+      <div style={{ background: "white", borderRadius: 12, border: "1px solid #D7E7F5", padding: 16 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Payment summary</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {[
-            { label: "Total Fare",    val: `₹${fare.toFixed(2)}`,         color: "#374151" },
-            { label: "Platform Fee",  val: `₹${PLATFORM_FEE}`,            color: "#374151" },
-            ...(redeemApplied ? [{ label: "Redeem Points", val: `-₹${redeemAmt}`, color: "#059669" }] : []),
+            { label: "Total Fare",    val: `₹${fare.toFixed(2)}`,         color: "#202124" },
+            { label: "Platform Fee",  val: `₹${PLATFORM_FEE}`,            color: "#202124" },
+            ...(redeemApplied ? [{ label: "Redeem Points", val: `-₹${redeemAmt}`, color: "#89CFF0" }] : []),
           ].map(({ label, val, color }) => (
-            <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, borderBottom: "1px dashed #e5e7eb", paddingBottom: 8, color: "#6b7280" }}>
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, borderBottom: "1px dashed #D7E7F5", paddingBottom: 8, color: "#5D757A" }}>
               <span>{label}</span>
               <span style={{ fontWeight: 600, color }}>{val}</span>
             </div>
           ))}
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#111827" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600, color: "#202124" }}>
             <span>Total Amount</span>
             <span>₹{total.toFixed(2)}</span>
           </div>
@@ -479,7 +479,7 @@ export default function Booking() {
               padding: "8px 20px", borderRadius: 99, fontSize: 13, fontWeight: 600,
               border: "none", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
               background: activeTab === tab ? TEAL : "transparent",
-              color: activeTab === tab ? "white" : "#6b7280",
+              color: activeTab === tab ? "white" : "#5D757A",
               transition: "all 0.2s",
             }}>{tab}</button>
           ))}
@@ -490,37 +490,37 @@ export default function Booking() {
         <>
           {/* Hero */}
           <div style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 16px 80px", textAlign: "center" }}>
-            <h1 style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 700, color: "#111827", marginBottom: 36, lineHeight: 1.2 }}>
+            <h1 style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 600, color: "#202124", marginBottom: 36, lineHeight: 1.2 }}>
               Driving people forward, shaping the world.
             </h1>
             <div className="hero-inputs">
-              <div style={{ display: "flex", flex: 1, minWidth: 180, alignItems: "center", border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 14px", background: "#f9fafb" }}>
+              <div style={{ display: "flex", flex: 1, minWidth: 180, alignItems: "center", border: "1px solid #D7E7F5", borderRadius: 12, padding: "10px 14px", background: "#FFFFFF" }}>
                 <input value={pickup} onChange={e => setPickup(e.target.value)} placeholder="Pickup Location"
                   style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 13, fontFamily: "inherit", width: "100%" }} />
                 <MapPin size={16} color={TEAL} />
               </div>
-              <div style={{ display: "flex", flex: 1, minWidth: 180, alignItems: "center", border: "1px solid #e5e7eb", borderRadius: 12, padding: "10px 14px", background: "#f9fafb" }}>
+              <div style={{ display: "flex", flex: 1, minWidth: 180, alignItems: "center", border: "1px solid #D7E7F5", borderRadius: 12, padding: "10px 14px", background: "#FFFFFF" }}>
                 <input value={drop} onChange={e => setDrop(e.target.value)} placeholder="Drop location"
                   style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 13, fontFamily: "inherit", width: "100%" }} />
                 <MapPin size={16} color={TEAL} />
               </div>
               <PrimaryBtn onClick={handleGetFare} style={{ padding: "11px 28px", fontSize: 14, flexShrink: 0 }}>Get Fare</PrimaryBtn>
               <button onClick={() => setStep("schedule")} style={{
-                padding: "11px 20px", fontSize: 14, fontWeight: 700, border: "1px solid #e5e7eb",
+                padding: "11px 20px", fontSize: 14, fontWeight: 600, border: "1px solid #D7E7F5",
                 borderRadius: 10, background: "white", cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
               }}>Schedule For Later</button>
             </div>
           </div>
 
           {/* Services Grid */}
-          <div style={{ background: "#f9fafb", padding: "60px 16px" }}>
+          <div style={{ background: "#FFFFFF", padding: "60px 16px" }}>
             <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-              <h2 style={{ fontSize: 22, fontWeight: 700, color: "#1f2937", marginBottom: 24 }}>Services Offer</h2>
+              <h2 style={{ fontSize: 22, fontWeight: 600, color: "#202124", marginBottom: 24 }}>Services Offer</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
                 {services.map((s, i) => (
                   <div key={i} style={{
                     background: "white", padding: "20px 24px", borderRadius: 16,
-                    border: "1px solid #f3f4f6", display: "flex", alignItems: "center",
+                    border: "1px solid #F7FBFF", display: "flex", alignItems: "center",
                     justifyContent: "space-between", boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
                     cursor: "pointer", transition: "box-shadow 0.2s",
                   }}
@@ -528,9 +528,9 @@ export default function Booking() {
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 1px 4px rgba(0,0,0,0.05)"}
                   >
                     <div>
-                      <h3 style={{ fontWeight: 700, fontSize: 16, margin: "0 0 4px" }}>{s.title}</h3>
-                      <p style={{ fontSize: 11, color: "#9ca3af", margin: "0 0 12px", maxWidth: 160, lineHeight: 1.4 }}>{s.desc}</p>
-                      <button style={{ fontSize: 11, fontWeight: 700, border: "1px solid #e5e7eb", borderRadius: 99, padding: "4px 14px", background: "white", cursor: "pointer", fontFamily: "inherit" }}>
+                      <h3 style={{ fontWeight: 600, fontSize: 16, margin: "0 0 4px" }}>{s.title}</h3>
+                      <p style={{ fontSize: 11, color: "#5D757A", margin: "0 0 12px", maxWidth: 160, lineHeight: 1.4 }}>{s.desc}</p>
+                      <button style={{ fontSize: 11, fontWeight: 600, border: "1px solid #D7E7F5", borderRadius: 99, padding: "4px 14px", background: "white", cursor: "pointer", fontFamily: "inherit" }}>
                         Book Now
                       </button>
                     </div>
@@ -543,18 +543,18 @@ export default function Booking() {
 
           {/* Promo Banner */}
           <div style={{ background: TEAL_DARK, color: "white", padding: "48px 16px", textAlign: "center" }}>
-            <h2 style={{ fontSize: 28, fontWeight: 700, margin: "0 0 8px" }}>Request a ride for now or later</h2>
+            <h2 style={{ fontSize: 28, fontWeight: 600, margin: "0 0 8px" }}>Request a ride for now or later</h2>
             <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 13 }}>Up to 50% off your first 3 rides. T&Cs apply.* *Valid within 15 days</p>
           </div>
 
           {/* Bottom section */}
           <div style={{ maxWidth: 1100, margin: "0 auto", padding: "60px 16px", display: "flex", flexWrap: "wrap", gap: 40, alignItems: "center" }}>
             <div style={{ flex: 1, minWidth: 260 }}>
-              <h2 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 12 }}>Drive when you want, make what you need</h2>
-              <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.6, marginBottom: 20 }}>
+              <h2 style={{ fontSize: 24, fontWeight: 600, color: "#202124", marginBottom: 12 }}>Drive when you want, make what you need</h2>
+              <p style={{ fontSize: 13, color: "#5D757A", lineHeight: 1.6, marginBottom: 20 }}>
                 Sign up to drive or deliver with P4U and earn on your schedule. No office. No boss. Just you and the road.
               </p>
-              <button style={{ padding: "10px 24px", background: TEAL, color: "white", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+              <button style={{ padding: "10px 24px", background: TEAL, color: "white", border: "none", borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                 Sign Up to Drive
               </button>
             </div>
@@ -575,7 +575,7 @@ export default function Booking() {
 
   // ── Schedule Step ──────────────────────────────────────────────────────────
   const renderSchedule = () => (
-    <div style={{ fontFamily: "'Nunito', sans-serif", minHeight: "100vh", background: "#f9fafb" }}>
+    <div style={{ fontFamily: "'Nunito', sans-serif", minHeight: "100vh", background: "#FFFFFF" }}>
       <div className="schedule-layout">
         {/* Left panel */}
         <div className="schedule-sidebar">
@@ -583,13 +583,13 @@ export default function Booking() {
             <ChevronLeft size={16} />
           </button>
           <div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111827", margin: "0 0 20px" }}>When do you want to be picked up?</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 600, color: "#202124", margin: "0 0 20px" }}>When do you want to be picked up?</h2>
 
             {/* Date picker trigger */}
             <div ref={calRef} style={{ position: "relative", marginBottom: 12 }}>
               <button onClick={() => setShowCalendar(v => !v)} style={{
                 width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "12px 14px", border: "1px solid #e5e7eb", borderRadius: 12,
+                padding: "12px 14px", border: "1px solid #D7E7F5", borderRadius: 12,
                 background: "white", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600,
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -607,7 +607,7 @@ export default function Booking() {
             <div ref={timeRef} style={{ position: "relative", marginBottom: 20 }}>
               <button onClick={() => setShowTimeDD(v => !v)} style={{
                 width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "12px 14px", border: "1px solid #e5e7eb", borderRadius: 12,
+                padding: "12px 14px", border: "1px solid #D7E7F5", borderRadius: 12,
                 background: "white", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600,
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -617,10 +617,10 @@ export default function Booking() {
                 <ChevronDown size={14} />
               </button>
               {showTimeDD && (
-                <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "white", border: "1px solid #e5e7eb", borderRadius: 12, zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.1)", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "white", border: "1px solid #D7E7F5", borderRadius: 12, zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.1)", overflow: "hidden" }}>
                   {["Now","Morning 9-11 AM","Afternoon 12-3 PM","Evening 4-6 PM","Night 7-10 PM"].map(t => (
                     <button key={t} onClick={() => { setSchedTime(t); setShowTimeDD(false); }}
-                      style={{ width: "100%", padding: "10px 14px", textAlign: "left", border: "none", background: schedTime === t ? "#f0fdf4" : "white", cursor: "pointer", fontSize: 13, fontFamily: "inherit", color: schedTime === t ? TEAL : "#374151", fontWeight: schedTime === t ? 700 : 400 }}
+                      style={{ width: "100%", padding: "10px 14px", textAlign: "left", border: "none", background: schedTime === t ? "#EAF4FF" : "white", cursor: "pointer", fontSize: 13, fontFamily: "inherit", color: schedTime === t ? TEAL : "#202124", fontWeight: schedTime === t ? 700 : 400 }}
                     >{t}</button>
                   ))}
                 </div>
@@ -629,7 +629,7 @@ export default function Booking() {
 
             <button onClick={() => setStep("select_ride")} style={{
               width: "100%", padding: "13px 0", background: TEAL, color: "white",
-              border: "none", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+              border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
             }}>Next</button>
 
             <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -638,7 +638,7 @@ export default function Booking() {
                 "Extra Wait Time Included To Meet Your Ride",
                 "Cancel At No Charge Up To 60 Minutes In Advance",
               ].map(t => (
-                <div key={t} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 11, color: "#6b7280" }}>
+                <div key={t} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 11, color: "#5D757A" }}>
                   <span>•</span><span>{t}</span>
                 </div>
               ))}
@@ -654,12 +654,12 @@ export default function Booking() {
       
       <div style={{
         position: "fixed", bottom: 0, left: 0, right: 0, padding: 12,
-        background: "white", borderTop: "1px solid #e5e7eb",
+        background: "white", borderTop: "1px solid #D7E7F5",
         display: "flex", justifyContent: "center", zIndex: 1000
       }}>
         <button onClick={() => setStep("select_ride")} style={{
-          width: "100%", maxWidth: 720, padding: "14px 0", background: "#111827",
-          color: "white", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+          width: "100%", maxWidth: 720, padding: "14px 0", background: "#89CFF0",
+          color: "white", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
         }}>Book Ride</button>
       </div>
     </div>
@@ -671,61 +671,61 @@ export default function Booking() {
     const isArrived    = step === "arrived";
 
     return (
-      <div style={{ fontFamily: "'Nunito', sans-serif", minHeight: "100vh", background: "#f9fafb" }}>
+      <div style={{ fontFamily: "'Nunito', sans-serif", minHeight: "100vh", background: "#FFFFFF" }}>
         <div className="booking-layout">
           {/* ── LEFT ── */}
           <div className="booking-left">
 
             {/* Get a Ride Card */}
-            <div style={{ background: "white", borderRadius: 16, border: "1px solid #e5e7eb", padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 16px" }}>Get a Ride</h2>
-              <div style={{ position: "relative", paddingLeft: 20, borderLeft: "2px dashed #d1d5db", marginLeft: 6, display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ background: "white", borderRadius: 16, border: "1px solid #D7E7F5", padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+              <h2 style={{ fontSize: 18, fontWeight: 600, margin: "0 0 16px" }}>Get a Ride</h2>
+              <div style={{ position: "relative", paddingLeft: 20, borderLeft: "2px dashed #D7E7F5", marginLeft: 6, display: "flex", flexDirection: "column", gap: 10 }}>
                 {[{ val: pickup || "Pickup Location", setter: setPickup, dot: TEAL },
                   { val: drop   || "Drop Location",   setter: setDrop,   dot: "#ef4444" }].map(({ val, setter, dot }, idx) => (
                   <div key={idx} style={{ position: "relative" }}>
                     <div style={{ position: "absolute", left: -27, top: 12, width: 10, height: 10, borderRadius: dot === TEAL ? "50%" : 0, background: dot }} />
                     <input value={val} onChange={e => setter(e.target.value)}
-                      style={{ width: "100%", background: "#f9fafb", border: "1px solid #e5e7eb", padding: "10px 14px", borderRadius: 10, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+                      style={{ width: "100%", background: "#FFFFFF", border: "1px solid #D7E7F5", padding: "10px 14px", borderRadius: 10, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
                   </div>
                 ))}
               </div>
               {step === "select_ride" && (
                 <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-                  <button onClick={handleGetFare} style={{ flex: 1, padding: "10px 0", background: TEAL, color: "white", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Get Fare</button>
-                  <button onClick={() => setStep("schedule")} style={{ flex: 1, padding: "10px 0", background: "white", border: "1px solid #e5e7eb", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Schedule For Later</button>
+                  <button onClick={handleGetFare} style={{ flex: 1, padding: "10px 0", background: TEAL, color: "white", border: "none", borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Get Fare</button>
+                  <button onClick={() => setStep("schedule")} style={{ flex: 1, padding: "10px 0", background: "white", border: "1px solid #D7E7F5", borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Schedule For Later</button>
                 </div>
               )}
             </div>
 
             {/* Select Ride */}
             {step === "select_ride" && (
-              <div style={{ background: "white", borderRadius: 16, border: "1px solid #e5e7eb", padding: 20 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 4px" }}>
-                  Choose a Ride <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500 }}>(Rides we think you&apos;ll like)</span>
+              <div style={{ background: "white", borderRadius: 16, border: "1px solid #D7E7F5", padding: 20 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>
+                  Choose a Ride <span style={{ fontSize: 11, color: "#5D757A", fontWeight: 500 }}>(Rides we think you&apos;ll like)</span>
                 </h3>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10, marginTop: 14 }}>
                   {vehicles.map((v, i) => (
                     <div key={i} onClick={() => setSelectedVehicle(i)}
                       style={{
                         padding: 12, borderRadius: 12, cursor: "pointer",
-                        border: `1.5px solid ${i === selectedVehicle ? TEAL : "#e5e7eb"}`,
-                        background: i === selectedVehicle ? "#f0fdf4" : "white",
+                        border: `1.5px solid ${i === selectedVehicle ? TEAL : "#D7E7F5"}`,
+                        background: i === selectedVehicle ? "#EAF4FF" : "white",
                         display: "flex", alignItems: "center", justifyContent: "space-between",
                         transition: "all 0.15s",
                       }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <div style={{ fontSize: 28 }}>{v.icon}</div>
                         <div>
-                          <p style={{ fontWeight: 700, fontSize: 12, margin: 0 }}>
+                          <p style={{ fontWeight: 600, fontSize: 12, margin: 0 }}>
                             {v.type}
-                            <span style={{ fontSize: 10, color: "#9ca3af", fontWeight: 400, marginLeft: 4 }}>
+                            <span style={{ fontSize: 10, color: "#5D757A", fontWeight: 400, marginLeft: 4 }}>
                               👤 {v.seats}
                             </span>
                           </p>
-                          <p style={{ fontSize: 10, color: "#9ca3af", margin: "2px 0 0" }}>{v.time} • {v.desc}</p>
+                          <p style={{ fontSize: 10, color: "#5D757A", margin: "2px 0 0" }}>{v.time} • {v.desc}</p>
                         </div>
                       </div>
-                      <div style={{ background: TEAL, color: "white", padding: "5px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                      <div style={{ background: TEAL, color: "white", padding: "5px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
                         ₹{v.price.toFixed(2)}
                       </div>
                     </div>
@@ -736,12 +736,12 @@ export default function Booking() {
 
             {/* Connecting */}
             {step === "connecting" && (
-              <div style={{ background: "white", borderRadius: 16, border: "1px solid #e5e7eb", padding: 48, textAlign: "center" }}>
+              <div style={{ background: "white", borderRadius: 16, border: "1px solid #D7E7F5", padding: 48, textAlign: "center" }}>
                 <div style={{ width: 48, height: 48, border: `4px solid ${TEAL}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }} />
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                <h2 style={{ fontSize: 18, fontWeight: 700, color: "#111827", margin: "0 0 8px" }}>Connecting to your driver</h2>
-                <p style={{ fontSize: 13, color: "#9ca3af" }}>Please wait while we find the nearest captain.</p>
-                <div style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: "#9ca3af" }}>
+                <h2 style={{ fontSize: 18, fontWeight: 600, color: "#202124", margin: "0 0 8px" }}>Connecting to your driver</h2>
+                <p style={{ fontSize: 13, color: "#5D757A" }}>Please wait while we find the nearest captain.</p>
+                <div style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: "#5D757A" }}>
                   <div style={{ width: 12, height: 12, border: `2px solid ${TEAL}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
                   searching for rides...
                 </div>
@@ -753,62 +753,62 @@ export default function Booking() {
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {/* Tags */}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ background: "#374151", color: "white", fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 6 }}>The driver will be on the way will arrive in 2mins</span>
-                  <span style={{ background: "#374151", color: "white", fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 6 }}>OTP : 9898</span>
+                  <span style={{ background: "#89CFF0", color: "white", fontSize: 11, fontWeight: 600, padding: "5px 12px", borderRadius: 6 }}>The driver will be on the way will arrive in 2mins</span>
+                  <span style={{ background: "#89CFF0", color: "white", fontSize: 11, fontWeight: 600, padding: "5px 12px", borderRadius: 6 }}>OTP : 9898</span>
                 </div>
 
                 {/* Driver + Car card */}
-                <div style={{ background: "white", borderRadius: 16, border: "1px solid #e5e7eb", padding: 20 }}>
+                <div style={{ background: "white", borderRadius: 16, border: "1px solid #D7E7F5", padding: 20 }}>
                   <div className="driver-assigned-card">
                     {/* Driver */}
                     <div style={{ flex: 1, minWidth: 220 }}>
                       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
-                        <img src="https://i.pravatar.cc/100?img=11" style={{ width: 44, height: 44, borderRadius: "50%", border: "2px solid #f3f4f6" }} alt="driver" />
+                        <img src="https://i.pravatar.cc/100?img=11" style={{ width: 44, height: 44, borderRadius: "50%", border: "2px solid #F7FBFF" }} alt="driver" />
                         <div style={{ flex: 1 }}>
-                          <p style={{ fontWeight: 700, fontSize: 15, margin: 0 }}>Joseph Vijay</p>
-                          <p style={{ fontSize: 10, color: "#9ca3af", margin: "2px 0" }}>Total Rides: 3499 • With P4U: 1 year</p>
+                          <p style={{ fontWeight: 600, fontSize: 15, margin: 0 }}>Joseph Vijay</p>
+                          <p style={{ fontSize: 10, color: "#5D757A", margin: "2px 0" }}>Total Rides: 3499 • With P4U: 1 year</p>
                           <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: 4 }}>
-                            {[1,2,3,4,5].map(s => <Star key={s} size={10} fill="#f59e0b" color="#f59e0b" />)}
-                            <span style={{ fontSize: 9, color: "#9ca3af", marginLeft: 4 }}>(310+ Ratings & Reviews)</span>
+                            {[1,2,3,4,5].map(s => <Star key={s} size={10} fill="#B8E3F7" color="#B8E3F7" />)}
+                            <span style={{ fontSize: 9, color: "#5D757A", marginLeft: 4 }}>(310+ Ratings & Reviews)</span>
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: 6 }}>
-                          <button style={{ width: 30, height: 30, borderRadius: "50%", background: "#f0fdf4", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                          <button style={{ width: 30, height: 30, borderRadius: "50%", background: "#EAF4FF", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                             <Phone size={13} color={TEAL} />
                           </button>
-                          <button onClick={() => setShowChat(true)} style={{ width: 30, height: 30, borderRadius: "50%", background: "#f0fdf4", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                          <button onClick={() => setShowChat(true)} style={{ width: 30, height: 30, borderRadius: "50%", background: "#EAF4FF", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                             <MessageSquare size={13} color={TEAL} />
                           </button>
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: 16, fontSize: 12, fontWeight: 600, color: "#374151", borderTop: "1px solid #f3f4f6", paddingTop: 10 }}>
-                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={12} color="#9ca3af" /> 21 km</span>
-                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={12} color="#9ca3af" /> 8 min</span>
+                      <div style={{ display: "flex", gap: 16, fontSize: 12, fontWeight: 600, color: "#202124", borderTop: "1px solid #F7FBFF", paddingTop: 10 }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={12} color="#5D757A" /> 21 km</span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={12} color="#5D757A" /> 8 min</span>
                         <span>₹ 279.89</span>
                       </div>
                     </div>
 
                     {/* Car */}
                     <div className="car-details-border">
-                      <div style={{ width: 90, height: 60, background: "#f3f4f6", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>🚗</div>
+                      <div style={{ width: 90, height: 60, background: "#FFFFFF", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>🚗</div>
                       <div>
-                        <p style={{ fontWeight: 700, fontSize: 14, margin: 0 }}>Car Details</p>
-                        <p style={{ fontSize: 11, color: "#9ca3af", margin: "2px 0" }}>Hyundai i20 Elite</p>
-                        <span style={{ fontSize: 12, fontWeight: 700, background: "#e5e7eb", padding: "2px 8px", borderRadius: 6 }}>TN 99 PU 9090</span>
+                        <p style={{ fontWeight: 600, fontSize: 14, margin: 0 }}>Car Details</p>
+                        <p style={{ fontSize: 11, color: "#5D757A", margin: "2px 0" }}>Hyundai i20 Elite</p>
+                        <span style={{ fontSize: 12, fontWeight: 600, background: "#D7E7F5", padding: "2px 8px", borderRadius: 6 }}>TN 99 PU 9090</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Pickup note */}
-                <input placeholder="Any Pickup Note for Driver?" style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 16px", fontSize: 13, outline: "none", fontFamily: "inherit", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }} />
+                <input placeholder="Any Pickup Note for Driver?" style={{ background: "white", border: "1px solid #D7E7F5", borderRadius: 12, padding: "14px 16px", fontSize: 13, outline: "none", fontFamily: "inherit", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }} />
 
                 {/* Action buttons */}
                 <div className="action-buttons">
-                  <button onClick={() => setShowDriverModal(true)} style={{ flex: 1, padding: "14px 0", background: "#111827", color: "white", border: "none", borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <button onClick={() => setShowDriverModal(true)} style={{ flex: 1, padding: "14px 0", background: "#89CFF0", color: "white", border: "none", borderRadius: 12, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                     <MapPin size={14} /> Edit Destination
                   </button>
-                  <button style={{ flex: 1, padding: "14px 0", background: "#f97316", color: "white", border: "none", borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                  <button style={{ flex: 1, padding: "14px 0", background: "#B8E3F7", color: "white", border: "none", borderRadius: 12, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                     Cancel Ride
                   </button>
                 </div>
@@ -817,39 +817,39 @@ export default function Booking() {
 
             {/* Arrived / Rating */}
             {isArrived && (
-              <div style={{ background: "white", borderRadius: 16, border: "1px solid #e5e7eb", padding: 32, textAlign: "center" }}>
-                <div style={{ width: 64, height: 64, background: "#f0fdf4", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <div style={{ background: "white", borderRadius: 16, border: "1px solid #D7E7F5", padding: 32, textAlign: "center" }}>
+                <div style={{ width: 64, height: 64, background: "#EAF4FF", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                   <ShieldCheck size={30} color={TEAL} />
                 </div>
-                <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 4px" }}>Wow!</h2>
-                <p style={{ color: "#6b7280", marginBottom: 24, fontSize: 14 }}>You have arrived at your destination</p>
+                <h2 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 4px" }}>Wow!</h2>
+                <p style={{ color: "#5D757A", marginBottom: 24, fontSize: 14 }}>You have arrived at your destination</p>
 
-                <div style={{ background: "#f9fafb", borderRadius: 16, padding: 20, maxWidth: 360, margin: "0 auto 24px", textAlign: "left" }}>
+                <div style={{ background: "#FFFFFF", borderRadius: 16, padding: 20, maxWidth: 360, margin: "0 auto 24px", textAlign: "left" }}>
                   <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16 }}>
                     <img src="https://i.pravatar.cc/100?img=11" style={{ width: 40, height: 40, borderRadius: "50%" }} alt="driver" />
                     <div>
-                      <p style={{ fontWeight: 700, fontSize: 13, margin: 0 }}>Joseph Vijay</p>
-                      <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>Hyundai i20 Elite</p>
+                      <p style={{ fontWeight: 600, fontSize: 13, margin: 0 }}>Joseph Vijay</p>
+                      <p style={{ fontSize: 11, color: "#5D757A", margin: 0 }}>Hyundai i20 Elite</p>
                     </div>
                   </div>
-                  <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: 14 }}>
-                    <p style={{ fontSize: 12, fontWeight: 700, textAlign: "center", marginBottom: 10 }}>Rate Driver</p>
+                  <div style={{ borderTop: "1px solid #D7E7F5", paddingTop: 14 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, textAlign: "center", marginBottom: 10 }}>Rate Driver</p>
                     <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 14 }}>
                       {[1,2,3,4,5].map(s => (
                         <Star key={s} size={28} onClick={() => setRating(s)}
-                          fill={rating >= s ? "#f59e0b" : "transparent"}
-                          color={rating >= s ? "#f59e0b" : "#d1d5db"}
+                          fill={rating >= s ? "#B8E3F7" : "transparent"}
+                          color={rating >= s ? "#B8E3F7" : "#D7E7F5"}
                           style={{ cursor: "pointer", transition: "all 0.1s" }} />
                       ))}
                     </div>
                     <textarea placeholder="Leave a comment (Optional)" rows={2}
-                      style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 10, padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", resize: "none", boxSizing: "border-box" }} />
+                      style={{ width: "100%", border: "1px solid #D7E7F5", borderRadius: 10, padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", resize: "none", boxSizing: "border-box" }} />
                   </div>
                 </div>
 
                 <button onClick={() => { setStep("landing"); setRating(0); }} style={{
                   width: "100%", maxWidth: 360, padding: "13px 0", background: TEAL, color: "white",
-                  border: "none", borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit",
+                  border: "none", borderRadius: 12, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit",
                 }}>Submit Rating & Finish</button>
               </div>
             )}
@@ -857,7 +857,7 @@ export default function Booking() {
 
           {/* ── RIGHT: Map + Payment Sidebar ── */}
           <div className="booking-right">
-            <div style={{ height: 320, borderRadius: 16, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+            <div style={{ height: 320, borderRadius: 16, overflow: "hidden", border: "1px solid #D7E7F5" }}>
               <MapView showRoute={step !== "select_ride"} />
             </div>
 
@@ -872,12 +872,12 @@ export default function Booking() {
         {step === "select_ride" && (
           <div style={{
             position: "fixed", bottom: 0, left: 0, right: 0, padding: 12,
-            background: "white", borderTop: "1px solid #e5e7eb",
+            background: "white", borderTop: "1px solid #D7E7F5",
             display: "flex", justifyContent: "center", zIndex: 1000
           }}>
             <button onClick={handleBookRide} style={{
-              width: "100%", maxWidth: 720, padding: "15px 0", background: "#009999",
-              color: "white", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+              width: "100%", maxWidth: 720, padding: "15px 0", background: "#89CFF0",
+              color: "white", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
               transition: "transform 0.1s",
             }}>Book Ride</button>
           </div>
@@ -885,10 +885,10 @@ export default function Booking() {
 
      
         {/* {isDriverStep && (
-          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 16px", background: "white", borderTop: "1px solid #e5e7eb", zIndex: 40, display: "flex", justifyContent: "center" }}>
+          <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 16px", background: "white", borderTop: "1px solid #D7E7F5", zIndex: 40, display: "flex", justifyContent: "center" }}>
             <button onClick={() => setStep("arrived")} style={{
-              width: "100%", maxWidth: 720, padding: "15px 0", background: "#111827",
-              color: "white", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+              width: "100%", maxWidth: 720, padding: "15px 0", background: "#89CFF0",
+              color: "white", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
             }}>Payment</button>
           </div>
         )} */}
@@ -897,9 +897,9 @@ export default function Booking() {
         {showChat && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
             <div style={{ background: "white", borderRadius: 20, width: "100%", maxWidth: 380, height: 480, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
-              <div style={{ padding: "14px 16px", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f9fafb" }}>
-                <p style={{ fontWeight: 700, fontSize: 14, margin: 0 }}>Message</p>
-                <button onClick={() => setShowChat(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 18, lineHeight: 1 }}>×</button>
+              <div style={{ padding: "14px 16px", borderBottom: "1px solid #D7E7F5", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FFFFFF" }}>
+                <p style={{ fontWeight: 600, fontSize: 14, margin: 0 }}>Message</p>
+                <button onClick={() => setShowChat(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#5D757A", fontSize: 18, lineHeight: 1 }}>×</button>
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
                 {messages.map((m, i) => (
@@ -908,21 +908,21 @@ export default function Booking() {
                       {m.from === "driver" && <img src="https://i.pravatar.cc/100?img=11" style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0 }} alt="" />}
                       <div style={{
                         maxWidth: "70%", padding: "8px 12px", borderRadius: m.from === "user" ? "14px 14px 2px 14px" : "14px 14px 14px 2px",
-                        background: m.from === "user" ? "white" : "#f3f4f6",
+                        background: m.from === "user" ? "white" : "#F7FBFF",
                         border: m.from === "user" ? `1px solid ${TEAL}` : "none",
-                        fontSize: 13, color: "#374151",
+                        fontSize: 13, color: "#202124",
                       }}>{m.text}</div>
                       {m.from === "user" && <img src="https://i.pravatar.cc/100?img=33" style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0 }} alt="" />}
                     </div>
-                    <p style={{ fontSize: 9, color: "#9ca3af", margin: "3px 0 0", textAlign: m.from === "user" ? "right" : "left", paddingLeft: m.from === "driver" ? 36 : 0, paddingRight: m.from === "user" ? 36 : 0 }}>{m.time}</p>
+                    <p style={{ fontSize: 9, color: "#5D757A", margin: "3px 0 0", textAlign: m.from === "user" ? "right" : "left", paddingLeft: m.from === "driver" ? 36 : 0, paddingRight: m.from === "user" ? 36 : 0 }}>{m.time}</p>
                   </div>
                 ))}
               </div>
-              <div style={{ padding: "10px 12px", borderTop: "1px solid #e5e7eb", background: "#f9fafb", display: "flex", gap: 8 }}>
+              <div style={{ padding: "10px 12px", borderTop: "1px solid #D7E7F5", background: "#FFFFFF", display: "flex", gap: 8 }}>
                 <input
                   value={chatMsg} onChange={e => setChatMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendChat()}
                   placeholder="Type Message..."
-                  style={{ flex: 1, borderRadius: 99, border: "1px solid #e5e7eb", padding: "8px 14px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+                  style={{ flex: 1, borderRadius: 99, border: "1px solid #D7E7F5", padding: "8px 14px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
                 />
                 <button onClick={sendChat} style={{ width: 36, height: 36, borderRadius: "50%", background: TEAL, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
                   <Send size={14} color="white" />
@@ -940,17 +940,17 @@ export default function Booking() {
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
             <div style={{ background: "white", borderRadius: 20, width: "100%", maxWidth: 480, padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Choose Payment</h3>
-                <button onClick={() => setShowPayment(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#9ca3af" }}>×</button>
+                <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Choose Payment</h3>
+                <button onClick={() => setShowPayment(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#5D757A" }}>×</button>
               </div>
               {[
                 { id: "card",  label: "Credit / Debit Card", icon: "💳" },
                 { id: "upi",   label: "UPI (GPay, PhonePe, Paytm)", icon: "📱" },
                 { id: "cash",  label: "Cash on Delivery", icon: "💵" },
               ].map(pm => (
-                <div key={pm.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12, border: "1px solid #e5e7eb", marginBottom: 8, cursor: "pointer", transition: "all 0.15s" }}
+                <div key={pm.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12, border: "1px solid #D7E7F5", marginBottom: 8, cursor: "pointer", transition: "all 0.15s" }}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = TEAL}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "#e5e7eb"}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "#D7E7F5"}
                 >
                   <span style={{ fontSize: 20 }}>{pm.icon}</span>
                   <span style={{ fontWeight: 600, fontSize: 13 }}>{pm.label}</span>
@@ -967,16 +967,16 @@ export default function Booking() {
         {orderDone && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
             <div style={{ background: "white", borderRadius: 20, width: "100%", maxWidth: 400, padding: 40, textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
-              <div style={{ width: 64, height: 64, background: "#f0fdf4", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `2px solid ${TEAL}` }}>
+              <div style={{ width: 64, height: 64, background: "#EAF4FF", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `2px solid ${TEAL}` }}>
                 <Check size={28} color={TEAL} strokeWidth={3} />
               </div>
-              <p style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 4 }}>Your home consultation ₹{(selectedFare + PLATFORM_FEE).toFixed(0)}</p>
-              <p style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 28 }}>is successfully place</p>
+              <p style={{ fontSize: 15, fontWeight: 600, color: "#202124", marginBottom: 4 }}>Your home consultation ₹{(selectedFare + PLATFORM_FEE).toFixed(0)}</p>
+              <p style={{ fontSize: 15, fontWeight: 600, color: "#202124", marginBottom: 28 }}>is successfully place</p>
               <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-                <button onClick={() => { setOrderDone(false); setStep("landing"); }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 18px", border: "1px solid #e5e7eb", borderRadius: 10, background: "white", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                <button onClick={() => { setOrderDone(false); setStep("landing"); }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 18px", border: "1px solid #D7E7F5", borderRadius: 10, background: "white", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                   <ShoppingBag size={13} /> BACK TO HOME
                 </button>
-                <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 18px", background: TEAL, color: "white", border: "none", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 18px", background: TEAL, color: "white", border: "none", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                   <Eye size={13} /> VIEW RIDE DETAILS
                 </button>
               </div>

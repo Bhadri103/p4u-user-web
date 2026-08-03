@@ -6,10 +6,23 @@
  */
 
 /** Empty env string would otherwise produce relative `/api/...` URLs on :3000 with no rewrite. */
+import { supabaseRequest, USE_SUPABASE_DIRECT } from "./supabaseFallback";
+
 const BASE_URL = (process.env.NEXT_PUBLIC_API_GATEWAY_URL || "http://localhost:8080").replace(
   /\/$/,
   "",
 );
+const REQUEST_TIMEOUT_MS = 10_000;
+const DEBUG_API = process.env.NEXT_PUBLIC_P4U_DEBUG_API === "true";
+const AUTH_GATEWAY_FALLBACK_PATHS = new Set([
+  "/api/auth/public/phone/exchange",
+  "/api/auth/public/customer/register-by-phone",
+]);
+
+function canUseAuthGatewayFallback(path: string, status: number) {
+  return AUTH_GATEWAY_FALLBACK_PATHS.has(path)
+    && (status === 0 || status === 404 || status === 408 || status === 429 || status >= 500);
+}
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -50,6 +63,8 @@ interface GetOptions {
   forceRefresh?: boolean;
 }
 
+type QueryParams = Record<string, string | number | boolean | null | undefined>;
+
 interface RequestInternalOptions {
   skipAuthHeader?: boolean;
   skipAuthRefresh?: boolean;
@@ -81,6 +96,14 @@ function cloneJsonSafe<T>(value: T): T {
   } catch {
     return value;
   }
+}
+
+function queryString(params?: QueryParams): string {
+  if (!params) return "";
+  const entries = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== "")
+    .map(([key, value]) => [key, String(value)] as [string, string]);
+  return entries.length ? `?${new URLSearchParams(entries).toString()}` : "";
 }
 
 /* ------------------------------------------------------------------ */
@@ -176,39 +199,51 @@ async function refreshAccessToken(): Promise<void> {
     clearUserSessionOnRefreshFailure();
     throw { status: 401, message: "No refresh token" } satisfies ApiError;
   }
-  // NOTE: Do NOT pre-judge tokens by issuer host. This deployment's Keycloak
-  // issues tokens with iss=http://localhost:8180/... even in production (see
-  // deploy/backend-jwt.production.snippet), so a localhost issuer on a
-  // planext4u.com target is normal, not a dev/prod mismatch. A genuinely
-  // unusable refresh token is still caught by the server's !res.ok response.
-  const url = `${BASE_URL}/api/auth/public/refresh`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken: refresh }),
-  });
-  const raw = await res.text();
   let data: Record<string, unknown> | null = null;
-  try {
-    data = raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
-  } catch {
-    data = null;
-  }
-  if (!res.ok) {
-    const msg =
-      data?.message != null
-        ? String(data.message)
-        : extractHttpErrorMessage(res.status, res.statusText, data, raw);
-    if (res.status === 429) {
-      refreshBlockedUntil = Date.now() + 300_000;
+  if (USE_SUPABASE_DIRECT) {
+    try {
+      data = await supabaseRequest<Record<string, unknown>>(
+        "POST",
+        "/api/auth/public/refresh",
+        { refreshToken: refresh },
+      );
+    } catch (error) {
+      const directError = error as Partial<ApiError>;
+      const directStatus = directError.status ?? 0;
+      if (directError.status === 429) refreshBlockedUntil = Date.now() + 300_000;
+      clearUserSessionOnRefreshFailure();
+      throw {
+        status: directError.status ?? 401,
+        message: directError.message || "Refresh failed",
+        details: directError.details,
+      } satisfies ApiError;
     }
-    clearUserSessionOnRefreshFailure();
-    const err: ApiError = {
-      status: res.status,
-      message: typeof msg === "string" && msg.trim() ? msg : "Refresh failed",
-      details: data ?? raw,
-    };
-    throw err;
+  } else {
+    const url = `${BASE_URL}/api/auth/public/refresh`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken: refresh }),
+    });
+    const raw = await res.text();
+    try {
+      data = raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
+    } catch {
+      data = null;
+    }
+    if (!res.ok) {
+      const msg =
+        data?.message != null
+          ? String(data.message)
+          : extractHttpErrorMessage(res.status, res.statusText, data, raw);
+      if (res.status === 429) refreshBlockedUntil = Date.now() + 300_000;
+      clearUserSessionOnRefreshFailure();
+      throw {
+        status: res.status,
+        message: typeof msg === "string" && msg.trim() ? msg : "Refresh failed",
+        details: data ?? raw,
+      } satisfies ApiError;
+    }
   }
   refreshSessionDead = false;
   refreshBlockedUntil = 0;
@@ -279,6 +314,45 @@ async function request<T>(
     }
   }
 
+  if (USE_SUPABASE_DIRECT) {
+    let body: unknown;
+    if (typeof options.body === "string" && options.body) {
+      try {
+        body = JSON.parse(options.body) as unknown;
+      } catch {
+        body = options.body;
+      }
+    }
+    try {
+      return await supabaseRequest<T>(options.method ?? "GET", path, body);
+    } catch (error) {
+      const directError = error as Partial<ApiError>;
+      const directStatus = directError.status ?? 0;
+      if (DEBUG_API) {
+        // A direct-service failure is surfaced to the calling UI and may be
+        // recovered by its offline/sample fallback. Keep it out of Next's
+        // development error overlay, which treats console.error as an app crash.
+        console.warn("[P4U direct API]", path, directError.status, directError.message);
+      }
+      if (directStatus === 401 && !skipAuthRefresh && !retry401) {
+        try {
+          await refreshAccessTokenDeduped();
+          return request<T>(path, options, { ...internal, retry401: true });
+        } catch {
+          if (!softAuthFailure) clearUserSessionOnRefreshFailure();
+          throw { status: 401, message: "Session expired" } satisfies ApiError;
+        }
+      }
+      if (!canUseAuthGatewayFallback(path, directStatus)) {
+        throw {
+          status: directStatus,
+          message: directError.message || "Planext4u request failed",
+          details: directError.details,
+        } satisfies ApiError;
+      }
+    }
+  }
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(skipAuthHeader ? {} : authHeaders()),
@@ -286,10 +360,16 @@ async function request<T>(
   };
 
   let res: Response;
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
+  const externalSignal = options.signal;
+  const abortFromExternal = () => timeoutController.abort();
+  externalSignal?.addEventListener("abort", abortFromExternal, { once: true });
   try {
-    res = await fetch(url, { ...options, headers });
+    res = await fetch(url, { ...options, headers, signal: timeoutController.signal });
   } catch (e: unknown) {
-    if (!retryTransient) {
+    const timedOut = e instanceof Error && e.name === "AbortError";
+    if (!retryTransient && !timedOut) {
       await new Promise((r) => setTimeout(r, 800));
       return request<T>(path, options, { ...internal, retryTransient: true });
     }
@@ -297,12 +377,17 @@ async function request<T>(
     const err: ApiError = {
       status: 0,
       message:
-        msg === "Failed to fetch"
+        timedOut
+          ? "The Planext4u service is taking too long to respond. Please try again."
+          : msg === "Failed to fetch"
           ? "Network error: could not reach the API. Confirm the gateway is running and NEXT_PUBLIC_API_GATEWAY_URL matches (e.g. http://localhost:8080)."
           : msg || "Network request failed",
       details: e,
     };
     throw err;
+  } finally {
+    clearTimeout(timeoutId);
+    externalSignal?.removeEventListener("abort", abortFromExternal);
   }
 
   if (!res.ok) {
@@ -396,14 +481,10 @@ async function request<T>(
 export const apiClient = {
   get<T>(
     path: string,
-    params?: Record<string, string | number | boolean>,
+    params?: QueryParams,
     options?: GetOptions,
   ) {
-    const query = params
-      ? "?" + new URLSearchParams(
-          Object.entries(params).map(([k, v]) => [k, String(v)]),
-        ).toString()
-      : "";
+    const query = queryString(params);
     const pathWithQuery = path + query;
     const key = makeGetCacheKey(pathWithQuery);
     const forceRefresh = Boolean(options?.forceRefresh);
@@ -421,6 +502,10 @@ export const apiClient = {
 
     const req = request<T>(pathWithQuery)
       .then((result) => {
+        if (DEBUG_API) {
+          const value = result as unknown as { data?: unknown[]; items?: unknown[] };
+          console.info("[P4U API]", pathWithQuery, Array.isArray(value?.data) ? value.data.length : Array.isArray(value?.items) ? value.items.length : "ok");
+        }
         if (ttlMs > 0) {
           getResponseCache.set(key, {
             expiresAt: Date.now() + ttlMs,
@@ -473,7 +558,7 @@ export const apiClient = {
     );
   },
 
-  prefetchGet(path: string, params?: Record<string, string | number | boolean>, options?: GetOptions) {
+  prefetchGet(path: string, params?: QueryParams, options?: GetOptions) {
     return this.get(path, params, options).then(() => undefined);
   },
 

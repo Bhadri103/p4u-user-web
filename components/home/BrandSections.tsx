@@ -140,7 +140,7 @@ export default function BrandSections() {
   if (originalBrands.length === 0) return null;
 
   return (
-    <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6 mt-2 sm:mt-3 md:mt-4"> 
+    <div className="mx-auto max-w-7xl bg-white  px-3 sm:px-4 md:px-6 mt-2 sm:mt-3 md:mt-4"> 
       <div className="hidden md:grid md:grid-cols-3 gap-6">
         {originalBrands.map((brand, index) => (
           <div
@@ -190,7 +190,7 @@ export default function BrandSections() {
               }`}
               style={{
                 backgroundColor:
-                  getActiveDot() === index ? "var(--primary-teal)" : "#d1d5db",
+                  getActiveDot() === index ? "var(--primary-teal)" : "#D7E7F5",
               }}
               aria-label={`Go to slide ${index + 1}`}
             />

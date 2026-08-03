@@ -11,7 +11,7 @@ export default function SavedAddressesPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-[#F9FAFB]">
+      <div className="min-h-screen bg-[#F7FBFF]">
         <Header />
         <main className="px-4">
           <PageSavedAddresses onBack={() => router.push("/profile")} />

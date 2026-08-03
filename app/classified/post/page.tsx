@@ -6,7 +6,7 @@ import ClassifiedPostView from "@/components/classified/ClassifiedPostView";
 
 export default function ClassifiedPostRoute() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#f8fafc]">
+    <div className="min-h-screen flex flex-col bg-[#F7FBFF]">
       <Header />
       <main className="flex-1">
         <ClassifiedPostView />

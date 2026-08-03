@@ -185,11 +185,11 @@ export default function ServiceBookingModal({
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
           <div>
-            <h2 id="booking-modal-title" style={{ fontSize: 18, fontWeight: 800, color: "#111827", margin: 0 }}>
+            <h2 id="booking-modal-title" style={{ fontSize: 18, fontWeight: 600, color: "#202124", margin: 0 }}>
               Book service
             </h2>
             {serviceTitle ? (
-              <p style={{ fontSize: 12, color: "#6b7280", margin: "6px 0 0", lineHeight: 1.4 }}>{serviceTitle}</p>
+              <p style={{ fontSize: 12, color: "#5D757A", margin: "6px 0 0", lineHeight: 1.4 }}>{serviceTitle}</p>
             ) : null}
           </div>
           <button
@@ -197,14 +197,14 @@ export default function ServiceBookingModal({
             onClick={onClose}
             style={{
               border: "none",
-              background: "#f3f4f6",
+              background: "#FFFFFF",
               borderRadius: 8,
               width: 32,
               height: 32,
               cursor: "pointer",
               fontSize: 18,
               lineHeight: 1,
-              color: "#374151",
+              color: "#202124",
             }}
             aria-label="Close"
           >
@@ -213,9 +213,9 @@ export default function ServiceBookingModal({
         </div>
 
         {authLoading ? (
-          <p style={{ fontSize: 13, color: "#6b7280" }}>Loading…</p>
+          <p style={{ fontSize: 13, color: "#5D757A" }}>Loading…</p>
         ) : !isLoggedIn ? (
-          <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
+          <div style={{ fontSize: 13, color: "#202124", lineHeight: 1.6 }}>
             <p style={{ margin: "0 0 12px" }}>Sign in to book a service. Use <strong>Login</strong> in the header, then try again.</p>
             <button
               type="button"
@@ -226,7 +226,7 @@ export default function ServiceBookingModal({
                 border: "none",
                 borderRadius: 10,
                 color: "#fff",
-                fontWeight: 700,
+                fontWeight: 600,
                 fontSize: 13,
                 cursor: "pointer",
               }}
@@ -240,7 +240,7 @@ export default function ServiceBookingModal({
               <div
                 style={{
                   fontSize: 12,
-                  color: "#b45309",
+                  color: "#202124",
                   background: "#fffbeb",
                   border: "1px solid #fcd34d",
                   borderRadius: 8,
@@ -252,7 +252,7 @@ export default function ServiceBookingModal({
               </div>
             ) : null}
 
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 6 }}>Date</label>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#202124", marginBottom: 6 }}>Date</label>
             <input
               type="date"
               value={date}
@@ -262,7 +262,7 @@ export default function ServiceBookingModal({
               style={{
                 width: "100%",
                 padding: "10px 12px",
-                border: "1px solid #e5e7eb",
+                border: "1px solid #D7E7F5",
                 borderRadius: 10,
                 fontSize: 14,
                 marginBottom: 14,
@@ -270,11 +270,11 @@ export default function ServiceBookingModal({
               }}
             />
 
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 6 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#202124", marginBottom: 6 }}>
               Time slot {slotsLoading ? "(loading…)" : ""}
             </label>
             {slots.length === 0 && !slotsLoading ? (
-              <p style={{ fontSize: 12, color: "#b45309", marginBottom: 12 }}>No times are available for this date. Try another day.</p>
+              <p style={{ fontSize: 12, color: "#202124", marginBottom: 12 }}>No times are available for this date. Try another day.</p>
             ) : null}
             <select
               value={slotValue}
@@ -283,7 +283,7 @@ export default function ServiceBookingModal({
               style={{
                 width: "100%",
                 padding: "10px 12px",
-                border: "1px solid #e5e7eb",
+                border: "1px solid #D7E7F5",
                 borderRadius: 10,
                 fontSize: 13,
                 marginBottom: 14,
@@ -300,7 +300,7 @@ export default function ServiceBookingModal({
               ))}
             </select>
 
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 6 }}>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#202124", marginBottom: 6 }}>
               Service address (optional)
             </label>
             <select
@@ -312,7 +312,7 @@ export default function ServiceBookingModal({
               style={{
                 width: "100%",
                 padding: "10px 12px",
-                border: "1px solid #e5e7eb",
+                border: "1px solid #D7E7F5",
                 borderRadius: 10,
                 fontSize: 13,
                 marginBottom: 14,
@@ -328,16 +328,16 @@ export default function ServiceBookingModal({
               ))}
             </select>
             {addressesLoading ? (
-              <p style={{ fontSize: 11, color: "#6b7280", marginTop: -10, marginBottom: 14 }}>Loading saved addresses...</p>
+              <p style={{ fontSize: 11, color: "#5D757A", marginTop: -10, marginBottom: 14 }}>Loading saved addresses...</p>
             ) : addressError ? (
               <p style={{ fontSize: 11, color: "#b91c1c", marginTop: -10, marginBottom: 14 }}>{addressError}</p>
             ) : addresses.length === 0 ? (
-              <p style={{ fontSize: 11, color: "#9ca3af", marginTop: -10, marginBottom: 14 }}>
+              <p style={{ fontSize: 11, color: "#5D757A", marginTop: -10, marginBottom: 14 }}>
                 Add addresses under Profile to attach them to bookings.
               </p>
             ) : null}
 
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 6 }}>Notes (optional)</label>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#202124", marginBottom: 6 }}>Notes (optional)</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -346,7 +346,7 @@ export default function ServiceBookingModal({
               style={{
                 width: "100%",
                 padding: "10px 12px",
-                border: "1px solid #e5e7eb",
+                border: "1px solid #D7E7F5",
                 borderRadius: 10,
                 fontSize: 13,
                 marginBottom: 16,
@@ -362,13 +362,13 @@ export default function ServiceBookingModal({
                 onClick={onClose}
                 style={{
                   padding: "10px 18px",
-                  border: "1px solid #e5e7eb",
+                  border: "1px solid #D7E7F5",
                   borderRadius: 10,
                   background: "#fff",
                   fontWeight: 600,
                   fontSize: 13,
                   cursor: "pointer",
-                  color: "#374151",
+                  color: "#202124",
                 }}
               >
                 Cancel
@@ -380,8 +380,8 @@ export default function ServiceBookingModal({
                   padding: "10px 18px",
                   border: "none",
                   borderRadius: 10,
-                  background: submitting ? "#9ca3af" : TEAL_GRAD,
-                  fontWeight: 700,
+                  background: submitting ? "#5D757A" : TEAL_GRAD,
+                  fontWeight: 600,
                   fontSize: 13,
                   cursor: submitting ? "not-allowed" : "pointer",
                   color: "#fff",

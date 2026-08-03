@@ -6,7 +6,7 @@ import ClassifiedAdsView from "@/components/classified/ClassifiedAdsView";
 
 export default function ClassifiedRoute() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#f8fafc]">
+    <div className="flex min-h-screen flex-col bg-white">
       <Header />
       <main className="flex-1">
         <ClassifiedAdsView />
