@@ -70,8 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoggedPhone(phone);
     setToken(hasValidAccessToken() ? savedToken : null);
     if (savedToken && hasValidAccessToken()) {
+      // Prefer JWT identity over any stale localStorage customer id.
       const cid =
-        localStorage.getItem("p4u_customer_id") || resolveCustomerIdFromAccessToken(savedToken);
+        resolveCustomerIdFromAccessToken(savedToken) ||
+        localStorage.getItem("p4u_customer_id");
       if (cid) localStorage.setItem("p4u_customer_id", cid);
     }
     syncDisplayName(hasValidAccessToken() ? savedToken : null, phone);
@@ -109,6 +111,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } else {
               setToken(updated);
               const phone = localStorage.getItem("p4u_phone") || "";
+              const cid = resolveCustomerIdFromAccessToken(updated);
+              if (cid) localStorage.setItem("p4u_customer_id", cid);
               syncDisplayName(updated, phone);
             }
           }
@@ -158,7 +162,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (existing && hasValidAccessToken()) {
       setToken(existing);
       const cid =
-        localStorage.getItem("p4u_customer_id") || resolveCustomerIdFromAccessToken(existing);
+        resolveCustomerIdFromAccessToken(existing) ||
+        localStorage.getItem("p4u_customer_id");
       if (cid) localStorage.setItem("p4u_customer_id", cid);
       syncDisplayName(existing, phone);
     } else {

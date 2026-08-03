@@ -1019,8 +1019,10 @@ function PageProfile({ setActive }: { setActive: (p: ActivePage) => void }) {
       setReferralCount(Array.isArray(res.referrals) ? res.referrals.length : 0);
     }).catch(() => {});
     const token = localStorage.getItem("p4u_token");
-    const customerId = localStorage.getItem("p4u_customer_id") || resolveCustomerIdFromAccessToken(token) || "";
+    const customerId =
+      resolveCustomerIdFromAccessToken(token) || localStorage.getItem("p4u_customer_id") || "";
     if (customerId) {
+      localStorage.setItem("p4u_customer_id", customerId);
       commerceApi.getOrders(customerId, { limit: 50 }).then((r: any) => setOrderCount(r.data?.length ?? 0)).catch(() => {});
     }
   }, []);
@@ -1557,11 +1559,9 @@ function PageYourOrders() {
   useEffect(() => {
     const token = localStorage.getItem("p4u_token");
     const customerId =
-      localStorage.getItem("p4u_customer_id") || resolveCustomerIdFromAccessToken(token) || "";
+      resolveCustomerIdFromAccessToken(token) || localStorage.getItem("p4u_customer_id") || "";
     if (!customerId) return;
-    if (!localStorage.getItem("p4u_customer_id")) {
-      localStorage.setItem("p4u_customer_id", customerId);
-    }
+    localStorage.setItem("p4u_customer_id", customerId);
     commerceApi
       .getOrders(customerId, { limit: 50 })
       .then(async (res: any) => {

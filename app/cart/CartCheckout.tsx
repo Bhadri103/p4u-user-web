@@ -436,7 +436,13 @@ export default function CartCheckout({
 
         if (paymentMode === "cod") {
           setPlacedAmount(total);
-          await clearCart();
+          try {
+            await clearCart();
+          } catch {
+            setOrderError(
+              "Order placed, but cart could not be cleared. Check My Orders — remove leftover cart items if needed.",
+            );
+          }
           commerceApi.invalidateOrdersCache();
           setStep(2);
           scrollToTop();
@@ -489,8 +495,23 @@ export default function CartCheckout({
                   reject(new Error("Payment not verified"));
                   return;
                 }
+                if (result.commerceConfirmed === false) {
+                  setOrderError(
+                    "Payment was received but order confirmation failed. Open My Orders or contact support — do not pay again.",
+                  );
+                  commerceApi.invalidateOrdersCache();
+                  reject(new Error("Commerce confirmation failed"));
+                  return;
+                }
                 setPlacedAmount(payAmount);
-                await clearCart();
+                try {
+                  await clearCart();
+                } catch {
+                  // Order exists; warn but still show success so user can open My Orders.
+                  setOrderError(
+                    "Order placed, but cart could not be cleared. Refresh My Orders — remove leftover cart items if needed.",
+                  );
+                }
                 commerceApi.invalidateOrdersCache();
                 setStep(2);
                 scrollToTop();

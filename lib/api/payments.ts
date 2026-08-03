@@ -25,6 +25,7 @@ export interface PaymentIntent {
 export interface VerifyResult {
   verified: boolean;
   intentId?: string | null;
+  commerceConfirmed?: boolean;
 }
 
 /* ------------------------------------------------------------------ */

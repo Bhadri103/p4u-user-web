@@ -485,14 +485,18 @@ export default function ProductDetailPage({ product: rawProduct, onBack }) {
     setTimeout(() => setAddedToCart(false), 2500);
   }
 
-  function handleBuyNow() {
+  async function handleBuyNow() {
     const buyNowItem = buildCartPayload();
     if (!buyNowItem) return;
     if (!isLoggedIn) {
       window.dispatchEvent(new Event("p4u-open-auth"));
       return;
     }
-    clearCart();
+    try {
+      await clearCart();
+    } catch {
+      // Continue — buy-now should still replace the local cart.
+    }
     addToCart(buyNowItem);
     try {
       sessionStorage.setItem("openCart", "1");

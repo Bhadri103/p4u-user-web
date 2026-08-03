@@ -570,12 +570,16 @@ export default function ShopPage(_props: { onVendorSelect?: (vendorId: string) =
 
   function handleCart(item: ShopItem) { addToCart(cartPayload(item)); }
 
-  function handleBuy(item: ShopItem) {
+  async function handleBuy(item: ShopItem) {
     if (typeof window !== "undefined" && !localStorage.getItem("p4u_token")) {
       window.dispatchEvent(new Event("p4u-open-auth"));
       return;
     }
-    clearCart();
+    try {
+      await clearCart();
+    } catch {
+      // Continue — buy-now should still replace the local cart.
+    }
     addToCart(cartPayload(item));
     try { sessionStorage.setItem("openCart", "1"); } catch { /* ignore */ }
     router.push("/cart");

@@ -249,8 +249,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       await commerceApi.clearCart();
       setSyncError(null);
-    } catch {
+    } catch (error) {
       setSyncError("Cart sync failed");
+      // Re-throw so checkout can avoid a false "success" while server cart still has items.
+      throw error instanceof Error ? error : new Error("Cart sync failed");
     }
   }, []);
 
