@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "@/providers/LocaleContext";
 import { ConfirmationResult } from "firebase/auth";
 import { X } from "lucide-react";
 import Image from "next/image";
@@ -106,6 +107,7 @@ function PhoneStep({
     signup: SignupProfilePayload | null,
   ) => void;
 }) {
+  const { t } = useLocale();
   const [phone, setPhone] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -236,7 +238,7 @@ function PhoneStep({
             boxShadow: tab === "signin" ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
           }}
         >
-          Sign in
+          {t("auth.signIn")}
         </button>
         <button
           type="button"
@@ -259,12 +261,12 @@ function PhoneStep({
             boxShadow: tab === "signup" ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
           }}
         >
-          Sign up
+          {t("auth.create")}
         </button>
       </div>
 
       <h2 style={{ fontSize: 16, fontWeight: 600, color: "#202124", margin: "0 0 4px" }}>
-        {tab === "signin" ? "Sign in with your mobile" : "Create your account"}
+        {tab === "signin" ? t("auth.mobileSignIn", "Sign in with your mobile") : t("auth.create")}
       </h2>
       <p style={{ fontSize: 12, color: "#5D757A", margin: "0 0 16px" }}>
         {tab === "signin"

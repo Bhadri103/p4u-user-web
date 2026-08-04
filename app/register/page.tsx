@@ -12,6 +12,7 @@ import { persistUserAuthTokens } from "@/lib/authSession";
 import { useAuth } from "@/providers/AuthContext";
 import { INDIA_STATES, DISTRICTS_BY_STATE } from "@/lib/in-states";
 import logo from "@/images/logo.png";
+import { useLocale } from "@/providers/LocaleContext";
 
 const TEAL = "#89CFF0";
 
@@ -59,6 +60,7 @@ const empty: FormState = {
 };
 
 export default function RegisterPage() {
+  const { t } = useLocale();
   const router = useRouter();
   const { login } = useAuth();
   const [phone, setPhone] = useState("");
@@ -221,8 +223,8 @@ export default function RegisterPage() {
         <div className="mx-auto inline-flex items-center justify-center rounded-2xl bg-white/10 p-2">
           <Image src={logo} alt="Planext4u" width={56} height={56} priority />
         </div>
-        <h1 className="mt-3 text-xl font-semibold text-white">Create Account</h1>
-        <p className="mt-1 text-sm text-white/80">Join Planext4u and start shopping</p>
+        <h1 className="mt-3 text-xl font-semibold text-white">{t("auth.create")}</h1>
+        <p className="mt-1 text-sm text-white/80">{t("auth.join")}</p>
       </div>
 
       <div className="mx-auto -mt-8 max-w-md px-4 pb-16">
@@ -230,7 +232,7 @@ export default function RegisterPage() {
           <div className="space-y-4">
             {tokenExpiresAtMs != null && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-950">
-                <p className="font-semibold">Phone verification window</p>
+                <p className="font-semibold">{t("auth.phoneWindow")}</p>
                 <p className="mt-1 text-amber-900/90">
                   {tokenExpiresAtMs <= Date.now() ? (
                     <>
@@ -330,7 +332,7 @@ export default function RegisterPage() {
               items={occupations}
               disabled={Boolean(form.customOccupation.trim())}
             />
-            <p className="mb-1.5 text-xs font-medium text-slate-500">Or type your own</p>
+            <p className="mb-1.5 text-xs font-medium text-slate-500">{t("auth.customOccupation")}</p>
             <label className="flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-2.5 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/20">
               <input
                 className="input-bare"
@@ -393,7 +395,7 @@ export default function RegisterPage() {
                 </a>
                 .
                 <br />
-                <span className="text-amber-600">Tap to read and accept</span>
+                <span className="text-amber-600">{t("auth.accept")}</span>
               </span>
             </label>
 

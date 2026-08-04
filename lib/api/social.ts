@@ -778,6 +778,15 @@ export const socialApi = {
       });
   },
 
+  reportContent(data: { targetType: "post" | "comment"; targetId: string | number; reason: string; details?: string }) {
+    return apiClient.post(`${BASE}/reports`, {
+      targetType: data.targetType,
+      targetId: String(data.targetId),
+      reason: data.reason,
+      details: data.details?.trim() || undefined,
+    });
+  },
+
   getConversations(params?: { q?: string; limit?: number; offset?: number }) {
     return apiClient
       .get<unknown>(`${BASE}/messages/conversations`, params as Record<string, string | number | boolean> | undefined, { forceRefresh: true, cacheTtlMs: 0 })

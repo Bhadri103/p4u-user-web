@@ -19,6 +19,7 @@ import { DEFAULT_NOTIFICATION_SETTINGS, useSocialSettings } from "@/lib/hooks/us
 import { clearUserAuthStorage } from "@/lib/authSession";
 import { useRouter } from "next/navigation";
 import type { SocioAdConfig } from "@/lib/api/social";
+import { useLocale } from "@/providers/LocaleContext";
 
 const TEAL = "#89CFF0";
 const TEAL_SOLID = "#89CFF0";
@@ -886,6 +887,37 @@ function HybridAdSlot({ slotIndex, ads, config, compact = false }: { slotIndex: 
   return <WebAdSenseCard compact={compact} />;
 }
 
+function ReportDialog({ target, onClose }: { target: { type: "post" | "comment"; id: string | number }; onClose: () => void }) {
+  const { t } = useLocale();
+  const [reason, setReason] = useState("spam");
+  const [details, setDetails] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const submit = async () => {
+    setBusy(true); setError("");
+    try {
+      await socialApi.reportContent({ targetType: target.type, targetId: target.id, reason, details });
+      onClose();
+      window.alert(t("report.success"));
+    } catch (e) { setError(e instanceof Error ? e.message : "Unable to submit this report."); }
+    finally { setBusy(false); }
+  };
+  return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-labelledby="report-title" className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center justify-between"><h2 id="report-title" className="text-lg font-bold">{t("report.title")} {target.type}</h2><button onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button></div>
+      <p className="mt-1 text-sm text-slate-500">{t("report.private")}</p>
+      <label className="mt-4 block text-sm font-semibold">{t("report.reason")}</label>
+      <select value={reason} onChange={e => setReason(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5">
+        <option value="spam">Spam</option><option value="harassment">Harassment or bullying</option><option value="hate_speech">Hate speech</option><option value="violence">Violence or threats</option><option value="nudity">Nudity or sexual content</option><option value="misinformation">Misinformation</option><option value="other">Other</option>
+      </select>
+      <label className="mt-4 block text-sm font-semibold">{t("report.details")}</label>
+      <textarea maxLength={500} value={details} onChange={e => setDetails(e.target.value)} rows={3} className="mt-1 w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5" />
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      <div className="mt-5 flex justify-end gap-2"><button onClick={onClose} className="rounded-xl border px-4 py-2">{t("common.cancel")}</button><button disabled={busy} onClick={submit} className="rounded-xl bg-red-600 px-4 py-2 font-semibold text-white disabled:opacity-50">{busy ? "Submitting..." : t("report.submit")}</button></div>
+    </div>
+  </div>;
+}
+
 function PostCard({ post: p, onUserClick, myUserId, onDeleted }: { post: PostItem; onUserClick: (userId: string) => void; myUserId?: string; onDeleted?: (postId: string | number) => void }) {
   const [liked, setLiked] = useState(p.isLiked ?? false);
   const [saved, setSaved] = useState(p.isSaved ?? false);
@@ -903,6 +935,7 @@ function PostCard({ post: p, onUserClick, myUserId, onDeleted }: { post: PostIte
   const [saveBusy, setSaveBusy] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ type: "post" | "comment"; id: string | number } | null>(null);
 
   useEffect(() => {
     setLiked(p.isLiked ?? false);
@@ -1079,7 +1112,7 @@ function PostCard({ post: p, onUserClick, myUserId, onDeleted }: { post: PostIte
                     {deleteBusy ? 'Deleting...' : 'Delete post'}
                   </button>
                 ) : (
-                  <button onClick={() => setShowMenu(false)} className="w-full px-4 py-3.5 text-center border-b hover:bg-gray-50 text-sm text-gray-700">Report</button>
+                  <button onClick={() => { setShowMenu(false); setReportTarget({ type: "post", id: p.id }); }} className="w-full px-4 py-3.5 text-center border-b hover:bg-red-50 text-sm font-semibold text-red-600">Report</button>
                 )}
                 {['Go to post', 'Share to...', 'Copy link', 'Embed', 'About this account'].map(item => (
                   <button key={item} onClick={() => setShowMenu(false)} className="w-full px-4 py-3.5 text-center border-b last:border-b-0 hover:bg-gray-50 text-sm text-gray-700">{item}</button>
@@ -1171,7 +1204,8 @@ function PostCard({ post: p, onUserClick, myUserId, onDeleted }: { post: PostIte
                 {commentList.map((c) => (
                   <div key={c.id} className="flex items-start gap-3 text-sm text-neutral-800">
                     <AvatarCircle src={c.avatar} name={c.user} size="sm" />
-                    <p><span className="font-semibold">{c.user} </span>{c.text}</p>
+                    <p className="flex-1"><span className="font-semibold">{c.user} </span>{c.text}</p>
+                    {c.user !== "You" && <button type="button" aria-label="Report comment" onClick={() => setReportTarget({ type: "comment", id: c.id })}><Flag className="h-4 w-4 text-slate-400 hover:text-red-500" /></button>}
                   </div>
                 ))}
               </div>
@@ -1179,6 +1213,7 @@ function PostCard({ post: p, onUserClick, myUserId, onDeleted }: { post: PostIte
           </div>
         )}
       </div>
+      {reportTarget && <ReportDialog target={reportTarget} onClose={() => setReportTarget(null)} />}
     </div>
   );
 }
@@ -4569,8 +4604,9 @@ function AboutPanel() {
 
 function LanguagePanel() {
   const { settings, loading, patch } = useSettingsContext();
+  const { locale, setLocale, t } = useLocale();
   const lang = settings?.language ?? "English";
-  const langs = ["English","Tamil","Hindi","Telugu","Malayalam","Kannada","Bengali","Marathi","Gujarati","Punjabi"];
+  const langs = [{code:"en",name:"English",native:"English"},{code:"ta",name:"Tamil",native:"தமிழ்"},{code:"hi",name:"Hindi",native:"हिन्दी"},{code:"te",name:"Telugu",native:"తెలుగు"},{code:"kn",name:"Kannada",native:"ಕನ್ನಡ"},{code:"ml",name:"Malayalam",native:"മലയാളം"}] as const;
 
   if (loading && !settings) {
     return <div className="flex flex-1 items-center justify-center p-8"><Loader2 className="h-7 w-7 animate-spin text-teal-500" /></div>;
@@ -4578,11 +4614,11 @@ function LanguagePanel() {
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-xl">
-      <h2 className="text-base font-semibold text-gray-900 mb-6">Select Language</h2>
+      <h2 className="text-base font-semibold text-gray-900 mb-6">{t("language.title")}</h2>
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         {langs.map((l, i) => (
-          <button key={l} onClick={() => { void patch({ language: l }).catch(() => {}); }} className={`w-full flex items-center justify-between px-4 py-3.5 text-sm transition hover:bg-gray-50 ${i < langs.length - 1 ? "border-b border-gray-50" : ""} ${lang === l ? "text-teal-600 font-bold" : "text-gray-700"}`}>
-            {l}{lang === l && <Check className="w-4 h-4 text-teal-500" />}
+          <button key={l.code} onClick={() => { setLocale(l.code); void patch({ language: l.name }).catch(() => {}); }} className={`w-full flex items-center justify-between px-4 py-3.5 text-sm transition hover:bg-gray-50 ${i < langs.length - 1 ? "border-b border-gray-50" : ""} ${locale === l.code || lang === l.name ? "text-teal-600 font-bold" : "text-gray-700"}`}>
+            <span>{l.native}<small className="ml-2 text-slate-400">{l.native !== l.name ? l.name : ""}</small></span>{locale === l.code && <Check className="w-4 h-4 text-teal-500" />}
           </button>
         ))}
       </div>

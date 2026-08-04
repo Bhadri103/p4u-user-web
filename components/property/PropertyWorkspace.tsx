@@ -4,12 +4,14 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { propertiesApi, type PropertyRow } from "@/lib/api/properties";
 import { classifiedApi } from "@/lib/api/classified";
+import { useLocale } from "@/providers/LocaleContext";
 
 type Tab = "browse" | "mine" | "messages" | "tools";
 const fieldClass = "h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-teal-500";
 const money = (value: unknown) => `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const messageOf = (error: unknown) => error instanceof Error ? error.message : "Request failed";
 export default function PropertyWorkspace() {
+  const { t } = useLocale();
   const [tab, setTab] = useState<Tab>("browse");
   const [items, setItems] = useState<PropertyRow[]>([]);
   const [mine, setMine] = useState<PropertyRow[]>([]);
@@ -45,9 +47,9 @@ export default function PropertyWorkspace() {
   }
 
   return <div className="min-h-screen  px-3 py-5 sm:px-6"><div className="mx-auto flex w-full max-w-7xl bg-white  flex-col rounded-[28px] border border-slate-200/80 bg-white/95 p-4 shadow-[0_18px_60px_rgba(32,33,36,0.08)] sm:p-6">
-    <div className="flex shrink-0 flex-wrap items-end justify-between gap-4"><div><p className="font-semibold text-teal-700">Find Home</p><h1 className="text-3xl font-black text-neutral-900">Homes near you</h1><p className="text-slate-500">Find, list and manage verified properties.</p></div><button onClick={() => setShowPost(true)} className="rounded-xl bg-teal-600 px-5 py-3 font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">Post Property</button></div>
-    <nav className="z-20 mt-4 flex shrink-0 gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur">{([['browse','Browse'],['mine','My properties'],['messages','Messages'],['tools','Tools']] as const).map(([id,label]) => <button key={id} onClick={() => setTab(id)} className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold transition ${tab === id ? "bg-teal-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}>{label}</button>)}</nav>
-    {tab === "browse" && <div className="mt-3 flex shrink-0 gap-2 overflow-x-auto">{[["","All"],["sale","Buy"],["rent","Rent"]].map(([value,label]) => <button key={label} type="button" onClick={() => setType(value)} className={`rounded-full border px-4 py-2 text-sm font-bold ${type === value ? "bg-teal-50 text-teal-800" : "bg-white text-slate-700"}`}>{label}</button>)}<button type="button" onClick={() => setTab("tools")} className="rounded-full border bg-white px-4 py-2 text-sm font-bold text-slate-700">EMI</button><button type="button" onClick={() => setTab("tools")} className="rounded-full border bg-white px-4 py-2 text-sm font-bold text-slate-700">Estimate</button></div>}
+    <div className="flex shrink-0 flex-wrap items-end justify-between gap-4"><div><p className="font-semibold text-teal-700">{t("property.find")}</p><h1 className="text-3xl font-black text-neutral-900">{t("property.near")}</h1><p className="text-slate-500">{t("property.tagline")}</p></div><button onClick={() => setShowPost(true)} className="rounded-xl bg-teal-600 px-5 py-3 font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">{t("property.post")}</button></div>
+    <nav className="z-20 mt-4 flex shrink-0 gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur">{([['browse','property.browse'],['mine','property.my'],['messages','property.messages'],['tools','property.tools']] as const).map(([id,key]) => <button key={id} onClick={() => setTab(id)} className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold transition ${tab === id ? "bg-teal-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"}`}>{t(key)}</button>)}</nav>
+    {tab === "browse" && <div className="mt-3 flex shrink-0 gap-2 overflow-x-auto">{[["","property.all"],["sale","property.buy"],["rent","property.rent"]].map(([value,key]) => <button key={key} type="button" onClick={() => setType(value)} className={`rounded-full border px-4 py-2 text-sm font-bold ${type === value ? "bg-teal-50 text-teal-800" : "bg-white text-slate-700"}`}>{t(key)}</button>)}<button type="button" onClick={() => setTab("tools")} className="rounded-full border bg-white px-4 py-2 text-sm font-bold text-slate-700">EMI</button><button type="button" onClick={() => setTab("tools")} className="rounded-full border bg-white px-4 py-2 text-sm font-bold text-slate-700">{t("property.estimate")}</button></div>}
     {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-red-700">{error}</p>}
     {postSuccess && <p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 text-emerald-800">{postSuccess}</p>}
     <div className="min-h-0 flex-1">
@@ -67,16 +69,17 @@ export default function PropertyWorkspace() {
 }
 
 function Browse({ items, loading, q, setQ, type, setType, propertyType, setPropertyType, search, saveSearch }: { items: PropertyRow[]; loading: boolean; q: string; setQ:(v:string)=>void; type:string; setType:(v:string)=>void; propertyType:string; setPropertyType:(v:string)=>void; search:()=>Promise<void>; saveSearch:()=>Promise<void> }) {
+  const { t } = useLocale();
   return <section className="flex min-h-0 flex-col lg:h-full">
     <div className="mt-4 grid shrink-0 gap-2 rounded-2xl border border-blue-100 bg-white/90 p-3 shadow-[0_10px_30px_rgba(137,207,240,0.07)] md:grid-cols-[1fr_150px_180px_auto_auto]">
-      <input className={fieldClass} value={q} onChange={(event)=>setQ(event.target.value)} placeholder="Search city, locality, property"/>
-      <select className={fieldClass} value={type} onChange={(event)=>setType(event.target.value)}><option value="">All</option><option value="sale">Buy</option><option value="rent">Rent</option></select>
-      <select className={fieldClass} value={propertyType} onChange={(event)=>setPropertyType(event.target.value)}><option value="">All property types</option><option value="apartment">Apartment / flat</option><option value="house">Independent house</option><option value="villa">Villa</option><option value="plot">Residential plot / land</option><option value="agricultural_land">Agricultural / farm land</option><option value="commercial_office">Commercial office</option><option value="commercial_shop">Shop / showroom</option><option value="warehouse">Warehouse / godown</option><option value="pg">PG / hostel</option></select>
-      <button onClick={()=>void search()} className="rounded-xl bg-neutral-900 px-4 font-bold text-white">Search</button><button onClick={()=>void saveSearch()} className="rounded-xl border bg-white px-4 font-bold">Save search</button>
+      <input className={fieldClass} value={q} onChange={(event)=>setQ(event.target.value)} placeholder={t("property.searchPlaceholder")}/>
+      <select className={fieldClass} value={type} onChange={(event)=>setType(event.target.value)}><option value="">{t("property.all")}</option><option value="sale">{t("property.buy")}</option><option value="rent">{t("property.rent")}</option></select>
+      <select className={fieldClass} value={propertyType} onChange={(event)=>setPropertyType(event.target.value)}><option value="">{t("property.allTypes")}</option><option value="apartment">Apartment / flat</option><option value="house">Independent house</option><option value="villa">Villa</option><option value="plot">Residential plot / land</option><option value="agricultural_land">Agricultural / farm land</option><option value="commercial_office">Commercial office</option><option value="commercial_shop">Shop / showroom</option><option value="warehouse">Warehouse / godown</option><option value="pg">PG / hostel</option></select>
+      <button onClick={()=>void search()} className="rounded-xl bg-neutral-900 px-4 font-bold text-white">{t("property.search")}</button><button onClick={()=>void saveSearch()} className="rounded-xl border bg-white px-4 font-bold">{t("property.saveSearch")}</button>
     </div>
     <div className="min-h-0 flex-1 lg:pr-2">
-      {loading?<p className="py-16 text-center text-slate-500">Loading properties...</p>:<><p className="mt-4 font-bold text-neutral-900">Homes near you</p><div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{items.map((row)=><PropertyCard key={row.id} row={row}/>)}</div></>}
-      {!loading&&!items.length&&<div className="py-16 text-center"><p className="font-bold text-neutral-900">No properties found</p><p className="mt-1 text-sm text-slate-500">Try another location or filter.</p></div>}
+      {loading?<p className="py-16 text-center text-slate-500">{t("property.loading")}</p>:<><p className="mt-4 font-bold text-neutral-900">{t("property.near")}</p><div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{items.map((row)=><PropertyCard key={row.id} row={row}/>)}</div></>}
+      {!loading&&!items.length&&<div className="py-16 text-center"><p className="font-bold text-neutral-900">{t("property.none")}</p><p className="mt-1 text-sm text-slate-500">{t("property.tryFilter")}</p></div>}
     </div>
   </section>;
 }

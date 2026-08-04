@@ -16,6 +16,7 @@ import { useAppLoading } from "@/providers/AppLoadingProvider";
 import { resolveMediaUrl } from "@/lib/media";
 import { loadRazorpay } from "@/lib/razorpay";
 import PurchaseActionButton from "@/components/shop/PurchaseActionButton";
+import { useLocale } from "@/providers/LocaleContext";
 
 function shippingSnapshotFromAddress(address: {
   id: string | number;
@@ -215,6 +216,7 @@ function AddressBar({
   empty?: boolean;
   onChangeAddress?: () => void;
 }) {
+  const { t } = useLocale();
   return (
     <div className="cart-panel cart-address-panel" style={{
       display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -224,7 +226,7 @@ function AddressBar({
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0, flex: 1 }}>
         <MapPin size={18} style={{ color: PRIMARY_MID, flexShrink: 0, marginTop: 2 }} />
         <div style={{ minWidth: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", margin: 0 }}>Deliver To</p>
+          <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", margin: 0 }}>{t("cart.deliverTo")}</p>
           <p style={{ fontSize: 12, color: empty ? "#94a3b8" : "#5D757A", margin: "4px 0 0", wordBreak: "break-word" }}>
             {empty ? "No address selected" : address}
           </p>
@@ -251,6 +253,7 @@ export default function CartCheckout({
   onBack?: () => void;
   address?: string;
 }) {
+  const { t } = useLocale();
   const { logout } = useAuth();
   const { addresses, selectedAddress, selectedAddressId, isLoading: addressesLoading, error: addressError, selectAddress } = useAddresses();
   const pageRef = useRef<HTMLDivElement>(null);
@@ -736,7 +739,7 @@ export default function CartCheckout({
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div className="cart-sidebar-card" style={{ background: "white", borderRadius: 10, border: "1px solid #D7E7F5", padding: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", marginBottom: 12 }}>Coupon</p>
+          <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", marginBottom: 12 }}>{t("cart.coupon")}</p>
           <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
             <input
               value={couponInput}
@@ -787,7 +790,7 @@ export default function CartCheckout({
         </div>
         {showRedeem && (
           <div className="cart-sidebar-card" style={{ background: "white", borderRadius: 10, border: "1px solid #D7E7F5", padding: 16 }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", marginBottom: 12 }}>Redeem Points</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", marginBottom: 12 }}>{t("cart.points")}</p>
             <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
               <input
                 value={redeemInput}
@@ -837,7 +840,7 @@ export default function CartCheckout({
               </div>
             ))}
             <div style={{ borderTop: "1px solid #F7FBFF", paddingTop: 10, display: "flex", justifyContent: "space-between", fontSize: 15, fontWeight: 600, color: PRIMARY_MID }}>
-              <span>Total Amount</span>
+              <span>{t("cart.total")}</span>
               <span>{formatPrice(total)}</span>
             </div>
           </div>
@@ -965,8 +968,8 @@ export default function CartCheckout({
         ) : emptyShop ? (
           <div style={{ textAlign: "center", padding: "60px 16px" }}>
             <div style={{ fontSize: "4rem", marginBottom: 16 }}>🛒</div>
-            <h2 style={{ fontSize: 18, fontWeight: 600, color: "#202124", marginBottom: 8 }}>Your cart is empty</h2>
-            <p style={{ fontSize: 13, color: "#5D757A", marginBottom: 24 }}>Add some products to get started!</p>
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: "#202124", marginBottom: 8 }}>{t("cart.empty")}</h2>
+            <p style={{ fontSize: 13, color: "#5D757A", marginBottom: 24 }}>{t("cart.start")}</p>
             <PrimaryBtn onClick={onBack} style={{ padding: "10px 24px", fontSize: 13 }}>
               Continue Shopping
             </PrimaryBtn>
@@ -1193,7 +1196,7 @@ export default function CartCheckout({
         <div className="checkout-main-col" style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
           <AddressBar address={currentAddress} empty={addressEmpty} onChangeAddress={() => setShowAddressModal(true)} />
           <div style={{ background: "white", borderRadius: 12, border: "1px solid #D7E7F5", padding: 16 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 600, color: "#202124", marginBottom: 14 }}>Payment Method</h3>
+            <h3 style={{ fontSize: 13, fontWeight: 600, color: "#202124", marginBottom: 14 }}>{t("cart.payment")}</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {methods.map(pm => (
                 <div key={pm.id} onClick={() => setPayMethod(pm.id)}
@@ -1351,14 +1354,14 @@ export default function CartCheckout({
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: "#202124", margin: 0 }}>Change Delivery Address</h3>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: "#202124", margin: 0 }}>{t("cart.changeAddress")}</h3>
               <button
                 onClick={() => setShowAddressModal(false)}
                 style={{ background: "none", border: "none", cursor: "pointer", color: "#5D757A", padding: 4, fontSize: 18, lineHeight: 1 }}>
                 ✕
               </button>
             </div> 
-            <p style={{ fontSize: 11, fontWeight: 600, color: "#5D757A", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Saved Addresses</p>
+            <p style={{ fontSize: 11, fontWeight: 600, color: "#5D757A", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("cart.savedAddresses")}</p>
             {addressesLoading ? (
               <p style={{ fontSize: 12, color: "#5D757A", padding: "12px 0" }}>Loading saved addresses...</p>
             ) : addressError ? (

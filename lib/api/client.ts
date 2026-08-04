@@ -8,7 +8,8 @@
 /** Empty env string would otherwise produce relative `/api/...` URLs on :3000 with no rewrite. */
 import { supabaseRequest, USE_SUPABASE_DIRECT } from "./supabaseFallback";
 
-const BASE_URL = (process.env.NEXT_PUBLIC_API_GATEWAY_URL || "http://localhost:8080").replace(
+const DEFAULT_BASE_URL = process.env.NODE_ENV === "production" ? "https://api.planext4u.com" : "http://localhost:8080";
+const BASE_URL = (process.env.NEXT_PUBLIC_API_GATEWAY_URL || DEFAULT_BASE_URL).replace(
   /\/$/,
   "",
 );

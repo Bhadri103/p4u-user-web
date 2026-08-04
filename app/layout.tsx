@@ -8,6 +8,7 @@ import GlobalPopupBanner from "@/components/content/GlobalPopupBanner";
 import { AddressProvider } from "@/providers/AddressContext";
 import PageTransition from "@/components/layout/PageTransition";
 import GlobalImageLoader from "@/components/layout/GlobalImageLoader";
+import { LocaleProvider } from "@/providers/LocaleContext";
 
 export const metadata: Metadata = {
   title: {
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        <LocaleProvider>
         <GlobalImageLoader />
         <AppLoadingProvider>
           <AuthProvider>
@@ -35,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </AddressProvider>
           </AuthProvider>
         </AppLoadingProvider>
+        </LocaleProvider>
       </body>
     </html>
   );

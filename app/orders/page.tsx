@@ -12,6 +12,7 @@ import { useAuth } from "@/providers/AuthContext";
 import { resolveCustomerIdFromAccessToken } from "@/lib/resolveCustomerId";
 import { pickProductImage, pickServiceImage, resolveMediaUrl } from "@/lib/media";
 import { isOrderCancellable, isBookingCancellable } from "@/lib/orderCancel";
+import { useLocale } from "@/providers/LocaleContext";
 
 type OrdersTab = "products" | "bookings";
 
@@ -57,6 +58,7 @@ function metaString(meta: Record<string, unknown> | null | undefined, ...keys: s
 }
 
 export default function OrdersPage() {
+  const { t } = useLocale();
   const { isLoggedIn, isLoading: authLoading } = useAuth();
   const [tab, setTab] = useState<OrdersTab>("products");
   const [orders, setOrders] = useState<Order[]>([]);
@@ -364,7 +366,7 @@ export default function OrdersPage() {
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <h1 className="text-[24px] font-bold text-neutral-950">My Orders</h1>
+            <h1 className="text-[24px] font-bold text-neutral-950">{t("orders.title")}</h1>
           </div>
 
           <div className="mb-6 rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200/80">
@@ -413,7 +415,7 @@ export default function OrdersPage() {
           {error && <p className="text-center text-red-500 py-10">{error}</p>}
 
           {!loading && !error && tab === "products" && filteredOrders.length === 0 && (
-            <p className="text-center text-gray-400 py-20">No orders yet.</p>
+            <p className="text-center text-gray-400 py-20">{t("orders.none")}</p>
           )}
 
           {!loading && !error && tab === "bookings" && filteredBookings.length === 0 && (

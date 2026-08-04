@@ -15,6 +15,8 @@ import { resolveCustomerIdFromAccessToken, avatarInitialsFromDisplayName } from 
 import { socialApi } from "@/lib/api/social";
 import { authApi } from "@/lib/api/auth";
 import { supportApi, type SupportTicket } from "@/lib/api/support";
+import { publicReference } from "@/lib/publicReference";
+import { type AppLocale, useLocale } from "@/providers/LocaleContext";
 type ActivePage =
   | "profile" | "edit-profile" | "saved-addresses" | "select-language" | "notification"
   | "your-orders" | "my-bookings" | "reviews-ratings" | "your-favourites" | "refer-earn"
@@ -1123,7 +1125,7 @@ export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     profileApi.getMe()
       .then((profile) => setCompleteness(computeProfileCompleteness(profile, addresses.length)))
-      .catch(() => {});
+      .catch((loadError: unknown) => setOperationError(loadError instanceof Error ? loadError.message : "Unable to load profile details."));
   }, [addresses.length]);
   const applyAddrPatch = (patch: Partial<AddressFormState>) => {
     setAddrForm((f) => ({ ...f, ...patch }));
@@ -1441,17 +1443,21 @@ export function PageSavedAddresses({ onBack }: { onBack: () => void }) {
 }
  
 function PageSelectLanguage() {
-  const [selected, setSelected] = useState("English");
-  const langs = ["English", "Tamil", "Hindi", "Telugu", "Kannada", "Malayalam", "Marathi", "Bengali", "Gujarati", "Punjabi"];
+  const { locale, setLocale, t } = useLocale();
+  const langs: Array<{ code: AppLocale; label: string; native: string }> = [
+    { code: "en", label: "English", native: "English" }, { code: "ta", label: "Tamil", native: "தமிழ்" },
+    { code: "hi", label: "Hindi", native: "हिन्दी" }, { code: "te", label: "Telugu", native: "తెలుగు" },
+    { code: "kn", label: "Kannada", native: "ಕನ್ನಡ" }, { code: "ml", label: "Malayalam", native: "മലയാളം" },
+  ];
   return (
     <div className="p-5 sm:p-6">
-      <SectionTitle>Language</SectionTitle>
+      <SectionTitle>{t("language.title")}</SectionTitle>
       <div className="space-y-1">
         {langs.map(lang => (
-          <button key={lang} onClick={() => setSelected(lang)}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-left cursor-pointer border ${selected === lang ? "border-emerald-200 bg-emerald-50" : "border-transparent hover:bg-slate-50"}`}>
-            <span className={`text-sm ${selected === lang ? "text-emerald-900 font-medium" : "text-slate-700"}`}>{lang}</span>
-            {selected === lang && (
+          <button key={lang.code} onClick={() => setLocale(lang.code)}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-left cursor-pointer border ${locale === lang.code ? "border-emerald-200 bg-emerald-50" : "border-transparent hover:bg-slate-50"}`}>
+            <span className={`text-sm ${locale === lang.code ? "text-emerald-900 font-medium" : "text-slate-700"}`}>{lang.native}<span className="ml-2 text-xs text-slate-400">{lang.label !== lang.native ? lang.label : ""}</span></span>
+            {locale === lang.code && (
               <div className="w-5 h-5 rounded-full flex items-center justify-center text-white" style={{ background: PRIMARY_GRADIENT }}><IcCheck /></div>
             )}
           </button>
@@ -1530,7 +1536,7 @@ function OrderCard({ item }: { item: typeof SHOP_ORDERS[0] }) {
     <div className="flex gap-3 p-4 rounded-xl border border-slate-100 bg-white hover:shadow-sm transition-all">
       <ProductImg src={item.img} alt={item.title} className="w-16 h-20 shrink-0" />
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-slate-400 font-medium">{item.id}</p>
+        <p className="text-xs text-slate-400 font-medium">{publicReference(item.id, item.id.startsWith("BKG") ? "BKG" : "ORD")}</p>
         <p className="text-sm font-medium text-neutral-800 leading-snug mt-0.5">{item.title}</p>
         <p className="text-xs text-slate-400">{item.sub}</p>
         <p className="text-xs text-slate-400">Vendor: {item.vendor}</p>
@@ -1634,7 +1640,9 @@ function PageYourOrders() {
           }),
         );
       })
-      .catch(() => {});
+      .catch(() => {
+        // The orders area keeps its existing empty-state when the request fails.
+      });
   }, []);
 
   return (
@@ -2494,7 +2502,9 @@ export function PageKycVerification({ onBack }: { onBack: () => void }) {
         setDocs(p.kycDocuments ?? {});
         setAddressCount(addrs.length);
       })
-      .catch(() => {});
+      .catch((loadError: unknown) =>
+        setError(loadError instanceof Error ? loadError.message : "Unable to load KYC details."),
+      );
   }, []);
 
   const completeness = computeProfileCompleteness(profile ?? {}, addressCount);
@@ -2512,23 +2522,17 @@ export function PageKycVerification({ onBack }: { onBack: () => void }) {
       setError("Each file must be 2MB or smaller.");
       return;
     }
-    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
     if (!allowed.includes(file.type)) {
-      setError("Upload JPG, PNG, or PDF only.");
+      setError("Upload a JPG or PNG image only.");
       return;
     }
     setBusyDoc(key);
     setError(null);
     setMessage(null);
     try {
-      let url = "";
-      if (file.type.startsWith("image/")) {
-        const uploaded = await socialApi.uploadMedia(file);
-        url = uploaded.url;
-      } else {
-        setError("PDF upload is not available yet. Please upload a JPG or PNG photo of your document.");
-        return;
-      }
+      const uploaded = await socialApi.uploadMedia(file);
+      const url = uploaded.url;
       const nextDocs = {
         ...docs,
         [key]: { url, status: "submitted" as const, submittedAt: new Date().toISOString() },
@@ -2553,7 +2557,7 @@ export function PageKycVerification({ onBack }: { onBack: () => void }) {
         <span className="text-teal-600"><IcShield s={28} /></span>
         <div>
           <p className="text-[17px] font-bold text-neutral-950">Identity Verification</p>
-          <p className="mt-2 text-[14px] leading-snug">Submit either Aadhaar or PAN card. Upload clear JPG, PNG, or PDF files (max 2MB each). Admin will verify within 24-48 hours.</p>
+          <p className="mt-2 text-[14px] leading-snug">Submit either Aadhaar or PAN card. Upload a clear JPG or PNG image (max 2MB). Admin will verify within 24-48 hours.</p>
         </div>
       </div>
       <div className="space-y-5">
@@ -2581,7 +2585,7 @@ export function PageKycVerification({ onBack }: { onBack: () => void }) {
               <input
                 ref={(el) => { fileRefs.current[doc.key] = el; }}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
+                accept="image/jpeg,image/png,image/webp"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];

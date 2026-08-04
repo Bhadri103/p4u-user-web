@@ -21,6 +21,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { avatarLetterFromDisplayName } from "@/lib/resolveCustomerId";
 import { isFoodModuleEnabled } from "@/lib/features";
+import { useLocale } from "@/providers/LocaleContext";
 
 const HEADER_TEAL = "#EAF4FF";
 const PRIMARY_ACTION_BLUE = "#1976D2";
@@ -40,6 +41,7 @@ type HeaderNavItem = {
 };
 
 export default function Header({ onCartOpen, variant = "default" }: HeaderProps) {
+  const { t } = useLocale();
   const isMarketplace = variant === "marketplace";
   const headerColor = HEADER_TEAL;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -86,6 +88,10 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
     "--nav-accent": item.accent,
     "--nav-soft": item.soft,
   } as CSSProperties);
+  const translatedNavLabel = (label: string) => ({
+    Home: t("nav.home"), Shop: t("nav.shop"), Socio: t("nav.socio"), Services: t("nav.services"),
+    "Find Home": t("nav.findHome"), "Classified Ads": t("nav.classified"),
+  }[label] || label);
 
   const pathname = usePathname();
   const isActive = (href: string) =>
@@ -714,7 +720,7 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
                     ) : (
                       <Icon className="h-5 w-5 flex-shrink-0 text-[#7A879B]" strokeWidth={2} />
                     )}
-                    <span className="max-w-full truncate">{label}</span>
+                    <span className="max-w-full truncate">{translatedNavLabel(label)}</span>
                   </Link>
                 );
               })}
@@ -747,7 +753,7 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
                 ) : (
                   <Icon className="mb-1 h-[18px] w-[18px] text-[#7A879B]" strokeWidth={2.1} />
                 )}
-                <span className="max-w-full truncate">{label === "Classified Ads" ? "Ads" : label === "Find Home" ? "Homes" : label}</span>
+                <span className="max-w-full truncate">{translatedNavLabel(label)}</span>
               </Link>
             );
           })}

@@ -65,7 +65,8 @@ export function normalizeClassifiedAd(input: unknown): ClassifiedAd {
 }
 
 function gatewayBase(): string {
-  return (process.env.NEXT_PUBLIC_API_GATEWAY_URL || "http://localhost:8080").replace(/\/$/, "");
+  const fallback = process.env.NODE_ENV === "production" ? "https://api.planext4u.com" : "http://localhost:8080";
+  return (process.env.NEXT_PUBLIC_API_GATEWAY_URL || fallback).replace(/\/$/, "");
 }
 
 function authHeader(): Record<string, string> {

@@ -11,6 +11,8 @@ import { commerceApi } from "@/lib/api/commerce";
 import { catalogApi } from "@/lib/api/catalog";
 import { pickProductImage, resolveMediaUrl } from "@/lib/media";
 import { downloadOrderInvoice } from "@/lib/invoice";
+import { publicReference } from "@/lib/publicReference";
+import { useLocale } from "@/providers/LocaleContext";
 
 type OrderLine = {
   id: string | number;
@@ -49,6 +51,7 @@ function getStatusPillClasses(status: string): string {
 }
 
 export default function OrderDetailsPage() {
+  const { t } = useLocale();
   const params = useParams<{ orderId: string }>();
   const orderId = String(params?.orderId || "");
   const [loading, setLoading] = useState(true);
@@ -313,7 +316,7 @@ export default function OrderDetailsPage() {
               <div className="rounded-2xl border bg-white p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h1 className="text-3xl font-bold text-neutral-900 leading-none">Order Details</h1>
+                    <h1 className="text-3xl font-bold text-neutral-900 leading-none">{t("order.details")}</h1>
                     <p className="text-sm text-slate-500 mt-2 font-medium">{String(order?.orderRef || order?.id || orderId)}</p>
                   </div>
                   <span className={`text-xs px-3 py-1 rounded-full capitalize font-semibold ${getStatusPillClasses(orderStatus)}`}>
@@ -323,7 +326,7 @@ export default function OrderDetailsPage() {
               </div>
 
               <div className="rounded-2xl border bg-white p-5">
-                <h2 className="flex items-center gap-2 text-xl font-bold text-neutral-900"><Truck className="h-5 w-5" /> Delivery &amp; returns</h2>
+                <h2 className="flex items-center gap-2 text-xl font-bold text-neutral-900"><Truck className="h-5 w-5" /> {t("order.deliveryReturns")}</h2>
                 <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
                   <p>Status: <strong className="capitalize text-neutral-900">{String(tracking?.status || orderStatus).replace(/_/g, " ")}</strong></p>
                   <p>Shipping: <strong className="capitalize text-neutral-900">{tracking?.shippingType === "own" ? "Own delivery" : (tracking?.shippingType || "Not dispatched")}</strong></p>
@@ -333,18 +336,18 @@ export default function OrderDetailsPage() {
                   {tracking?.estimatedDeliveryAt ? <p>ETA: <strong className="text-neutral-900">{new Date(tracking.estimatedDeliveryAt).toLocaleString()}</strong></p> : null}
                   {tracking?.deliveredAt ? <p>Delivered: <strong className="text-neutral-900">{new Date(tracking.deliveredAt).toLocaleString()}</strong></p> : null}
                 </div>
-                {tracking?.trackingUrl ? <a className="mt-3 inline-block text-sm font-semibold text-teal-700 hover:underline" href={tracking.trackingUrl} target="_blank" rel="noreferrer">Track with courier</a> : null}
+                {tracking?.trackingUrl ? <a className="mt-3 inline-block text-sm font-semibold text-teal-700 hover:underline" href={tracking.trackingUrl} target="_blank" rel="noreferrer">{t("order.track")}</a> : null}
                 {Array.isArray(tracking?.history) && tracking.history.length ? (
                   <ol className="mt-4 space-y-2 border-l-2 border-teal-100 pl-4 text-sm">
                     {tracking.history.map((entry: any, index: number) => <li key={`${entry.at}-${index}`}><strong className="capitalize">{String(entry.status).replace(/_/g, " ")}</strong><span className="ml-2 text-slate-500">{entry.at ? new Date(entry.at).toLocaleString() : ""}</span></li>)}
                   </ol>
                 ) : (
-                  <p className="mt-4 text-sm text-slate-500">Tracking updates will appear here once the seller ships your order.</p>
+                  <p className="mt-4 text-sm text-slate-500">{t("order.awaitingTracking")}</p>
                 )}
                 {tracking?.returnRequest ? <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Return status: <strong className="capitalize">{String(tracking.returnRequest.status || "requested").replace(/_/g, " ")}</strong>{tracking.returnRequest.refundStatus ? ` · Refund: ${tracking.returnRequest.refundStatus}` : ""}</p> : null}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {["shipped", "out_for_delivery"].includes(orderStatus.toLowerCase()) ? <button disabled={actionBusy} onClick={() => void confirmDelivery()} className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /> Confirm delivery</button> : null}
-                  {["delivered", "completed"].includes(orderStatus.toLowerCase()) && !tracking?.returnRequest ? <button disabled={actionBusy} onClick={() => void requestReturn()} className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold text-neutral-800 disabled:opacity-50"><RotateCcw className="h-4 w-4" /> Request return</button> : null}
+                  {["shipped", "out_for_delivery"].includes(orderStatus.toLowerCase()) ? <button disabled={actionBusy} onClick={() => void confirmDelivery()} className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /> {t("order.confirmDelivery")}</button> : null}
+                  {["delivered", "completed"].includes(orderStatus.toLowerCase()) && !tracking?.returnRequest ? <button disabled={actionBusy} onClick={() => void requestReturn()} className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold text-neutral-800 disabled:opacity-50"><RotateCcw className="h-4 w-4" /> {t("order.requestReturn")}</button> : null}
                 </div>
                 {actionError ? <p className="mt-3 text-sm text-red-600">{actionError}</p> : null}
               </div>
@@ -417,38 +420,38 @@ export default function OrderDetailsPage() {
               </div>
 
               <div className="rounded-2xl border bg-white p-5">
-                <h2 className="font-bold text-neutral-900 mb-3 text-3xl leading-none">Bill Details</h2>
+                <h2 className="font-bold text-neutral-900 mb-3 text-3xl leading-none">{t("order.bill")}</h2>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-slate-600">
-                    <span>Item Total (MRP)</span>
+                    <span>{t("order.itemTotal")}</span>
                     <span>{inr(itemTotal)}</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
-                    <span>Delivery Fee</span>
-                    <span className="text-emerald-600 font-semibold">FREE</span>
+                    <span>{t("order.deliveryFee")}</span>
+                    <span className="text-emerald-600 font-semibold">{t("order.free")}</span>
                   </div>
                   <div className="border-t pt-2 flex justify-between font-semibold text-neutral-900">
-                    <span>Grand Total</span>
+                    <span>{t("order.grandTotal")}</span>
                     <span>{inr(total)}</span>
                   </div>
                 </div>
               </div>
 
               <div className="rounded-2xl border bg-white p-5">
-                <h2 className="font-bold text-neutral-900 mb-3 text-3xl leading-none">Order Info</h2>
+                <h2 className="font-bold text-neutral-900 mb-3 text-3xl leading-none">{t("order.info")}</h2>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-slate-600">
-                    <span>Order ID</span>
+                    <span>{t("order.id")}</span>
                     <span className="text-neutral-900 font-medium">{String(order?.orderRef || order?.id || orderId)}</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
-                    <span>Placed on</span>
+                    <span>{t("order.placed")}</span>
                     <span className="text-neutral-900 font-medium">
                       {order?.createdAt ? new Date(order.createdAt).toLocaleString() : "—"}
                     </span>
                   </div>
                   <div className="flex justify-between text-slate-600">
-                    <span>Payment</span>
+                    <span>{t("order.payment")}</span>
                     <span
                       className={
                         String(
@@ -478,7 +481,7 @@ export default function OrderDetailsPage() {
                   </div>
                   {Boolean((order as { metadata?: { shippingAddress?: unknown } } | null)?.metadata?.shippingAddress) && (
                     <div className="flex justify-between gap-3 text-slate-600">
-                      <span>Deliver to</span>
+                      <span>{t("order.deliverTo")}</span>
                       <span className="text-neutral-900 font-medium text-right max-w-[60%]">
                         {(() => {
                           const ship = (order as { metadata?: { shippingAddress?: Record<string, unknown> } })
@@ -490,8 +493,8 @@ export default function OrderDetailsPage() {
                     </div>
                   )}
                   <div className="flex justify-between text-slate-600">
-                    <span>Payment Ref ID</span>
-                    <span className="text-neutral-900 font-medium">{paymentRef}</span>
+                    <span>{t("order.paymentRef")}</span>
+                    <span className="text-neutral-900 font-medium">{publicReference(paymentRef, "PAY")}</span>
                   </div>
                 </div>
                 {(() => {

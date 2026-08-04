@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "@/providers/LocaleContext";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -49,6 +50,7 @@ interface Props {
 }
 
 export default function ServiceDetailView({ service, vendorId, categoryName, onBack }: Props) {
+  const { t } = useLocale();
   const router = useRouter();
   const { isLoggedIn } = useAuth();
   const [date, setDate] = useState("");
@@ -237,7 +239,7 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={img} alt={service.title} className="h-full w-full object-cover transition duration-700 hover:scale-[1.02]" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">No image available</div>
+                  <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">{t("service.noImage")}</div>
                 )}
                 <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4">
                   {categoryName ? (
@@ -285,8 +287,8 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
 
             <aside className="bg-gradient-to-b from-white to-[#f8fbff] p-5 sm:p-7 lg:p-8">
               <div className="mb-6">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Book your service</p>
-                <h2 className="mt-2 text-2xl font-bold tracking-tight text-neutral-950">Choose a convenient time</h2>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">{t("service.book")}</p>
+                <h2 className="mt-2 text-2xl font-bold tracking-tight text-neutral-950">{t("service.chooseTime")}</h2>
                 <p className="mt-1.5 text-sm leading-6 text-slate-500">Select a date and one of the available appointment windows.</p>
               </div>
 
@@ -294,7 +296,7 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
                 <span className="absolute left-[17px] top-10 h-[calc(100%-54px)] w-px bg-slate-200" />
                 <div className="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100">
                   <span className="absolute -left-11 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white shadow-md shadow-blue-200">1</span>
-                  <label htmlFor="service-date" className="flex items-center gap-2 text-sm font-bold text-neutral-800"><Calendar className="h-4 w-4 text-blue-600" /> Select date</label>
+                  <label htmlFor="service-date" className="flex items-center gap-2 text-sm font-bold text-neutral-800"><Calendar className="h-4 w-4 text-blue-600" /> {t("service.selectDate")}</label>
                   <div className="relative mt-3">
                     <input id="service-date" type="date" min={today} max={bookingLimit} value={date} onChange={(event) => setDate(event.target.value)} onClick={(event) => event.currentTarget.showPicker?.()} className="h-12 w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-neutral-800 outline-none [color-scheme:light] focus:border-blue-500 focus:bg-white" />
                   </div>
@@ -304,7 +306,7 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
                 <div className={`relative mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition ${date ? "" : "opacity-60"}`}>
                   <span className={`absolute -left-11 top-0 flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold shadow-sm ${date ? "bg-blue-600 text-white shadow-blue-200" : "border border-slate-200 bg-white text-slate-400"}`}>2</span>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="flex items-center gap-2 text-sm font-bold text-neutral-800"><Clock3 className="h-4 w-4 text-blue-600" /> Select time</span>
+                    <span className="flex items-center gap-2 text-sm font-bold text-neutral-800"><Clock3 className="h-4 w-4 text-blue-600" /> {t("service.selectTime")}</span>
                     {slotsLoading ? <Loader2 className="h-4 w-4 animate-spin text-blue-600" /> : date ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">{availableSlots.length} available</span> : null}
                   </div>
 
@@ -329,7 +331,7 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
                           >
                             {item.label}
                             {full ? (
-                              <span className="ml-1 text-[10px] font-bold uppercase no-underline">Full</span>
+                              <span className="ml-1 text-[10px] font-bold uppercase no-underline">{t("service.full")}</span>
                             ) : null}
                             {active ? <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-600" /> : null}
                           </button>
@@ -345,7 +347,7 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
                     </div>
                   )}
                   {date && !slotsLoading && availableSlots.length === 0 && takenSlots.length > 0 ? (
-                    <p className="mt-2 text-xs text-amber-700">All listed times are already booked. Try another date.</p>
+                    <p className="mt-2 text-xs text-amber-700">{t("service.allBooked")}</p>
                   ) : null}
                 </div>
               </div>
@@ -373,7 +375,7 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
         <div className="mt-6 grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
           <section className="rounded-[24px] border border-slate-200/80 bg-white p-6 shadow-[0_10px_40px_rgba(32,33,36,0.04)] sm:p-7">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">What’s included</p>
-            <h2 className="mt-2 text-xl font-bold text-neutral-950">About this service</h2>
+            <h2 className="mt-2 text-xl font-bold text-neutral-950">{t("service.about")}</h2>
             <p className="mt-3 text-sm leading-7 text-slate-600">{service.description || "Service details will be shared before your appointment."}</p>
             <ul className="mt-5 space-y-3">
               {HIGHLIGHTS.map((highlight) => (
@@ -389,9 +391,9 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Real experiences</p>
-                <h2 className="mt-2 text-xl font-bold text-neutral-950">Customer reviews <span className="text-slate-400">({reviews.length})</span></h2>
+                <h2 className="mt-2 text-xl font-bold text-neutral-950">{t("service.reviews")} <span className="text-slate-400">({reviews.length})</span></h2>
               </div>
-              <button onClick={() => setReviewOpen((open) => !open)} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30">Write a review</button>
+              <button onClick={() => setReviewOpen((open) => !open)} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30">{t("service.writeReview")}</button>
             </div>
 
             {reviewOpen ? (
@@ -415,8 +417,8 @@ export default function ServiceDetailView({ service, vendorId, categoryName, onB
             {reviews.length === 0 ? (
               <div className="mt-6 flex flex-col items-center rounded-2xl bg-slate-50 px-6 py-8 text-center">
                 <div className="flex gap-1 text-slate-300">{[1, 2, 3, 4, 5].map((star) => <Star key={star} className="h-5 w-5" />)}</div>
-                <p className="mt-3 text-sm font-semibold text-slate-700">No reviews yet</p>
-                <p className="mt-1 text-xs text-slate-500">Be the first to share your experience.</p>
+                <p className="mt-3 text-sm font-semibold text-slate-700">{t("service.noReviews")}</p>
+                <p className="mt-1 text-xs text-slate-500">{t("service.firstReview")}</p>
               </div>
             ) : (
               <ul className="mt-6 space-y-4">

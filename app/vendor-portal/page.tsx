@@ -8,6 +8,7 @@ import { vendorApi, VendorProfile, VendorOrder, VendorReview } from "@/lib/api/v
 import { commerceApi, Booking } from "@/lib/api/commerce";
 import AuthGuard from "@/providers/AuthGuard";
 import { pickVendorImage } from "@/lib/media";
+import { publicReference } from "@/lib/publicReference";
 
 type Tab = "profile" | "orders" | "bookings" | "reviews";
 
@@ -133,7 +134,7 @@ export default function VendorPortalPage() {
             {orders.map((o) => (
               <div key={o.id} className="p-4 rounded-xl border bg-white flex justify-between items-center">
                 <div>
-                  <p className="font-semibold">Order #{o.id}</p>
+                  <p className="font-semibold">{publicReference(o.id, "ORD")}</p>
                   <p className="text-sm text-gray-500">
                     {new Date(o.createdAt).toLocaleDateString()}
                   </p>
@@ -166,8 +167,7 @@ export default function VendorPortalPage() {
             {bookings.map((b) => (
               <div key={b.id} className="p-4 rounded-xl border bg-white flex justify-between items-center gap-4">
                 <div>
-                  <p className="font-semibold">Booking #{b.id}</p>
-                  <p className="text-xs text-gray-500">Customer: {b.customerId ?? "—"}</p>
+                  <p className="font-semibold">{publicReference(b.id, "BKG")}</p>
                   <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5" />
