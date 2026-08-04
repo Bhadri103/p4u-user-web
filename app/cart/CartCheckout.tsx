@@ -255,7 +255,7 @@ export default function CartCheckout({
   const { addresses, selectedAddress, selectedAddressId, isLoading: addressesLoading, error: addressError, selectAddress } = useAddresses();
   const pageRef = useRef<HTMLDivElement>(null);
   const { runWithLoading } = useAppLoading();
-  const { items: cartItems, removeFromCart, updateQty, clearCart, addToCart, applyServerCart } = useCart();
+  const { items: cartItems, removeFromCart, updateQty, clearCart, addToCart } = useCart();
   const [step, setStep] = useState<number>(0);
   const [placing, setPlacing] = useState<boolean>(false);
   const [orderError, setOrderError] = useState<string | null>(null);
@@ -329,8 +329,13 @@ export default function CartCheckout({
     setQuoteLoading(true);
     setQuoteError(null);
     try {
-      const synced = await commerceApi.updateCart(
-        cartItems.map((i) => ({
+      // Price the exact UI lines. Do NOT syncCart here — a late quote must never
+      // rewrite the server cart after checkout has already cleared it.
+      const q = await commerceApi.quoteCart({
+        redeemPoints: pts,
+        ...(coupon ? { couponCode: coupon } : {}),
+        syncCart: false,
+        items: cartItems.map((i) => ({
           productId: catalogProductId(i),
           quantity: i.qty,
           unitPrice: i.price,
@@ -347,24 +352,6 @@ export default function CartCheckout({
               : {}),
           },
         })),
-      );
-      if (seq !== quoteSeqRef.current) return;
-      const serverSig = (synced.items || [])
-        .map((i) => `${i.productId}:${i.quantity}:${i.vendorId || ""}`)
-        .sort()
-        .join("|");
-      const localSig = cartItems
-        .map((i) => `${catalogProductId(i)}:${i.qty}:${i.vendorId || ""}`)
-        .sort()
-        .join("|");
-      // Align UI to server truth once; avoid quote↔setItems loops when already matching.
-      if (serverSig !== localSig) {
-        applyServerCart(synced);
-        return;
-      }
-      const q = await commerceApi.quoteCart({
-        redeemPoints: pts,
-        ...(coupon ? { couponCode: coupon } : {}),
       });
       if (seq !== quoteSeqRef.current) return;
       setQuote(q);
@@ -378,7 +365,7 @@ export default function CartCheckout({
     } finally {
       if (seq === quoteSeqRef.current) setQuoteLoading(false);
     }
-  }, [cartItems, applyServerCart]);
+  }, [cartItems]);
 
   useEffect(() => {
     refreshQuote(redeemApplied ? redeemPoints : 0, couponCode || undefined);
@@ -390,11 +377,23 @@ export default function CartCheckout({
   const surgeCost       = quote ? Number(quote.surgeCost) : 0;
   const redeemSave      = quote ? Number(quote.pointsRedeemedValue) : 0;
   const couponDiscount  = quote ? Number(quote.discount) : 0;
-  const quotedItemTotal = quote ? Number(quote.itemSubtotal) : itemTotal;
-  const total           = quote ? Number(quote.grandTotal) : itemTotal;
+  // Bill line items always match the qty shown in the cart UI.
+  const quotedItemTotal = itemTotal;
+  const total = quote
+    ? Math.max(
+        0,
+        itemTotal -
+          (redeemApplied ? redeemSave : 0) -
+          couponDiscount +
+          platformFee +
+          gstOnFee +
+          deliveryFee +
+          surgeCost,
+      )
+    : itemTotal;
   const walletBalance   = quote ? Number(quote.walletBalanceBefore) : 0;
   const maxRedeemValue  = quote ? Number(quote.maxRedeemableValue) : 0;
-  const meetsMinCart    = quote ? quote.meetsMinCart : true;
+  const meetsMinCart    = quote ? itemTotal >= Number(quote.minCartValue) : true;
   const minCartValue    = quote ? Number(quote.minCartValue) : 0;
 
   const scrollToTop = useCallback(() => {
@@ -406,6 +405,8 @@ export default function CartCheckout({
     if (placing) return;
     setPlacing(true);
     setOrderError(null);
+    // Invalidate in-flight quotes so they cannot rewrite the cart after we clear it.
+    quoteSeqRef.current += 1;
     try {
       await runWithLoading(async () => {
         const token = typeof window !== "undefined" ? localStorage.getItem("p4u_token") : null;
@@ -424,7 +425,7 @@ export default function CartCheckout({
           return;
         }
         if (cartItems.length > 0) {
-          const synced = await commerceApi.updateCart(
+          await commerceApi.updateCart(
             cartItems.map((i) => ({
               productId: catalogProductId(i),
               quantity: i.qty,
@@ -443,7 +444,6 @@ export default function CartCheckout({
               },
             })),
           );
-          applyServerCart(synced);
         }
 
         const paymentMode = payMethod === "cod" ? "cod" : "razorpay";
@@ -492,12 +492,20 @@ export default function CartCheckout({
             0,
           ) || order.totalAmount || total,
         );
+        // Prefer the bill total the customer saw when API omits fee components.
+        const displayAmount =
+          Number.isFinite(paidAmount) && paidAmount > 0
+            ? Math.max(paidAmount, total)
+            : total;
 
         if (paymentMode === "cod") {
-          setPlacedAmount(Number.isFinite(paidAmount) ? paidAmount : total);
+          setPlacedAmount(displayAmount);
           setPlacedOrderRef(orderRef);
+          quoteSeqRef.current += 1;
           try {
             await clearCart();
+            // Second clear beats any in-flight quote/update that raced the first clear.
+            await commerceApi.clearCart().catch(() => undefined);
           } catch {
             setOrderError(
               `Order ${orderRef} placed, but cart could not be cleared. Open My Orders — remove leftover cart items if needed.`,
@@ -513,7 +521,7 @@ export default function CartCheckout({
         const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!;
         const intent = await paymentsApi.createIntent({
           orderId: order.id,
-          amount: paidAmount,
+          amount: displayAmount,
           metadata: {
             orderType: "product",
             domain: "product",
@@ -529,7 +537,7 @@ export default function CartCheckout({
         }
 
         const Rzp = await loadRazorpay();
-        const amountSubunits = Math.round(Number(paidAmount) * 100);
+        const amountSubunits = Math.round(Number(displayAmount) * 100);
         await new Promise<void>((resolve, reject) => {
           const rzp = new Rzp({
             key: razorpayKey,
@@ -558,10 +566,12 @@ export default function CartCheckout({
                   reject(new Error("Commerce confirmation failed"));
                   return;
                 }
-                setPlacedAmount(Number.isFinite(paidAmount) ? paidAmount : total);
+                setPlacedAmount(displayAmount);
                 setPlacedOrderRef(orderRef);
+                quoteSeqRef.current += 1;
                 try {
                   await clearCart();
+                  await commerceApi.clearCart().catch(() => undefined);
                 } catch {
                   setOrderError(
                     `Order ${orderRef} placed, but cart could not be cleared. Refresh My Orders — remove leftover cart items if needed.`,

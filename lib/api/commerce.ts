@@ -260,11 +260,39 @@ export const commerceApi = {
   },
 
   /** Pre-checkout pricing engine: returns full breakdown (fees, commission, redemption cap). */
-  quoteCart(opts: { redeemPoints?: number; couponCode?: string; vendorId?: string } = {}) {
+  quoteCart(
+    opts: {
+      redeemPoints?: number;
+      couponCode?: string;
+      vendorId?: string;
+      items?: {
+        productId: string | number;
+        quantity: number;
+        unitPrice?: number;
+        vendorId?: string | null;
+        variationId?: string | null;
+        metadata?: Record<string, unknown> | null;
+      }[];
+      syncCart?: boolean;
+    } = {},
+  ) {
     return apiClient.post<CartQuoteBreakdown>(`${BASE}/cart/quote`, {
       redeemPoints: opts.redeemPoints ?? 0,
       ...(opts.couponCode ? { couponCode: opts.couponCode } : {}),
       ...(opts.vendorId ? { vendorId: opts.vendorId } : {}),
+      ...(opts.syncCart === false ? { syncCart: false } : {}),
+      ...(opts.items
+        ? {
+            items: opts.items.map((i) => ({
+              productId: String(i.productId),
+              quantity: i.quantity,
+              ...(i.unitPrice != null ? { unitPrice: i.unitPrice } : {}),
+              ...(i.vendorId != null && i.vendorId !== "" ? { vendorId: i.vendorId } : {}),
+              ...(i.variationId ? { variationId: String(i.variationId) } : {}),
+              ...(i.metadata != null && Object.keys(i.metadata).length ? { metadata: i.metadata } : {}),
+            })),
+          }
+        : {}),
     });
   },
 

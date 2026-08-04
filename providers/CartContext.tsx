@@ -275,6 +275,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyServerCart = useCallback((serverCart: Cart) => {
+    try {
+      const at = Number(localStorage.getItem(CLEARED_AT_KEY) || 0);
+      // After checkout, never let a stale sync put items back for a few minutes.
+      if (at > 0 && Date.now() - at < 5 * 60 * 1000) {
+        if (serverCart.items?.length) {
+          setItems([]);
+          void commerceApi.clearCart().catch(() => undefined);
+          return;
+        }
+      }
+    } catch { /* ignore */ }
     setSyncError(null);
     setItems(mapServerItems(serverCart));
   }, []);
