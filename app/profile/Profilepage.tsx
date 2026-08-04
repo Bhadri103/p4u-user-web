@@ -1041,7 +1041,7 @@ function PageProfile({ setActive }: { setActive: (p: ActivePage) => void }) {
     { label: "Referrals", icon: <IcGift s={20} />, value: referralCode || referralCount, href: "/referrals" },
     { label: "My Classifieds", icon: <IcNav s={20} />, href: "/classified" },
     { label: "Support Tickets", icon: <IcFileText s={20} />, href: "/help-support" },
-    { label: "Settings", icon: <IcSettings s={20} />, page: "edit-profile" },
+    { label: "Select Language", icon: <IcGlobe s={20} />, page: "select-language" },
     { label: "Logout", icon: <IcLogOut s={20} />, danger: true, page: "logout" },
   ];
 
