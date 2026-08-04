@@ -213,12 +213,16 @@ function PhoneStep({
           marginBottom: 14,
           padding: 3,
           borderRadius: 10,
-          background: "#FFFFFF",
+          background: "#E9F5FD",
+          border: "1px solid #D6E8F3",
           gap: 4,
         }}
       >
         <button
           type="button"
+          className="p4u-auth-tab"
+          data-active={tab === "signin"}
+          aria-pressed={tab === "signin"}
           onClick={() => {
             onTabChange("signin");
             setCustomOccupation("");
@@ -242,6 +246,9 @@ function PhoneStep({
         </button>
         <button
           type="button"
+          className="p4u-auth-tab"
+          data-active={tab === "signup"}
+          aria-pressed={tab === "signup"}
           onClick={() => {
             onTabChange("signup");
             setCustomOccupation("");
@@ -416,6 +423,7 @@ function PhoneStep({
       )}
 
       <button
+        className="p4u-auth-primary"
         onClick={() => void submit()}
         disabled={loading}
         style={{
@@ -688,6 +696,7 @@ function OtpStep({
       )}
 
       <button
+        className="p4u-auth-primary"
         onClick={() => void verify()}
         disabled={loading || !filled}
         style={{

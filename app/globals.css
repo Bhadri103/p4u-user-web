@@ -2,16 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 :root {
-  --primary-teal: #89CFF0;
-  --primary-dark: #89CFF0;
-  --navy-blue: #89CFF0;
-  --hero-blue: #89CFF0;
-  --light-teal: #EAF4FF;
-  --light-cyan: #EAF4FF;
-  --yellow-cream: #EAF4FF;
-  --salmon-peach: #D8ECFF;
-  --dark-gray: #2d3436;
-  --light-bg: #f8f9fa;
+  --primary-teal: #4C9ED6;
+  --primary-dark: #327FB5;
+  --navy-blue: #4C9ED6;
+  --hero-blue: #4C9ED6;
+  --light-teal: #E9F5FD;
+  --light-cyan: #E9F5FD;
+  --yellow-cream: #F7FBFE;
+  --salmon-peach: #D9EEFA;
+  --dark-gray: #17212B;
+  --light-bg: #F7FBFE;
 }
 
 *{
@@ -1642,4 +1642,510 @@ h3 > svg [stroke]:not([stroke="none"]) {
 
 .p4u-address-button > svg [stroke]:not([stroke="none"]) {
   stroke: #FFFFFF !important;
+}
+
+/* --------------------------------------------------------------------------
+   P4U customer mobile parity — canonical light theme
+   Keep this final layer last so legacy screens share one visual system.
+   -------------------------------------------------------------------------- */
+:root {
+  --p4u-ink: #17212B;
+  --p4u-primary: #4C9ED6;
+  --p4u-primary-dark: #327FB5;
+  --p4u-primary-soft: #E9F5FD;
+  --p4u-canvas: #F7FBFE;
+  --p4u-card: #FFFFFF;
+  --p4u-border: #D6E8F3;
+  --p4u-muted: #687783;
+  --p4u-accent: #D9EEFA;
+  --p4u-info: #69B6E5;
+  --p4u-success: #35A28D;
+  --p4u-danger: #B85C68;
+  --p4u-pink: #E8899A;
+  --p4u-lime: #75B9A9;
+  --p4u-gradient: linear-gradient(135deg, #82CAF2, #4C9ED6);
+
+  --primary-teal: var(--p4u-primary);
+  --primary-dark: var(--p4u-primary-dark);
+  --navy-blue: var(--p4u-primary);
+  --hero-blue: var(--p4u-primary);
+  --light-teal: var(--p4u-primary-soft);
+  --light-cyan: var(--p4u-primary-soft);
+  --yellow-cream: var(--p4u-canvas);
+  --salmon-peach: var(--p4u-accent);
+  --dark-gray: var(--p4u-ink);
+  --light-bg: var(--p4u-canvas);
+  --theme-ink: var(--p4u-ink);
+  --theme-primary: var(--p4u-primary);
+  --theme-primary-hover: var(--p4u-primary-dark);
+
+  --background: 203 78% 98%;
+  --foreground: 207 30% 13%;
+  --card: 0 0% 100%;
+  --card-foreground: 207 30% 13%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 207 30% 13%;
+  --primary: 204 62% 57%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 203 78% 95%;
+  --secondary-foreground: 207 30% 13%;
+  --muted: 203 78% 95%;
+  --muted-foreground: 204 12% 46%;
+  --accent: 201 68% 92%;
+  --accent-foreground: 207 30% 13%;
+  --destructive: 353 39% 54%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 202 47% 90%;
+  --input: 202 47% 90%;
+  --ring: 204 62% 57%;
+  --radius: 1rem;
+}
+
+html {
+  color-scheme: light;
+  background: var(--p4u-canvas) !important;
+  scroll-behavior: smooth;
+}
+
+body,
+.app-page-transition,
+main {
+  background: var(--p4u-canvas) !important;
+  color: var(--p4u-ink) !important;
+}
+
+body {
+  min-height: 100vh;
+  font-family: Arial, "Helvetica Neue", sans-serif !important;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--p4u-accent);
+  color: var(--p4u-ink);
+}
+
+:focus-visible {
+  outline: 3px solid #82CAF2 !important;
+  outline-offset: 2px;
+}
+
+/* No dark panels: dark legacy action utilities become the mobile primary. */
+.bg-neutral-950,
+.bg-neutral-900,
+.bg-neutral-800,
+.bg-slate-950,
+.bg-slate-900,
+.bg-gray-950,
+.bg-gray-900,
+.bg-black,
+button.bg-neutral-900,
+a.bg-neutral-900,
+button.bg-neutral-800,
+a.bg-neutral-800 {
+  background-color: var(--p4u-primary) !important;
+  background-image: none !important;
+  color: var(--p4u-card) !important;
+}
+
+/* Mobile canvas and soft section surfaces. */
+.bg-gray-50,
+.bg-slate-50,
+.bg-neutral-50,
+.bg-stone-50,
+.bg-gray-100,
+.bg-slate-100,
+.bg-neutral-100,
+.bg-teal-50,
+.bg-blue-50,
+.bg-cyan-50,
+.bg-sky-50,
+.bg-purple-50,
+.bg-indigo-50,
+.bg-amber-50,
+.bg-yellow-50,
+.bg-rose-50,
+.bg-red-50 {
+  background-color: var(--p4u-primary-soft) !important;
+  background-image: none !important;
+}
+
+.bg-white,
+[class*="bg-white/"] {
+  background-color: var(--p4u-card) !important;
+}
+
+/* Actions use the Flutter primary gradient; no unrelated hues enter the UI. */
+.bg-teal-500, .bg-teal-600, .bg-teal-700,
+.bg-blue-500, .bg-blue-600, .bg-blue-700,
+.bg-cyan-500, .bg-cyan-600, .bg-sky-500, .bg-sky-600,
+.bg-indigo-500, .bg-indigo-600, .bg-purple-500, .bg-purple-600,
+.hover\:bg-teal-700:hover, .hover\:bg-blue-600:hover,
+.hover\:bg-blue-700:hover, .hover\:bg-purple-600:hover,
+.seller-cta,
+.p4u-address-button {
+  background: var(--p4u-gradient) !important;
+  color: var(--p4u-card) !important;
+}
+
+.bg-red-500, .bg-red-600, .bg-rose-500, .bg-rose-600 {
+  background: var(--p4u-danger) !important;
+  color: var(--p4u-card) !important;
+}
+
+.bg-green-500, .bg-green-600, .bg-emerald-500, .bg-emerald-600 {
+  background: var(--p4u-success) !important;
+  color: var(--p4u-card) !important;
+}
+
+/* Text, borders, and icons mirror mobile component defaults. */
+.text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700,
+.text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700,
+.text-neutral-400, .text-neutral-500, .text-neutral-600, .text-neutral-700 {
+  color: var(--p4u-muted) !important;
+}
+
+.text-gray-800, .text-gray-900, .text-neutral-800, .text-neutral-900,
+.text-slate-800, .text-slate-900 {
+  color: var(--p4u-ink) !important;
+}
+
+.text-teal-500, .text-teal-600, .text-teal-700, .text-teal-800,
+.text-blue-500, .text-blue-600, .text-blue-700, .text-blue-800,
+.text-cyan-500, .text-cyan-600, .text-sky-500, .text-sky-600,
+.text-purple-500, .text-purple-600, .text-indigo-500, .text-indigo-600 {
+  color: var(--p4u-primary-dark) !important;
+}
+
+.text-red-500, .text-red-600, .text-red-700, .text-rose-500, .text-rose-600 {
+  color: var(--p4u-danger) !important;
+}
+
+.text-green-500, .text-green-600, .text-green-700,
+.text-emerald-500, .text-emerald-600, .text-emerald-700 {
+  color: var(--p4u-success) !important;
+}
+
+.border, [class*="border-gray-"], [class*="border-slate-"],
+[class*="border-neutral-"], [class*="border-blue-"],
+[class*="border-teal-"], [class*="border-cyan-"] {
+  border-color: var(--p4u-border) !important;
+}
+
+svg.lucide,
+button svg.lucide,
+a svg.lucide,
+label svg.lucide {
+  color: var(--p4u-muted) !important;
+}
+
+/* Consistent mobile-like component geometry and soft depth. */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  border-color: var(--p4u-border) !important;
+  border-radius: 1rem !important;
+  background: var(--p4u-card) !important;
+  color: var(--p4u-ink) !important;
+  box-shadow: 0 1px 2px #174C7894;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--p4u-primary) !important;
+  box-shadow: 0 0 0 4px #294C7894 !important;
+}
+
+button,
+a {
+  transition: color 180ms ease, background-color 180ms ease,
+    border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+button:not(:disabled):active,
+a:active {
+  transform: scale(.98);
+}
+
+.rounded-xl,
+.rounded-2xl,
+.rounded-3xl {
+  border-color: var(--p4u-border);
+}
+
+.shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl {
+  box-shadow: 0 12px 30px #174C7894 !important;
+}
+
+.p4u-header-surface {
+  border-bottom: 1px solid var(--p4u-border) !important;
+  background: linear-gradient(135deg, #FFFFFF, #E9F5FD) !important;
+  box-shadow: 0 8px 24px #174C7894 !important;
+}
+
+.site-footer {
+  border-top: 1px solid var(--p4u-border) !important;
+  background: linear-gradient(135deg, #E9F5FD, #D9EEFA) !important;
+  color: var(--p4u-ink) !important;
+}
+
+.mobile-app-dock {
+  border: 1px solid var(--p4u-border) !important;
+  background: #FFFFFF !important;
+  box-shadow: 0 12px 30px #294C7894 !important;
+}
+
+@media (hover: hover) {
+  .bg-white.rounded-xl:hover,
+  .bg-white.rounded-2xl:hover,
+  .bg-white.rounded-3xl:hover {
+    border-color: var(--p4u-primary) !important;
+    box-shadow: 0 16px 34px #294C7894 !important;
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Final control and elevation pass: uniformly mild mobile-blue depth. */
+[class*="shadow"],
+[style*="box-shadow"],
+.welcome-card,
+.welcome-wallet,
+.welcome-intro,
+.welcome-intro__logo,
+.welcome-intro__icons span,
+.mobile-app-dock,
+.p4u-header-surface,
+header,
+nav {
+  box-shadow: 0 5px 16px #174C7894 !important;
+}
+
+[class*="shadow"]:hover,
+.welcome-card:hover,
+.welcome-wallet:hover,
+.welcome-intro__logo:hover,
+.welcome-quick-link:hover,
+.bg-white.rounded-xl:hover,
+.bg-white.rounded-2xl:hover,
+.bg-white.rounded-3xl:hover {
+  box-shadow: 0 7px 20px #294C7894 !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  box-shadow: 0 2px 8px #174C7894 !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 0 3px #294C7894 !important;
+}
+
+button:disabled {
+  border-color: #D6E8F3 !important;
+  background: #D9EEFA !important;
+  color: #687783 !important;
+  box-shadow: none !important;
+}
+
+/* Ultra-light elevation: visible as a soft edge, never a dark floating shadow. */
+[class*="shadow"],
+[style*="box-shadow"],
+.welcome-card,
+.welcome-wallet,
+.welcome-intro,
+.welcome-intro__logo,
+.welcome-intro__icons span,
+.mobile-app-dock,
+.p4u-header-surface,
+header,
+nav,
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  box-shadow: 0 .5px 1px #174C7894 !important;
+}
+
+[class*="shadow"]:hover,
+.welcome-card:hover,
+.welcome-wallet:hover,
+.welcome-intro__logo:hover,
+.welcome-quick-link:hover,
+.bg-white.rounded-xl:hover,
+.bg-white.rounded-2xl:hover,
+.bg-white.rounded-3xl:hover {
+  box-shadow: 0 1px 2px #174C7894 !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 0 1px #294C7894 !important;
+}
+
+/* Search history is a quiet list, not a set of primary actions. */
+button.p4u-search-suggestion,
+button.p4u-search-clear {
+  border-color: transparent !important;
+  background: #FFFFFF !important;
+  color: #687783 !important;
+  box-shadow: none !important;
+}
+
+button.p4u-search-suggestion:hover,
+button.p4u-search-clear:hover {
+  border-color: #D6E8F3 !important;
+  background: #E9F5FD !important;
+  color: #17212B !important;
+  box-shadow: none !important;
+}
+
+button.p4u-search-suggestion svg,
+button.p4u-search-clear svg {
+  color: #687783 !important;
+  stroke: #687783 !important;
+}
+
+button.p4u-search-suggestion > span:first-of-type {
+  border: 1px solid #D6E8F3;
+  background: #F7FBFE !important;
+}
+
+/* Correct control hierarchy: filters, chips and tabs stay unfilled. */
+button:not(:disabled),
+[role="button"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: inherit !important;
+  box-shadow: none !important;
+}
+
+/* Blue fill is reserved for explicitly styled primary actions only. */
+button.bg-teal-500:not(:disabled),
+button.bg-teal-600:not(:disabled),
+button.bg-teal-700:not(:disabled),
+button.bg-blue-500:not(:disabled),
+button.bg-blue-600:not(:disabled),
+button.bg-blue-700:not(:disabled),
+button.bg-\[\#89CFF0\]:not(:disabled),
+button.bg-\[\#4C9ED6\]:not(:disabled),
+a.seller-cta,
+a.p4u-address-button,
+button.p4u-address-button {
+  border-color: #4C9ED6 !important;
+  background: linear-gradient(135deg, #82CAF2, #4C9ED6) !important;
+  color: #FFFFFF !important;
+}
+
+button.bg-teal-500:not(:disabled):hover,
+button.bg-teal-600:not(:disabled):hover,
+button.bg-teal-700:not(:disabled):hover,
+button.bg-blue-500:not(:disabled):hover,
+button.bg-blue-600:not(:disabled):hover,
+button.bg-blue-700:not(:disabled):hover,
+button.bg-\[\#89CFF0\]:not(:disabled):hover,
+button.bg-\[\#4C9ED6\]:not(:disabled):hover,
+a.seller-cta:hover,
+a.p4u-address-button:hover,
+button.p4u-address-button:hover {
+  background: #327FB5 !important;
+  color: #FFFFFF !important;
+}
+
+/* Use borders, not elevation. This intentionally removes every legacy shadow. */
+*,
+*::before,
+*::after,
+*:hover,
+*:focus,
+*:focus-visible {
+  box-shadow: none !important;
+}
+
+.rounded-lg.border,
+.rounded-xl.border,
+.rounded-2xl.border,
+.rounded-3xl.border,
+[class*="ring-1"] {
+  border-color: #D6E8F3 !important;
+}
+
+/* Authentication submits are primary actions even though they use inline layout. */
+button.p4u-auth-primary:not(:disabled) {
+  border-color: #4C9ED6 !important;
+  background: linear-gradient(135deg, #82CAF2, #4C9ED6) !important;
+  color: #FFFFFF !important;
+}
+
+button.p4u-auth-primary:not(:disabled):hover {
+  background: #327FB5 !important;
+  color: #FFFFFF !important;
+}
+
+/* Inputs retain a light border without browser or theme focus outlines. */
+input,
+input:hover,
+input:focus,
+input:focus-visible,
+select,
+select:hover,
+select:focus,
+select:focus-visible,
+textarea,
+textarea:hover,
+textarea:focus,
+textarea:focus-visible {
+  outline: none !important;
+  border-color: #D6E8F3 !important;
+  box-shadow: none !important;
+}
+
+/* Header account and cart controls must remain visible on the pale header. */
+.p4u-header-surface .p4u-header-account,
+.p4u-header-surface .p4u-header-cart,
+.p4u-header-surface .p4u-header-account svg,
+.p4u-header-surface .p4u-header-cart svg,
+.p4u-header-surface .p4u-header-account svg [stroke]:not([stroke="none"]),
+.p4u-header-surface .p4u-header-cart svg [stroke]:not([stroke="none"]) {
+  color: #202124 !important;
+  stroke: #202124 !important;
+}
+
+/* Authentication mode switch is a segmented tab control, not a plain button row. */
+button.p4u-auth-tab {
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: #5D757A !important;
+}
+
+button.p4u-auth-tab[data-active="true"] {
+  border-color: #4C9ED6 !important;
+  background: #4C9ED6 !important;
+  color: #FFFFFF !important;
+}
+
+button.p4u-auth-tab:hover {
+  border-color: #A9CEE5 !important;
+  background: #F7FBFE !important;
+  color: #17212B !important;
+}
+
+button.p4u-auth-tab[data-active="true"]:hover {
+  border-color: #4C9ED6 !important;
+  background: #4C9ED6 !important;
+  color: #FFFFFF !important;
 }

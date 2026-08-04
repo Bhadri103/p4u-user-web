@@ -268,7 +268,7 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
           <span className="text-sm font-semibold text-[#202124]">Recent searches</span>
           <button
             type="button"
-            className="rounded-full px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+            className="p4u-search-clear rounded-full px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700"
             onClick={() => { setSearchQuery(""); setIsSearchOpen(false); }}
           >
             Clear
@@ -280,7 +280,7 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
               <button
                 type="button"
                 onClick={() => runProductSearch(item)}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-600 transition hover:bg-[#F3F9FF] hover:text-[#202124]"
+                className="p4u-search-suggestion flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-600 transition hover:bg-[#F3F9FF] hover:text-[#202124]"
               >
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EAF4FF]">
                   <Clock className="h-3.5 w-3.5 text-[#89CFF0]" />
@@ -503,7 +503,7 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
 
               <div
                 id="login-btn"
-                className="relative flex-shrink-0 flex items-center gap-2 cursor-pointer select-none text-white"
+                className="p4u-header-account relative flex-shrink-0 flex items-center gap-2 cursor-pointer select-none"
                 onClick={handleLoginClick}
               >
                 {isLoading ? (
@@ -532,7 +532,7 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
               <button
                 type="button"
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCartClick(); }}
-                className="relative flex-shrink-0 p-1 text-white hover:opacity-90 transition-opacity"
+                className="p4u-header-cart relative flex-shrink-0 p-1 hover:opacity-90 transition-opacity"
                 aria-label="Cart"
               >
                 <ShoppingCart className="w-6 h-6" strokeWidth={2} />
@@ -567,10 +567,10 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
                 {isSearchOpen && <SearchSuggestions />}
               </div>
               <div className="flex items-center gap-1 flex-shrink-0 text-white">
-                <div id="login-btn" className="flex items-center p-2 cursor-pointer" onClick={handleLoginClick}>
+                <div id="login-btn" className="p4u-header-account flex items-center p-2 cursor-pointer" onClick={handleLoginClick}>
                   {isLoggedIn ? <LoginAvatar compact /> : <User className="w-5 h-5" strokeWidth={2} />}
                 </div>
-                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCartClick(); }} className="relative p-2">
+                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCartClick(); }} className="p4u-header-cart relative p-2">
                   <ShoppingCart className="w-5 h-5" strokeWidth={2} />
                   <CartBadge size="lg" />
                 </button>
@@ -637,10 +637,10 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
                 {isSearchOpen && <SearchSuggestions />}
               </div>
               <div className="flex items-center gap-0.5 flex-shrink-0 text-white">
-                <div id="login-btn" className="p-2 cursor-pointer" onClick={handleLoginClick}>
+                <div id="login-btn" className="p4u-header-account p-2 cursor-pointer" onClick={handleLoginClick}>
                   {isLoggedIn ? <LoginAvatar compact /> : <User className="w-5 h-5" strokeWidth={2} />}
                 </div>
-                <button type="button" onClick={(e) => { e.preventDefault(); handleCartClick(); }} className="relative p-2">
+                <button type="button" onClick={(e) => { e.preventDefault(); handleCartClick(); }} className="p4u-header-cart relative p-2">
                   <ShoppingCart className="w-5 h-5" strokeWidth={2} />
                   <CartBadge size="lg" />
                 </button>
