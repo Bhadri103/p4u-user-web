@@ -8,7 +8,7 @@
 /** Empty env string would otherwise produce relative `/api/...` URLs on :3000 with no rewrite. */
 import { supabaseRequest, USE_SUPABASE_DIRECT } from "./supabaseFallback";
 
-const DEFAULT_BASE_URL = process.env.NODE_ENV === "production" ? "https://api.planext4u.com" : "http://localhost:8080";
+const DEFAULT_BASE_URL = "https://api.planext4u.com";
 const BASE_URL = (process.env.NEXT_PUBLIC_API_GATEWAY_URL || DEFAULT_BASE_URL).replace(
   /\/$/,
   "",
@@ -182,7 +182,7 @@ function extractHttpErrorMessage(
   }
   const flat = rawText.replace(/\s+/g, " ").trim();
   if (/network response was not ok/i.test(flat)) {
-    return "API request failed before reaching the service. Confirm the gateway is running and NEXT_PUBLIC_API_GATEWAY_URL matches (e.g. http://localhost:8080).";
+    return `API request failed before reaching the service at ${BASE_URL}.`;
   }
   if (flat && !flat.startsWith("<") && flat.length < 400) return flat.slice(0, 300);
   return `Request failed (HTTP ${status}${statusText ? ` ${statusText}` : ""}). Check that the API gateway is running${BASE_URL ? ` at ${BASE_URL}` : ""}.`;
@@ -381,7 +381,7 @@ async function request<T>(
         timedOut
           ? "The Planext4u service is taking too long to respond. Please try again."
           : msg === "Failed to fetch"
-          ? "Network error: could not reach the API. Confirm the gateway is running and NEXT_PUBLIC_API_GATEWAY_URL matches (e.g. http://localhost:8080)."
+          ? `Network error: could not reach the API at ${BASE_URL}.`
           : msg || "Network request failed",
       details: e,
     };

@@ -73,12 +73,11 @@ function ProductSkeleton() {
 
 function LocalPickBadge() {
   return (
-    <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 overflow-hidden rounded-full border border-[#C9E3FF] bg-[#EAF4FF] py-1.5 pl-1.5 pr-3 text-[10px] font-extrabold uppercase tracking-[0.08em] text-[#89CFF0] shadow-[0_6px_18px_rgba(137,207,240,.18)] ring-1 ring-blue-950/5 transition duration-300 group-hover:-translate-y-0.5 group-hover:shadow-[0_9px_22px_rgba(137,207,240,.24)]">
-      <span className="pointer-events-none absolute inset-x-2 top-0 h-px bg-white/80" />
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#89CFF0] ring-1 ring-white/50">
-        <MapPin className="h-3 w-3 fill-white text-white" aria-hidden="true" />
+    <span className="absolute left-3 top-3 z-10 inline-flex min-h-9 items-center gap-2 rounded-full border border-white/90 bg-white/95 py-1.5 pl-1.5 pr-3.5 text-[11px] font-extrabold uppercase tracking-[0.09em] text-[#075E72] shadow-[0_6px_20px_rgba(7,94,114,.28)] ring-1 ring-[#075E72]/15 backdrop-blur-md transition duration-300 group-hover:-translate-y-0.5 group-hover:shadow-[0_10px_26px_rgba(7,94,114,.34)]">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#087F8C] shadow-sm ring-2 ring-[#DDF7FA]">
+        <MapPin className="h-3.5 w-3.5 fill-white text-white" strokeWidth={2.5} aria-hidden="true" />
       </span>
-      <span className="relative">Local pick</span>
+      <span className="whitespace-nowrap leading-none">Local pick</span>
     </span>
   );
 }

@@ -781,6 +781,10 @@ header .header-search-input:focus-visible {
   outline: none !important;
 }
 
+header .p4u-header-search-shell {
+  box-shadow: inset 0 1px 3px rgba(23, 76, 120, .42) !important;
+}
+
 header[class*="sticky"] {
   box-shadow: 0 10px 32px rgba(137,207,240, .12) !important;
 }
@@ -2148,4 +2152,95 @@ button.p4u-auth-tab[data-active="true"]:hover {
   border-color: #4C9ED6 !important;
   background: #4C9ED6 !important;
   color: #FFFFFF !important;
+}
+
+/* Address is contextual header information, not a competing primary CTA. */
+.p4u-header-surface button.p4u-address-button--header,
+.p4u-header-surface button.p4u-address-button--header:hover {
+  border: 1px solid #B9D9ED !important;
+  background: #FFFFFF !important;
+  color: #17212B !important;
+}
+
+.p4u-header-surface button.p4u-address-button--header:hover {
+  border-color: #78B9DE !important;
+  background: #F7FBFE !important;
+}
+
+.p4u-header-surface .p4u-address-button--header > span,
+.p4u-header-surface .p4u-address-button--header > span > span {
+  color: #17212B !important;
+}
+
+.p4u-header-surface .p4u-address-button--header > span > span:first-child {
+  color: #6A8495 !important;
+}
+
+.p4u-header-surface .p4u-address-button--header .p4u-address-icon {
+  background: #E9F5FD !important;
+}
+
+.p4u-header-surface .p4u-address-button--header .p4u-address-arrow {
+  background: #4C9ED6 !important;
+}
+
+.p4u-header-surface .p4u-address-button--header .p4u-address-icon svg,
+.p4u-header-surface .p4u-address-button--header .p4u-address-icon svg [stroke]:not([stroke="none"]) {
+  color: #327FB5 !important;
+  stroke: #327FB5 !important;
+}
+
+.p4u-header-surface .p4u-address-button--header .p4u-address-arrow svg,
+.p4u-header-surface .p4u-address-button--header .p4u-address-arrow svg [stroke]:not([stroke="none"]) {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+/* The phone field uses its parent as the visible control border. */
+input.p4u-auth-phone-input,
+input.p4u-auth-phone-input:hover,
+input.p4u-auth-phone-input:focus,
+input.p4u-auth-phone-input:focus-visible {
+  border: 0 !important;
+  border-bottom: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+}
+
+/* Keep the classifieds creation CTA legible against broad global link styles. */
+a.p4u-classified-post-cta,
+a.p4u-classified-post-cta:hover {
+  border: 1px solid #4C9ED6 !important;
+  background: linear-gradient(135deg, #82CAF2, #4C9ED6) !important;
+  color: #FFFFFF !important;
+}
+
+a.p4u-classified-post-cta:hover {
+  background: #327FB5 !important;
+}
+
+a.p4u-classified-post-cta span,
+a.p4u-classified-post-cta svg,
+a.p4u-classified-post-cta svg [stroke]:not([stroke="none"]) {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+/* Hearts consistently represent likes, favorites, and wishlists in red. */
+svg.lucide-heart,
+button svg.lucide-heart,
+a svg.lucide-heart,
+svg.lucide-heart [stroke]:not([stroke="none"]),
+button svg.lucide-heart [stroke]:not([stroke="none"]),
+a svg.lucide-heart [stroke]:not([stroke="none"]) {
+  color: #E53935 !important;
+  stroke: #E53935 !important;
+}
+
+svg.lucide-heart.fill-current,
+svg.lucide-heart[class*="fill-red"],
+svg.lucide-heart[class*="fill-rose"],
+svg.lucide-heart[class*="fill-white"] {
+  fill: #E53935 !important;
 }

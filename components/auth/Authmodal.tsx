@@ -374,6 +374,7 @@ function PhoneStep({
       <div style={inputRowStyle(fieldErr && !!validatePhone(phone))}>
         <span style={{ fontSize: 13, color: "#5D757A", fontWeight: 500 }}>+91</span>
         <input
+          className="p4u-auth-phone-input"
           ref={inputRef}
           type="tel"
           inputMode="numeric"

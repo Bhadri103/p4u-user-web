@@ -5357,8 +5357,8 @@ export default function SocialApp() {
     <div className="min-h-screen w-full bg-[#F7FBFF] lg:h-full lg:min-h-0 lg:overflow-hidden">
      <div className="mx-auto flex min-h-screen max-w-7xl bg-white  bg-[#F7FBFF] font-sans lg:h-full lg:min-h-0">
       {/* â”€â”€ Desktop Sidebar â”€â”€ */}
-      <aside className="hidden h-full w-64 shrink-0 flex-col gap-5 self-start overflow-hidden bg-[#F7FBFF] px-4 py-4 lg:flex">
-        <nav className="rounded-2xl border border-blue-100 bg-white px-4 py-4 shadow-sm">
+      <aside className="marketplace-scroll-panel hidden h-full w-64 shrink-0 flex-col gap-5 self-start overflow-y-auto overscroll-contain bg-[#F7FBFF] px-4 py-4 lg:flex">
+        <nav className="shrink-0 rounded-2xl border border-blue-100 bg-white px-4 py-4 shadow-sm">
           <div className="space-y-2">
             {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
               const active = section === key && !userProfile;
@@ -5380,7 +5380,7 @@ export default function SocialApp() {
             })}
           </div>
         </nav>
-        <div className="relative overflow-hidden rounded-2xl border border-[#D7E7F5] bg-gradient-to-br from-white via-[#F7FBFF] to-[#EAF4FF] px-6 py-6 shadow-[0_12px_32px_rgba(137,207,240,.08)]">
+        <div className="relative shrink-0 overflow-hidden rounded-2xl border border-[#D7E7F5] bg-gradient-to-br from-white via-[#F7FBFF] to-[#EAF4FF] px-6 py-6 shadow-[0_12px_32px_rgba(137,207,240,.08)]">
           <span className="absolute inset-y-0 left-0 w-1 bg-[#89CFF0]" aria-hidden="true" />
           <span className="inline-flex rounded-full bg-[#EAF4FF] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#89CFF0]">P4U Community</span>
           <h3 className="mt-3 text-xl font-semibold leading-tight text-[#202124]">Welcome to<br />ClassiGrids</h3>

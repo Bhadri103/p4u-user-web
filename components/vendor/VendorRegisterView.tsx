@@ -1,16 +1,18 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowLeft, BadgeIndianRupee, CheckCircle2, Loader2, ShieldCheck, Store } from "lucide-react";
+import authIllustration from "@/images/auth/login.png";
 import { authApi } from "@/lib/api/auth";
 import {
   buildVendorRegisterPayload,
   type VendorKindChoice,
 } from "@/lib/vendor/registerPayload";
 
-const TEAL = "#89CFF0";
+const TEAL = "#4C9ED6";
 const STEPS = ["Personal", "Business", "KYC", "Bank", "Review"] as const;
 const inputClass = "h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none focus:border-[#89CFF0] focus:ring-2 focus:ring-[#89CFF0]/20";
 
@@ -162,13 +164,36 @@ export default function VendorRegisterView() {
 
   const progress = Math.round(((step + 1) / STEPS.length) * 100);
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 md:py-8">
-      <button type="button" onClick={() => (step ? back() : router.back())} className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-gray-700"><ArrowLeft className="h-4 w-4" />Become a Seller</button>
-      <div className="mb-6 flex items-end justify-between gap-3"><div><p className="text-sm text-gray-500">Step {step + 1} of 5</p><h1 className="text-2xl font-bold text-gray-900 md:text-3xl">Become a Seller</h1><p className="mt-1 text-sm text-gray-500">All registration fields are optional and entered manually.</p></div><p className="text-sm font-semibold text-gray-600">{progress}%</p></div>
-      <div className="mb-4 h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: TEAL }} /></div>
-      <div className="mb-6 flex flex-wrap gap-2">{STEPS.map((label, index) => <span key={label} className={`rounded-full px-3 py-1 text-xs font-medium ${index === step ? "text-white" : "bg-gray-100 text-gray-600"}`} style={index === step ? { backgroundColor: TEAL } : undefined}>{label}</span>)}</div>
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 md:py-10">
+      <button type="button" onClick={() => (step ? back() : router.back())} className="mb-4 inline-flex items-center gap-2 rounded-xl px-2 py-2 text-sm font-semibold text-gray-700 hover:bg-[#E9F5FD]"><ArrowLeft className="h-4 w-4" />Back</button>
+      <div className="overflow-hidden rounded-3xl border border-[#D6E8F3] bg-white lg:grid lg:grid-cols-[0.78fr_1.35fr]">
+        <aside className="hidden min-h-[650px] flex-col justify-between border-r border-[#D6E8F3] bg-[#E9F5FD] p-8 lg:flex xl:p-10">
+          <div>
+            <div className="inline-flex items-center gap-3 rounded-2xl bg-white px-4 py-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#4C9ED6] text-white"><Store className="h-5 w-5 text-white" /></span>
+              <div><p className="font-bold text-[#17212B]">P4U Vendor</p><p className="text-xs text-[#687783]">Grow your business online</p></div>
+            </div>
+            <h1 className="mt-7 text-3xl font-bold leading-tight text-[#17212B] xl:text-4xl">Turn your business into a digital storefront.</h1>
+            <p className="mt-3 max-w-sm text-sm leading-6 text-[#687783]">Register once to manage products, services, orders, bookings and settlements from the P4U vendor portal.</p>
+          </div>
+          <div className="relative mx-auto my-6 aspect-square w-full max-w-[300px]">
+            <Image src={authIllustration} alt="P4U vendor registration" fill className="object-contain" sizes="300px" priority />
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-xs font-semibold text-[#17212B]">
+            <div className="flex items-center gap-2 rounded-xl bg-white p-3"><ShieldCheck className="h-4 w-4 text-[#35A28D]" />Secure onboarding</div>
+            <div className="flex items-center gap-2 rounded-xl bg-white p-3"><BadgeIndianRupee className="h-4 w-4 text-[#4C9ED6]" />Simple settlements</div>
+          </div>
+        </aside>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
+        <div className="min-w-0 p-5 sm:p-7 lg:p-8 xl:p-10">
+          <div className="mb-6 flex items-start justify-between gap-3">
+            <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#4C9ED6]">Step {step + 1} of 5</p><h1 className="mt-1 text-2xl font-bold text-gray-900 md:text-3xl">Become a Vendor</h1><p className="mt-1 text-sm text-gray-500">Complete the details below to create your vendor application.</p></div>
+            <p className="rounded-full bg-[#E9F5FD] px-3 py-1 text-sm font-bold text-[#327FB5]">{progress}%</p>
+          </div>
+          <div className="mb-4 h-2 overflow-hidden rounded-full bg-[#E9F5FD]"><div className="h-full rounded-full bg-[#4C9ED6] transition-all duration-300" style={{ width: `${progress}%` }} /></div>
+          <div className="mb-6 grid grid-cols-5 gap-1.5">{STEPS.map((label, index) => <button type="button" onClick={() => index < step && setStep(index)} key={label} className={`min-w-0 rounded-xl border px-1 py-2 text-[10px] font-semibold sm:px-2 sm:text-xs ${index === step ? "border-[#4C9ED6] bg-[#4C9ED6] text-white" : index < step ? "border-[#B9DCEC] bg-[#E9F5FD] text-[#327FB5]" : "border-[#D6E8F3] bg-white text-gray-500"}`}>{label}</button>)}</div>
+
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 md:p-6">
         {error ? <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
         {step === 0 ? <section className="space-y-4"><div><h2 className="text-lg font-semibold">Personal Details</h2><p className="text-sm text-gray-500">Nothing is copied automatically from your customer profile.</p></div><div className="grid gap-4 md:grid-cols-2">
           <Field label="Owner Name"><input className={inputClass} value={personal.name} onChange={(e) => setPersonal({ ...personal, name: e.target.value })} /></Field>
@@ -211,7 +236,9 @@ export default function VendorRegisterView() {
           <p className="pt-4 text-xs text-gray-500">Submitting queues the application for admin approval. Sign in at the vendor portal using mobile OTP after approval.</p>
         </section> : null}
 
-        <div className="mt-6 flex justify-between gap-3">{step > 0 ? <button type="button" onClick={back} className="rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700">Back</button> : <span />}{step < 4 ? <button type="button" onClick={next} className="ml-auto rounded-xl px-6 py-3 text-sm font-semibold text-white" style={{ backgroundColor: TEAL }}>Next</button> : <button type="button" onClick={() => void submit()} disabled={loading} className="ml-auto inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: TEAL }}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Submit Application</button>}</div>
+        <div className="mt-6 flex justify-between gap-3">{step > 0 ? <button type="button" onClick={back} className="rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700">Back</button> : <span />}{step < 4 ? <button type="button" onClick={next} className="p4u-auth-primary ml-auto rounded-xl border border-[#4C9ED6] bg-[#4C9ED6] px-6 py-3 text-sm font-semibold text-white">Next</button> : <button type="button" onClick={() => void submit()} disabled={loading} className="p4u-auth-primary ml-auto inline-flex items-center gap-2 rounded-xl border border-[#4C9ED6] bg-[#4C9ED6] px-6 py-3 text-sm font-semibold text-white disabled:opacity-60">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Submit Application</button>}</div>
+      </div>
+        </div>
       </div>
     </div>
   );

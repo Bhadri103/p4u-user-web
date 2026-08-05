@@ -130,9 +130,9 @@ export default function ClassifiedAdsView() {
           <p className="mt-1 text-sm font-medium text-[#202124] md:text-base">Great finds around you</p>
           <p className="mt-1 text-xs text-[#7A879B] md:text-sm">Discover quality listings from your community</p>
         </div>
-        <Link href="/classified/post" className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:opacity-95" style={{ backgroundColor: THEME }}>
+        <Link href="/classified/post" className="p4u-classified-post-cta inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition hover:-translate-y-0.5" aria-label="Post a free classified ad">
           <Plus className="h-4 w-4" />
-          Post Ad Free
+          <span>Post Free Ad</span>
         </Link>
       </div>
 
@@ -200,9 +200,9 @@ export default function ClassifiedAdsView() {
         <div className="mx-auto max-w-5xl rounded-[22px] border border-dashed border-[#D7E7F5] bg-white px-6 py-16 text-center">
           <p className="text-lg font-semibold text-[#202124]">No ads found</p>
           <p className="mt-2 text-sm text-[#7A879B]">Post the first classified ad.</p>
-          <Link href="/classified/post" className="mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white" style={{ backgroundColor: THEME }}>
+          <Link href="/classified/post" className="p4u-classified-post-cta mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold">
             <Plus className="h-4 w-4" />
-            Post Ad Free
+            <span>Post Free Ad</span>
           </Link>
         </div>
       ) : (

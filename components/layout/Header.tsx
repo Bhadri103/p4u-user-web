@@ -233,6 +233,14 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
     }
   }
 
+  function handleAddressClick() {
+    if (isLoggedIn) {
+      setIsLocationModalOpen(true);
+    } else {
+      setIsAuthOpen(true);
+    }
+  }
+
   function handleAuthSuccess(phone: string) {
     login(phone);
     setIsAuthOpen(false);
@@ -456,7 +464,7 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
 
               <button
                 type="button"
-                onClick={() => setIsLocationModalOpen(true)}
+                onClick={handleAddressClick}
                 className="p4u-address-button flex items-center gap-2 rounded-full border border-[#1976D2] bg-[#1976D2] px-3 xl:px-4 py-2 w-40 xl:w-52 flex-shrink-0 hover:bg-[#1565C0] transition-colors"
               >
                 <MapPin className="w-4 h-4 text-[#7A879B] flex-shrink-0" strokeWidth={2.2} />
@@ -465,7 +473,7 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
 
               <div className="relative min-w-0 flex-1" ref={desktopSearchRef}>
                 <div
-                  className="flex h-11 items-center gap-2 rounded-full border border-white/70 bg-white px-4 shadow-sm transition-colors"
+                  className="p4u-header-search-shell flex h-11 items-center gap-2 rounded-full border border-white/70 bg-white px-4 transition-colors"
                   style={{
                     ...(isSearchOpen ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : {}),
                   }}
@@ -552,7 +560,7 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
                 </div>
               </Link>
               <div className="relative mx-1 flex-[8]" ref={tabletSearchRef}>
-                <div className="flex h-10 items-center gap-2 rounded-full border border-white/70 bg-white px-3 shadow-sm">
+                <div className="p4u-header-search-shell flex h-10 items-center gap-2 rounded-full border border-white/70 bg-white px-3">
                   <Search className="h-4 w-4 flex-shrink-0 text-[#89CFF0]" strokeWidth={2} />
                   <input
                     type="text"
@@ -583,13 +591,13 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
           <div className="px-3 pb-2.5 sm:px-4">
             <button
               type="button"
-              onClick={() => setIsLocationModalOpen(true)}
-              className="p4u-address-button flex w-full min-w-0 items-center gap-2 rounded-full border border-[#1976D2] bg-[#1976D2] px-3 py-2 text-left hover:bg-[#1565C0]"
+              onClick={handleAddressClick}
+              className="p4u-address-button p4u-address-button--header flex w-full min-w-0 items-center gap-2.5 rounded-xl px-3 py-2 text-left"
               aria-label="Select delivery or service address"
             >
-              <MapPin className="h-4 w-4 flex-shrink-0 text-[#7A879B]" strokeWidth={2.2} />
-              <span className="truncate text-xs font-medium text-[#202124]" title={selectedAddress ? formatAddress(selectedAddress) : selectedAddressText}>{selectedAddressText}</span>
-              <ChevronRight className="ml-auto h-4 w-4 flex-shrink-0 text-[#7A879B]" />
+              <span className="p4u-address-icon flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"><MapPin className="h-4 w-4" strokeWidth={2.2} /></span>
+              <span className="min-w-0 flex-1"><span className="block text-[10px] font-semibold uppercase tracking-[0.08em]">Delivery location</span><span className="block truncate text-xs font-semibold" title={selectedAddress ? formatAddress(selectedAddress) : selectedAddressText}>{selectedAddressText}</span></span>
+              <span className="p4u-address-arrow flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full"><ChevronRight className="h-4 w-4" strokeWidth={2.4} /></span>
             </button>
           </div>
           {isMobileMenuOpen && (
@@ -622,7 +630,7 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
                 </div>
               </Link>
               <div className="relative flex-[8]" ref={mobileSearchRef}>
-                <div className="flex h-10 items-center gap-2 rounded-full border border-white/70 bg-white px-3 shadow-sm">
+                <div className="p4u-header-search-shell flex h-10 items-center gap-2 rounded-full border border-white/70 bg-white px-3">
                   <Search className="h-4 w-4 flex-shrink-0 text-[#89CFF0]" strokeWidth={2} />
                   <input
                     type="text"
@@ -653,13 +661,13 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
           <div className="px-3 pb-2.5 sm:px-4">
             <button
               type="button"
-              onClick={() => setIsLocationModalOpen(true)}
-              className="p4u-address-button flex w-full min-w-0 items-center gap-2 rounded-full border border-[#1976D2] bg-[#1976D2] px-3 py-2 text-left hover:bg-[#1565C0]"
+              onClick={handleAddressClick}
+              className="p4u-address-button p4u-address-button--header flex w-full min-w-0 items-center gap-2.5 rounded-xl px-3 py-2 text-left"
               aria-label="Select delivery or service address"
             >
-              <MapPin className="h-4 w-4 flex-shrink-0 text-[#7A879B]" strokeWidth={2.2} />
-              <span className="truncate text-xs font-medium text-[#202124]" title={selectedAddress ? formatAddress(selectedAddress) : selectedAddressText}>{selectedAddressText}</span>
-              <ChevronRight className="ml-auto h-4 w-4 flex-shrink-0 text-[#7A879B]" />
+              <span className="p4u-address-icon flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"><MapPin className="h-4 w-4" strokeWidth={2.2} /></span>
+              <span className="min-w-0 flex-1"><span className="block text-[10px] font-semibold uppercase tracking-[0.08em]">Delivery location</span><span className="block truncate text-xs font-semibold" title={selectedAddress ? formatAddress(selectedAddress) : selectedAddressText}>{selectedAddressText}</span></span>
+              <span className="p4u-address-arrow flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full"><ChevronRight className="h-4 w-4" strokeWidth={2.4} /></span>
             </button>
           </div>
           {isMobileMenuOpen && (
@@ -692,7 +700,7 @@ export default function Header({ onCartOpen, variant = "default" }: HeaderProps)
           )}
         </div>
  
-        <div aria-hidden="true" className="h-[110px] md:h-[118px] min-[1200px]:h-[84px]" />
+        <div aria-hidden="true" className="h-[122px] md:h-[126px] min-[1200px]:h-[84px]" />
 
         {/* ── Row 2: Category navigation (white) ── */}
         <nav className="relative z-[1] hidden w-full border-b border-[#E5E7EB] bg-white pointer-events-auto md:block" aria-label="Primary navigation">

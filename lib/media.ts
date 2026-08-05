@@ -4,13 +4,13 @@
  * (`NEXT_PUBLIC_API_GATEWAY_URL`); `resolveMediaUrl` prefixes those paths with the gateway origin.
  */
 
-const GATEWAY = process.env.NEXT_PUBLIC_API_GATEWAY_URL ?? (process.env.NODE_ENV === "production" ? "https://api.planext4u.com" : "http://localhost:8080");
+const GATEWAY = process.env.NEXT_PUBLIC_API_GATEWAY_URL || "https://api.planext4u.com";
 
 function gatewayOrigin(): string {
   try {
     return new URL(GATEWAY).origin;
   } catch {
-    return process.env.NODE_ENV === "production" ? "https://api.planext4u.com" : "http://localhost:8080";
+    return "https://api.planext4u.com";
   }
 }
 

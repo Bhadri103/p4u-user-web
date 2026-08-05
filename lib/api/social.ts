@@ -944,7 +944,7 @@ export const socialApi = {
     const fd = new FormData();
     fd.append('file', file);
     const token = typeof window !== 'undefined' ? localStorage.getItem('p4u_token') : null;
-    const apiBase = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_GATEWAY_URL) || '';
+    const apiBase = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_GATEWAY_URL) || 'https://api.planext4u.com';
     const res = await fetch(`${apiBase}${BASE}/upload`, {
       method: 'POST',
       body: fd,
