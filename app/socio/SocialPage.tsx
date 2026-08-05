@@ -2535,9 +2535,36 @@ function MessagesSection({
   const [messageNotes, setMessageNotes] = useState<Array<{ userId: string; name: string; avatar: string; note: string; mine?: boolean }>>([]);
   const [messageAccountName, setMessageAccountName] = useState("Messages");
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [translationMenus, setTranslationMenus] = useState<Record<string, boolean>>({});
+  const [translations, setTranslations] = useState<Record<string, { text: string; language: string }>>({});
+  const [translationLoading, setTranslationLoading] = useState<Record<string, boolean>>({});
+  const [translationErrors, setTranslationErrors] = useState<Record<string, string>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const chatLanguages = [
+    { code: "en", label: "English" },
+    { code: "ta", label: "Tamil" },
+    { code: "ml", label: "Malayalam" },
+    { code: "hi", label: "Hindi" },
+    { code: "te", label: "Telugu" },
+    { code: "kn", label: "Kannada" },
+  ] as const;
+
+  const translateMessage = async (messageId: string, language: typeof chatLanguages[number]["code"]) => {
+    setTranslationMenus((current) => ({ ...current, [messageId]: false }));
+    setTranslationLoading((current) => ({ ...current, [messageId]: true }));
+    setTranslationErrors((current) => ({ ...current, [messageId]: "" }));
+    try {
+      const result = await socialApi.translateMessage(messageId, language);
+      setTranslations((current) => ({ ...current, [messageId]: { text: result.translatedText, language: result.targetLanguage } }));
+    } catch (error) {
+      setTranslationErrors((current) => ({ ...current, [messageId]: error instanceof Error ? error.message : "Translation failed. Please try again." }));
+    } finally {
+      setTranslationLoading((current) => ({ ...current, [messageId]: false }));
+    }
+  };
   const [activeCall,setActiveCall]=useState<SocialCall|null>(null);
   const [callError,setCallError]=useState('');
   const [localCallStream,setLocalCallStream]=useState<MediaStream|null>(null);
@@ -2983,6 +3010,7 @@ function MessagesSection({
               ) : (
                 <div className="space-y-4">
                   {messages.map((message) => {
+                    const messageKey = String(message.id);
                     const isEmoji = message.content && /^[\p{Emoji}\s]+$/u.test(message.content) && message.content.length <= 8;
                     const mediaUrl = message.mediaUrl ? resolveMediaUrl(message.mediaUrl) || message.mediaUrl : null;
                     return (
@@ -2998,6 +3026,28 @@ function MessagesSection({
                               {message.content}
                             </div>
                           )}
+                          {!message.isMine && message.content ? (
+                            <div className="relative mt-1.5 text-left">
+                              {translations[messageKey] ? (
+                                <div className="max-w-sm rounded-xl border border-sky-100 bg-sky-50 px-3 py-2">
+                                  <p className="whitespace-pre-wrap text-sm text-slate-800">{translations[messageKey].text}</p>
+                                  <button type="button" onClick={() => setTranslations((current) => { const next = { ...current }; delete next[messageKey]; return next; })} className="mt-1 text-[11px] font-semibold text-sky-700">Show original</button>
+                                </div>
+                              ) : translationLoading[messageKey] ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] text-slate-500"><Loader2 className="h-3 w-3 animate-spin" /> Translating…</span>
+                              ) : (
+                                <button type="button" onClick={() => setTranslationMenus((current) => ({ ...current, [messageKey]: !current[messageKey] }))} className="text-[11px] font-semibold text-sky-700 hover:underline">Translate</button>
+                              )}
+                              {translationMenus[messageKey] ? (
+                                <div className="absolute left-0 z-20 mt-1 w-40 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+                                  {chatLanguages.map((language) => (
+                                    <button key={language.code} type="button" onClick={() => void translateMessage(messageKey, language.code)} className="block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 hover:bg-sky-50">{language.label}</button>
+                                  ))}
+                                </div>
+                              ) : null}
+                              {translationErrors[messageKey] ? <p className="mt-1 max-w-xs text-[11px] text-red-600">{translationErrors[messageKey]}</p> : null}
+                            </div>
+                          ) : null}
                           <span className="mt-1 text-[11px] text-slate-400">{formatMessageTime(message.createdAt)}</span>
                         </div>
                       </div>

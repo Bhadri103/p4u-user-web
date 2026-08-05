@@ -151,6 +151,16 @@ export interface DirectMessage {
   isMine?: boolean;
 }
 
+export type ChatTranslationLanguage = "en" | "ta" | "ml" | "hi" | "te" | "kn";
+export interface MessageTranslation {
+  messageId: string | number;
+  originalText: string;
+  translatedText: string;
+  sourceLanguage: ChatTranslationLanguage;
+  targetLanguage: ChatTranslationLanguage;
+  cached: boolean;
+}
+
 export interface SocialSettings {
   privateAccount?: boolean;
   showActivityStatus?: boolean;
@@ -816,6 +826,10 @@ export const socialApi = {
         apiClient.clearGetCache(`${BASE}/messages/conversations/${conversationId}/messages`);
         return mapApiDirectMessage(row);
       });
+  },
+
+  translateMessage(messageId: string | number, targetLanguage: ChatTranslationLanguage) {
+    return apiClient.post<MessageTranslation>(`${BASE}/messages/${messageId}/translate`, { targetLanguage });
   },
 
   markConversationRead(conversationId: string | number) {

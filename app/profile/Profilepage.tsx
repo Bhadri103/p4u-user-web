@@ -17,6 +17,7 @@ import { authApi } from "@/lib/api/auth";
 import { supportApi, type SupportTicket } from "@/lib/api/support";
 import { publicReference } from "@/lib/publicReference";
 import { type AppLocale, useLocale } from "@/providers/LocaleContext";
+import CartoonAvatarBuilder from "@/components/profile/CartoonAvatarBuilder";
 type ActivePage =
   | "profile" | "edit-profile" | "saved-addresses" | "select-language" | "notification"
   | "your-orders" | "my-bookings" | "reviews-ratings" | "your-favourites" | "refer-earn"
@@ -653,6 +654,7 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [showCartoonBuilder, setShowCartoonBuilder] = useState(false);
 
   const loadAll = useCallback(() => {
     setLoadingProfile(true);
@@ -821,6 +823,10 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
         setPendingAvatarFile(null);
         setUploadingAvatar(false);
       }
+      // Never persist a temporary blob: URL — only http(s) media URLs.
+      if (nextAvatar && nextAvatar.startsWith("blob:")) {
+        nextAvatar = null;
+      }
       const selectedOcc = occupations.find((o) => o.value === form.occupationId);
       await profileApi.updateMe({
         name: form.name.trim(),
@@ -853,12 +859,49 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
     }
   };
 
+  /** Upload + save avatar immediately (used by cartoon builder Apply). */
+  const saveAvatarFileNow = async (file: File, previewUrl: string) => {
+    setSaveError(null);
+    setPendingAvatarFile(file);
+    setAvatarUrl(previewUrl);
+    setUploadingAvatar(true);
+    setSaving(true);
+    try {
+      const uploaded = await socialApi.uploadMedia(file);
+      const nextAvatar = uploaded.url;
+      setPendingAvatarFile(null);
+      setAvatarUrl(nextAvatar);
+      await profileApi.updateMe({
+        name: form.name.trim() || undefined,
+        email: form.email.trim() || undefined,
+        phone: form.mobile.trim() || undefined,
+        avatar: nextAvatar,
+      });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("p4u-profile-updated", { detail: { avatar: nextAvatar } }),
+        );
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === "object" && "message" in err && typeof (err as Error).message === "string"
+          ? (err as Error).message
+          : "Could not save avatar. Try again.";
+      setSaveError(msg);
+    } finally {
+      setUploadingAvatar(false);
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-[905px] py-7">
       <AccountPageHeader title="Edit Profile" onBack={onBack} />
       <ProfileCompletenessCard percent={completeness} onKycClick={onOpenKyc} />
 
-      <div className="mb-8 flex justify-center">
+      <div className="mb-8 flex flex-col items-center gap-3">
         <ProfileAvatar
           name={form.name || "Profile"}
           src={avatarUrl}
@@ -867,7 +910,34 @@ function PageEditProfile({ onBack, onOpenKyc }: { onBack: () => void; onOpenKyc:
           uploading={uploadingAvatar}
         />
         <input ref={avatarRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarPick} />
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => avatarRef.current?.click()}
+            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Upload photo
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCartoonBuilder(true)}
+            className="rounded-full bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700"
+          >
+            Create cartoon avatar
+          </button>
+        </div>
+        <p className="text-center text-[12px] text-slate-500">
+          Cartoon avatar saves as soon as you tap <strong>Use this avatar</strong>. Photo upload still needs <strong>Save Changes</strong> below.
+        </p>
       </div>
+
+      <CartoonAvatarBuilder
+        open={showCartoonBuilder}
+        onClose={() => setShowCartoonBuilder(false)}
+        onApply={(file, previewUrl) => {
+          void saveAvatarFileNow(file, previewUrl);
+        }}
+      />
 
       {loadingProfile && <p className="mb-4 text-sm text-slate-500">Loading your profile…</p>}
       {saved && (
